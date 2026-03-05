@@ -7,7 +7,8 @@ import {
     HiOutlinePlusCircle, HiOutlineMagnifyingGlass,
     HiOutlineBell, HiOutlineUser, HiOutlinePlayCircle,
     HiOutlineArrowPath, HiOutlineStar, HiOutlineEnvelope,
-    HiOutlineChartBar, HiOutlineShare, HiOutlineEllipsisHorizontal
+    HiOutlineChartBar, HiOutlineShare, HiOutlineEllipsisHorizontal,
+    HiOutlineRectangleStack
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -118,6 +119,9 @@ export default function FeedPage() {
                         </button>
                         <button className="feed-nav-btn" onClick={() => navigate('/messages')} title="Messages">
                             <HiOutlineEnvelope />
+                        </button>
+                        <button className="feed-nav-btn" onClick={() => navigate('/boards')} title="Trip Boards">
+                            <HiOutlineRectangleStack />
                         </button>
                         {BUSINESS_TYPES.includes(user?.accountType) && (
                             <button className="feed-nav-btn" onClick={() => navigate('/enquiries')} title="Enquiries">

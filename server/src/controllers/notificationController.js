@@ -1,8 +1,7 @@
 const prisma = require('../utils/prisma');
-const { NOTIFICATION_TYPES } = require('../utils/constants');
 
 // Create a notification
-const createNotification = async ({ userId, type, title, body, relatedEntityId, relatedEntityType }) => {
+const createNotification = async ({ userId, type, title, body, relatedEntityId, relatedEntityType, metadata }) => {
     try {
         return await prisma.notification.create({
             data: { userId, type, title, body, relatedEntityId, relatedEntityType },
@@ -29,7 +28,19 @@ const getNotifications = async (req, res, next) => {
             prisma.notification.count({ where: { userId, readAt: null } }),
         ]);
 
-        res.json({ success: true, notifications, total, unreadCount, page });
+        // For follow notifications, resolve the related user's handle so the frontend can link to their profile
+        const enriched = await Promise.all(notifications.map(async (n) => {
+            if (n.type === 'new_follower' && n.relatedEntityType === 'user' && n.relatedEntityId) {
+                const profile = await prisma.profile.findUnique({
+                    where: { userId: n.relatedEntityId },
+                    select: { handle: true, avatarUrl: true },
+                });
+                return { ...n, _senderHandle: profile?.handle || null, _senderAvatar: profile?.avatarUrl || null };
+            }
+            return n;
+        }));
+
+        res.json({ success: true, notifications: enriched, total, unreadCount, page });
     } catch (err) { next(err); }
 };
 
@@ -37,8 +48,8 @@ const getNotifications = async (req, res, next) => {
 const markAllRead = async (req, res, next) => {
     try {
         await prisma.notification.updateMany({
-            where: { recipientId: req.user.id, isRead: false },
-            data: { isRead: true },
+            where: { userId: req.user.id, readAt: null },
+            data: { readAt: new Date() },
         });
         res.json({ success: true });
     } catch (err) { next(err); }
@@ -49,7 +60,7 @@ const markRead = async (req, res, next) => {
     try {
         await prisma.notification.update({
             where: { id: req.params.id },
-            data: { isRead: true },
+            data: { readAt: new Date() },
         });
         res.json({ success: true });
     } catch (err) { next(err); }

@@ -1,0 +1,215 @@
+.vdm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(6px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+    animation: vdmFadeIn 0.2s ease;
+}
+
+@keyframes vdmFadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.vdm-modal {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-xl);
+    width: 100%;
+    max-width: 420px;
+    padding: var(--space-8) var(--space-6) var(--space-6);
+    position: relative;
+    animation: vdmSlideUp 0.3s ease;
+}
+
+@keyframes vdmSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.vdm-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+}
+
+/* Premium Seal */
+.vdm-seal {
+    display: flex;
+    justify-content: center;
+    margin-bottom: var(--space-4);
+}
+
+.vdm-seal-ring {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #c9a84c 0%, #ffd700 40%, #c9a84c 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    color: #1a1a2e;
+    box-shadow: 0 0 30px rgba(201, 168, 76, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+.vdm-title {
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--space-1);
+}
+
+.vdm-subtitle {
+    text-align: center;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-6);
+}
+
+/* Loading */
+.vdm-loading {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-6);
+}
+
+.vdm-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--border-primary);
+    border-top-color: #c9a84c;
+    border-radius: 50%;
+    animation: vdmSpin 0.8s linear infinite;
+}
+
+@keyframes vdmSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.vdm-error {
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: var(--text-sm);
+    padding: var(--space-4);
+}
+
+/* Details */
+.vdm-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+}
+
+.vdm-row {
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-start;
+}
+
+.vdm-row-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1rem;
+    color: #c9a84c;
+}
+
+.vdm-row-label {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.vdm-row-value {
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.vdm-membership {
+    color: var(--text-tertiary);
+    font-weight: 400;
+}
+
+.vdm-web-verified {
+    color: #34d399;
+    font-weight: 600;
+    font-size: 0.7rem;
+}
+
+.vdm-row-link {
+    font-size: var(--text-sm);
+    color: var(--color-primary-light);
+    text-decoration: none;
+    word-break: break-all;
+}
+
+.vdm-row-link:hover {
+    text-decoration: underline;
+}
+
+/* Trust statement */
+.vdm-trust {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-start;
+}
+
+.vdm-trust-icon {
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+
+.vdm-trust p {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    line-height: 1.5;
+    margin: 0;
+}

@@ -20,6 +20,8 @@ import NotificationsPage from './pages/notifications/NotificationsPage';
 import EnquiriesPage from './pages/enquiries/EnquiriesPage';
 import MessagesPage from './pages/messages/MessagesPage';
 import AdminPage from './pages/admin/AdminPage';
+import BoardsFeedPage from './pages/boards/BoardsFeedPage';
+import BoardDetailPage from './pages/boards/BoardDetailPage';
 import NotFoundPage from './pages/NotFoundPage';
 import './index.css';
 
@@ -63,6 +65,10 @@ function App() {
             <Route path="/enquiries" element={<ProtectedRoute><EnquiriesPage /></ProtectedRoute>} />
             <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
             <Route path="/explore" element={<ExplorePage />} />
+
+            {/* Boards */}
+            <Route path="/boards" element={<ProtectedRoute><BoardsFeedPage /></ProtectedRoute>} />
+            <Route path="/boards/:id" element={<ProtectedRoute><BoardDetailPage /></ProtectedRoute>} />
 
             {/* Admin Console — web-only, standalone, NOT linked from the app UI */}
             <Route path="/admin" element={<AdminPage />} />

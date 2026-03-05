@@ -150,6 +150,12 @@ model User {
   moderationDecisions   ModerationDecision[]
   reviewResponses       ReviewResponse[]
   reviewUpvotes         ReviewUpvote[]
+  tripBoards            TripBoard[]
+  boardLikes            BoardLike[]
+  boardSaves            BoardSave[]
+  boardFollows          BoardFollow[]
+  boardComments         BoardComment[]
+  businessVerification  BusinessVerification?
 
   @@index([accountType])
   @@map("users")
@@ -265,6 +271,7 @@ model Post {
   broadcastPost     BroadcastPost?
   featuredPlacements FeaturedPlacement[]
   reports           Report[]         @relation("ReportedPost")
+  tripBoardVideos   TripBoardVideo[]
 
   @@index([userId])
   @@index([moderationStatus])
@@ -837,4 +844,130 @@ model Session {
   @@index([userId])
   @@index([refreshToken])
   @@map("sessions")
+}
+
+// ============================================================
+// TRIP BOARDS (Public social boards)
+// ============================================================
+
+model TripBoard {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  title         String   @db.VarChar(200)
+  description   String?  @db.Text
+  destination   String?  @db.VarChar(100)
+  coverImage    String?  @map("cover_image")
+  isPublic      Boolean  @default(true) @map("is_public")
+  likeCount     Int      @default(0) @map("like_count")
+  saveCount     Int      @default(0) @map("save_count")
+  followerCount Int      @default(0) @map("follower_count")
+  videoCount    Int      @default(0) @map("video_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videos        TripBoardVideo[]
+  likes         BoardLike[]
+  saves         BoardSave[]
+  followers     BoardFollow[]
+  comments      BoardComment[]
+
+  @@index([userId])
+  @@index([destination])
+  @@index([isPublic, createdAt(sort: Desc)])
+  @@map("trip_boards")
+}
+
+model TripBoardVideo {
+  id        String   @id @default(uuid())
+  boardId   String   @map("board_id")
+  postId    String   @map("post_id")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  board     TripBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, postId])
+  @@map("trip_board_videos")
+}
+
+model BoardLike {
+  id        String   @id @default(uuid())
+  boardId   String   @map("board_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  board     TripBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+  @@map("board_likes")
+}
+
+model BoardSave {
+  id        String   @id @default(uuid())
+  boardId   String   @map("board_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  board     TripBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+  @@map("board_saves")
+}
+
+model BoardFollow {
+  id        String   @id @default(uuid())
+  boardId   String   @map("board_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  board     TripBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+  @@map("board_follows")
+}
+
+model BoardComment {
+  id        String   @id @default(uuid())
+  boardId   String   @map("board_id")
+  userId    String   @map("user_id")
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  board     TripBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+  @@map("board_comments")
+}
+
+// ============================================================
+// BUSINESS VERIFICATION (Enhanced trust system)
+// ============================================================
+
+model BusinessVerification {
+  id                           String             @id @default(uuid())
+  userId                       String             @unique @map("user_id")
+  businessRegistrationNumber   String             @map("business_registration_number") @db.VarChar(100)
+  businessRegistrationDocument String             @map("business_registration_document")
+  associationName              String?            @map("association_name") @db.VarChar(200)
+  associationMembershipNumber  String?            @map("association_membership_number") @db.VarChar(100)
+  associationDocument          String?            @map("association_document")
+  registeredWebsite            String             @map("registered_website")
+  websiteVerificationMethod    String?            @map("website_verification_method") @db.VarChar(50)
+  websiteVerified              Boolean            @default(false) @map("website_verified")
+  status                       VerificationStatus @default(PENDING)
+  adminNotes                   String?            @map("admin_notes") @db.Text
+  verifiedAt                   DateTime?          @map("verified_at")
+  verifiedByAdminId            String?            @map("verified_by_admin_id")
+  createdAt                    DateTime           @default(now()) @map("created_at")
+  updatedAt                    DateTime           @updatedAt @map("updated_at")
+
+  user                         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("business_verifications")
 }

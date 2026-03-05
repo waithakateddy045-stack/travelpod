@@ -4,6 +4,7 @@ const { authenticate, adminOnly } = require('../middleware/auth');
 const { submitReport, getReports, resolveReport, suspendUser, unsuspendUser } = require('../controllers/moderationController');
 const { getDashboardStats, getUsers, getVerifications, reviewVerification } = require('../controllers/adminController');
 const { getModerationQueue, moderatePost } = require('../controllers/postController');
+const { getAdminVerifications, approveVerification, rejectVerification } = require('../controllers/verificationController');
 
 // ── Dashboard Stats ──────────────────────────────────────────
 router.get('/stats', authenticate, adminOnly, getDashboardStats);
@@ -22,8 +23,13 @@ router.post('/reports', authenticate, submitReport);
 router.get('/reports', authenticate, adminOnly, getReports);
 router.put('/reports/:id/resolve', authenticate, adminOnly, resolveReport);
 
-// ── Business Verifications ────────────────────────────────────
+// ── Business Verifications (legacy)
 router.get('/verifications', authenticate, adminOnly, getVerifications);
 router.put('/verifications/:id', authenticate, adminOnly, reviewVerification);
+
+// ── Enhanced Business Verifications
+router.get('/business-verifications', authenticate, adminOnly, getAdminVerifications);
+router.patch('/business-verifications/:id/approve', authenticate, adminOnly, approveVerification);
+router.patch('/business-verifications/:id/reject', authenticate, adminOnly, rejectVerification);
 
 module.exports = router;

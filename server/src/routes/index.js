@@ -21,6 +21,8 @@ const badgeRoutes = require('./badges');
 const featuredRoutes = require('./featured');
 const adminRoutes = require('./admin');
 const settingsRoutes = require('./settings');
+const boardRoutes = require('./boards');
+const verificationRoutes = require('./verification');
 
 // Mount all routes
 router.use('/auth', authRoutes);
@@ -42,5 +44,7 @@ router.use('/badges', badgeRoutes);
 router.use('/featured', featuredRoutes);
 router.use('/admin', adminRoutes);
 router.use('/settings', settingsRoutes);
+router.use('/boards', boardRoutes);
+router.use('/verify', verificationRoutes);
 
 module.exports = router;

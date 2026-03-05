@@ -6,12 +6,14 @@ import {
     HiOutlineCheckBadge, HiOutlineChatBubbleLeft,
     HiOutlinePlayCircle, HiOutlineHeart, HiOutlineUser,
     HiOutlineArrowLeft, HiOutlineCog6Tooth,
-    HiOutlineChartBar, HiOutlineEnvelope
+    HiOutlineChartBar, HiOutlineEnvelope,
+    HiOutlineRectangleStack
 } from 'react-icons/hi2';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
+import VerificationDetailsModal from '../../components/verification/VerificationDetailsModal';
 import './ProfilePage.css';
 
 const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
@@ -25,11 +27,12 @@ export default function ProfilePage() {
     const [savedPosts, setSavedPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [followLoading, setFollowLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState('posts'); // 'posts' or 'saved'
+    const [activeTab, setActiveTab] = useState('posts'); // 'posts', 'saved', or 'boards'
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
     const [isEnquiryModalOpen, setIsEnquiryModalOpen] = useState(false);
     const [badges, setBadges] = useState([]);
+    const [boards, setBoards] = useState([]);
 
     const isOwn = user && profile && user.id === profile.userId;
     const isBusiness = profile && BUSINESS_TYPES.includes(profile.accountType);
@@ -66,10 +69,17 @@ export default function ProfilePage() {
         } catch { }
     }, [user]);
 
+    const loadBoards = useCallback(async () => {
+        try {
+            const { data } = await api.get(`/boards/user/${handle}`);
+            setBoards(data.boards || []);
+        } catch { }
+    }, [handle]);
+
     useEffect(() => {
         setLoading(true);
-        Promise.all([loadProfile(), loadPosts(), loadSavedPosts(), loadBadges()]).finally(() => setLoading(false));
-    }, [loadProfile, loadPosts, loadSavedPosts, loadBadges]);
+        Promise.all([loadProfile(), loadPosts(), loadSavedPosts(), loadBadges(), loadBoards()]).finally(() => setLoading(false));
+    }, [loadProfile, loadPosts, loadSavedPosts, loadBadges, loadBoards]);
 
     const handleFollow = async () => {
         if (!user) { toast.error('Please sign in to follow'); return; }
@@ -146,7 +156,13 @@ export default function ProfilePage() {
                         <h1 className="profile-name">
                             {profile.displayName}
                             {profile.businessProfile?.verificationStatus === 'APPROVED' && (
-                                <span className="profile-badge verified"><HiOutlineCheckBadge /> Verified</span>
+                                <button
+                                    className="profile-badge verified"
+                                    onClick={() => setIsVerificationModalOpen(true)}
+                                    style={{ cursor: 'pointer', border: 'none', background: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--color-primary-light)', fontWeight: 600, fontSize: 'var(--text-xs)' }}
+                                >
+                                    <HiOutlineCheckBadge /> Verified
+                                </button>
                             )}
                         </h1>
                         <p className="profile-handle">@{profile.handle}</p>
@@ -299,6 +315,14 @@ export default function ProfilePage() {
                         <HiOutlinePlayCircle style={{ marginRight: 6, verticalAlign: 'middle' }} />
                         Posts
                     </button>
+                    <button
+                        className={`tab-btn ${activeTab === 'boards' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('boards')}
+                        style={{ padding: 'var(--space-2) 0', background: 'none', border: 'none', borderBottom: activeTab === 'boards' ? '2px solid var(--color-primary)' : '2px solid transparent', color: activeTab === 'boards' ? 'var(--text-primary)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                        <HiOutlineRectangleStack style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                        Boards
+                    </button>
                     {isOwn && (
                         <button
                             className={`tab-btn ${activeTab === 'saved' ? 'active' : ''}`}
@@ -312,35 +336,62 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Posts Grid */}
-                <div className="post-grid">
-                    {(activeTab === 'posts' ? posts : savedPosts).length > 0 ? (
-                        (activeTab === 'posts' ? posts : savedPosts).map(post => (
-                            <div key={post.id} className="post-grid-item">
-                                {post.thumbnailUrl ? (
-                                    <img src={post.thumbnailUrl} alt={post.title} />
+                {activeTab !== 'boards' ? (
+                    <div className="post-grid">
+                        {(activeTab === 'posts' ? posts : savedPosts).length > 0 ? (
+                            (activeTab === 'posts' ? posts : savedPosts).map(post => (
+                                <div key={post.id} className="post-grid-item">
+                                    {post.thumbnailUrl ? (
+                                        <img src={post.thumbnailUrl} alt={post.title} />
+                                    ) : (
+                                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-elevated)' }}>
+                                            <HiOutlinePlayCircle style={{ fontSize: '2rem', color: 'var(--text-tertiary)' }} />
+                                        </div>
+                                    )}
+                                    <div className="post-grid-overlay">
+                                        <span><HiOutlineHeart /> {post.likeCount}</span>
+                                        <span><HiOutlinePlayCircle /> {post.viewCount}</span>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
+                                {activeTab === 'posts' ? <HiOutlinePlayCircle /> : <HiOutlineHeart />}
+                                <p>
+                                    {activeTab === 'posts'
+                                        ? (isOwn ? "You haven't posted yet" : 'No posts yet')
+                                        : "You haven't saved any posts yet"
+                                    }
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    /* Boards Grid */
+                    <div className="post-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
+                        {boards.length > 0 ? boards.map(board => (
+                            <Link key={board.id} to={`/boards/${board.id}`} className="post-grid-item" style={{ textDecoration: 'none', height: 200 }}>
+                                {board.coverImage ? (
+                                    <img src={board.coverImage} alt={board.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 ) : (
-                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-elevated)' }}>
-                                        <HiOutlinePlayCircle style={{ fontSize: '2rem', color: 'var(--text-tertiary)' }} />
+                                    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-elevated)', gap: 8 }}>
+                                        <HiOutlineRectangleStack style={{ fontSize: '2rem', color: 'var(--text-tertiary)' }} />
                                     </div>
                                 )}
-                                <div className="post-grid-overlay">
-                                    <span><HiOutlineHeart /> {post.likeCount}</span>
-                                    <span><HiOutlinePlayCircle /> {post.viewCount}</span>
+                                <div className="post-grid-overlay" style={{ flexDirection: 'column', alignItems: 'flex-start', padding: '12px', background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)' }}>
+                                    <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#fff' }}>{board.title}</span>
+                                    {board.destination && <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)' }}>📍 {board.destination}</span>}
+                                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)' }}>{board.videoCount || 0} videos · {board.likeCount || 0} likes</span>
                                 </div>
+                            </Link>
+                        )) : (
+                            <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
+                                <HiOutlineRectangleStack />
+                                <p>{isOwn ? "You haven't created any boards yet" : 'No boards yet'}</p>
                             </div>
-                        ))
-                    ) : (
-                        <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
-                            {activeTab === 'posts' ? <HiOutlinePlayCircle /> : <HiOutlineHeart />}
-                            <p>
-                                {activeTab === 'posts'
-                                    ? (isOwn ? "You haven't posted yet" : 'No posts yet')
-                                    : "You haven't saved any posts yet"
-                                }
-                            </p>
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Edit Profile Modal Placeholder */}
@@ -370,32 +421,13 @@ export default function ProfilePage() {
                 </div>
             )}
 
-            {/* Verification Modal Placeholder */}
-            {isVerificationModalOpen && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ background: 'var(--bg-secondary)', padding: 'var(--space-6)', borderRadius: 'var(--radius-lg)', width: '90%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto' }}>
-                        <h2>Verify Your Business</h2>
-                        <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>Submit documents to earn your verified badge and unlock premium features.</p>
-
-                        <div className="form-field">
-                            <label className="form-label">Registration Document URL</label>
-                            <input className="form-input" placeholder="Link to document..." />
-                        </div>
-                        <div className="form-field">
-                            <label className="form-label">Operating Address</label>
-                            <input className="form-input" placeholder="Full address..." />
-                        </div>
-
-                        <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-6)' }}>
-                            <button className="onboarding-btn secondary" onClick={() => setIsVerificationModalOpen(false)} style={{ flex: 1 }}>Cancel</button>
-                            <button className="onboarding-btn primary" onClick={async () => {
-                                setIsVerificationModalOpen(false);
-                                toast.success('Verification application submitted!');
-                            }} style={{ flex: 1 }}>Submit Application</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Verification Details Modal */}
+            <VerificationDetailsModal
+                userId={profile.userId}
+                businessName={profile.displayName}
+                isOpen={isVerificationModalOpen}
+                onClose={() => setIsVerificationModalOpen(false)}
+            />
 
             {/* Modals and Renderings */}
             <EnquiryModal

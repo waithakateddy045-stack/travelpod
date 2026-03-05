@@ -49,12 +49,20 @@ export default function NotificationsPage() {
         }
 
         // Routing logic based on type and related entities
-        if (notif.type === 'new_follower' && notif.relatedEntityType === 'user') {
-            navigate(`/profile/${notif.relatedEntityId}`); // NOTE: Need handle, not ID, but we only have ID in schema. Might just go to generic profile or the user's own followers list. For now, no route if we don't have handle.
+        if (notif.type === 'new_follower' && notif._senderHandle) {
+            navigate(`/profile/${notif._senderHandle}`);
+        } else if (notif.type === 'new_follower' && notif.relatedEntityId) {
+            // Fallback: try to resolve handle from API
+            try {
+                const { data } = await api.get(`/profile/id/${notif.relatedEntityId}`);
+                if (data?.profile?.handle) navigate(`/profile/${data.profile.handle}`);
+            } catch { }
         } else if (notif.type === 'new_enquiry') {
             navigate('/enquiries');
         } else if (notif.type === 'welcome_profile_setup') {
             navigate('/settings');
+        } else if (notif.type === 'post_liked' || notif.type === 'post_commented') {
+            if (notif.relatedEntityId) navigate(`/post/${notif.relatedEntityId}`);
         }
     };
 
