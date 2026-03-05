@@ -154,19 +154,27 @@ const getModerationQueue = async (req, res, next) => {
         const limit = parseInt(req.query.limit) || 20;
         const status = req.query.status || 'PENDING';
 
+        let where = {};
+        if (status === 'REPORTED') {
+            where = { reports: { some: {} } };
+        } else if (status !== 'ALL') {
+            where = { moderationStatus: status };
+        }
+
         const [posts, total] = await Promise.all([
             prisma.post.findMany({
-                where: { moderationStatus: status },
-                orderBy: { createdAt: 'asc' },
+                where,
+                orderBy: { createdAt: 'desc' },
                 skip: (page - 1) * limit,
                 take: limit,
                 include: {
                     author: { select: { id: true, profile: { select: { displayName: true, handle: true } } } },
                     category: true,
                     postTags: { include: { tag: true } },
+                    _count: { select: { reports: true } }
                 },
             }),
-            prisma.post.count({ where: { moderationStatus: status } }),
+            prisma.post.count({ where }),
         ]);
 
         // Rename author -> user for frontend consistency
@@ -178,16 +186,19 @@ const getModerationQueue = async (req, res, next) => {
 const moderatePost = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { action, reason } = req.body; // action: APPROVED | REJECTED | REMOVED
+        const { action, reason } = req.body;
+
+        const finalAction = action === 'REJECTED' ? 'REMOVED' :
+            (action === 'RESTORED' || action === 'RESTORE' ? 'APPROVED' : action);
 
         const validStatuses = ['APPROVED', 'REMOVED', 'PENDING', 'UNDER_REVIEW'];
-        if (!validStatuses.includes(action)) {
+        if (!validStatuses.includes(finalAction)) {
             throw new AppError('Invalid moderation action', 400);
         }
 
         const post = await prisma.post.update({
             where: { id },
-            data: { moderationStatus: action },
+            data: { moderationStatus: finalAction },
         });
 
         res.json({ success: true, post });

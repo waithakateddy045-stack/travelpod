@@ -166,25 +166,26 @@ const DashboardTab = () => {
     );
 };
 
-// ─── Moderation Queue ─────────────────────────────────────────────────────────
-const ModerationTab = () => {
+// ─── Content Management ─────────────────────────────────────────────────────────
+const ContentManagementTab = () => {
     const [posts, setPosts] = useState([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
+    const [filterStatus, setFilterStatus] = useState('ALL');
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(null);
     const [previewPost, setPreviewPost] = useState(null);
 
-    const load = useCallback(async (p) => {
+    const load = useCallback(async (p, statusVar) => {
         setLoading(true);
         try {
-            const d = await apiCall(`/admin/moderation?page=${p}&limit=15&status=PENDING`);
+            const d = await apiCall(`/admin/moderation?page=${p}&limit=15&status=${statusVar}`);
             setPosts(d.posts);
             setTotal(d.total);
         } catch (e) { console.error(e); } finally { setLoading(false); }
     }, []);
 
-    useEffect(() => { load(page); }, [page, load]);
+    useEffect(() => { load(page, filterStatus); }, [page, filterStatus, load]);
 
     const act = async (postId, action) => {
         setActionLoading(postId + action);
@@ -193,25 +194,44 @@ const ModerationTab = () => {
                 method: 'PUT',
                 body: JSON.stringify({ action }),
             });
-            setPosts(prev => prev.filter(p => p.id !== postId));
-            setTotal(prev => prev - 1);
+            // Reflect the local state change without needing full reload immediately
+            if (filterStatus !== 'ALL' && filterStatus !== 'REPORTED') {
+                setPosts(prev => prev.filter(p => p.id !== postId));
+                setTotal(prev => prev - 1);
+            } else {
+                setPosts(prev => prev.map(p => p.id === postId ? { ...p, moderationStatus: action === 'RESTORED' ? 'APPROVED' : (action === 'REJECTED' ? 'REMOVED' : action) } : p));
+            }
         } catch (e) { alert('Action failed: ' + e.message); }
         finally { setActionLoading(null); }
     };
 
     return (
         <div className="tab-content">
-            <div className="section-header">
-                <h2>Moderation Queue</h2>
-                <p>{total} posts awaiting review</p>
+            <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h2>Content Management</h2>
+                    <p>{total} videos found • Manage platform content like a TikTok admin</p>
+                </div>
+                <select
+                    value={filterStatus}
+                    onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
+                    className="admin-select"
+                    style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
+                >
+                    <option value="ALL">All Videos</option>
+                    <option value="PENDING">Pending Review</option>
+                    <option value="APPROVED">Live (Approved)</option>
+                    <option value="REMOVED">Taken Down</option>
+                    <option value="REPORTED">Reported by Users</option>
+                </select>
             </div>
 
             {loading ? (
-                <div className="loading-state"><div className="spinner" /><p>Loading queue...</p></div>
+                <div className="loading-state"><div className="spinner" /><p>Loading videos...</p></div>
             ) : posts.length === 0 ? (
                 <div className="empty-state">
                     <div className="empty-icon">🎉</div>
-                    <p>Queue is clear — nothing pending moderation!</p>
+                    <p>No videos found for this filter.</p>
                 </div>
             ) : (
                 <>
@@ -227,12 +247,8 @@ const ModerationTab = () => {
                                 />
                                 <div className="modal-info">
                                     <strong>{previewPost.title}</strong>
-                                    <p>{previewPost.locationTag || 'No location'}</p>
+                                    <p>Status: <Badge type={previewPost.moderationStatus} small /></p>
                                     <p className="modal-author">by {previewPost.user?.profile?.displayName || 'Unknown'} (@{previewPost.user?.profile?.handle})</p>
-                                </div>
-                                <div className="modal-actions">
-                                    <button className="btn-approve" onClick={() => { act(previewPost.id, 'APPROVED'); setPreviewPost(null); }}>✓ Approve</button>
-                                    <button className="btn-reject" onClick={() => { act(previewPost.id, 'REJECTED'); setPreviewPost(null); }}>✕ Reject</button>
                                 </div>
                             </div>
                         </div>
@@ -245,30 +261,39 @@ const ModerationTab = () => {
                                     <video src={post.videoUrl} muted preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     <div className="mod-play">▶</div>
                                     <div className="mod-duration">{post.duration}s</div>
+                                    {post._count?.reports > 0 && (
+                                        <div style={{ position: 'absolute', top: 8, right: 8, background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 'bold' }}>
+                                            {post._count.reports} Reports
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="mod-info">
-                                    <div className="mod-title">{post.title}</div>
-                                    <div className="mod-meta">
-                                        <span>📍 {post.locationTag || 'No location'}</span>
+                                    <div className="mod-title">
+                                        {post.title}
+                                    </div>
+                                    <div className="mod-meta" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                                        <Badge type={post.moderationStatus} small />
                                         <span>👤 @{post.user?.profile?.handle || '—'}</span>
                                         <span>📅 {new Date(post.createdAt).toLocaleDateString()}</span>
                                     </div>
                                 </div>
-                                <div className="mod-actions">
-                                    <button
-                                        className="btn-approve"
-                                        onClick={() => act(post.id, 'APPROVED')}
-                                        disabled={!!actionLoading}
-                                    >
-                                        {actionLoading === post.id + 'APPROVED' ? '...' : '✓ Approve'}
-                                    </button>
-                                    <button
-                                        className="btn-reject"
-                                        onClick={() => act(post.id, 'REJECTED')}
-                                        disabled={!!actionLoading}
-                                    >
-                                        {actionLoading === post.id + 'REJECTED' ? '...' : '✕ Reject'}
-                                    </button>
+                                <div className="mod-actions" style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 12 }}>
+                                    {post.moderationStatus === 'PENDING' && (
+                                        <>
+                                            <button className="btn-approve" onClick={() => act(post.id, 'APPROVED')} disabled={!!actionLoading} style={{ flex: 1 }}>{actionLoading === post.id + 'APPROVED' ? '...' : 'Approve'}</button>
+                                            <button className="btn-reject" onClick={() => act(post.id, 'REMOVED')} disabled={!!actionLoading} style={{ flex: 1 }}>{actionLoading === post.id + 'REMOVED' ? '...' : 'Reject'}</button>
+                                        </>
+                                    )}
+                                    {post.moderationStatus === 'APPROVED' && (
+                                        <button className="btn-reject" onClick={() => act(post.id, 'REMOVED')} disabled={!!actionLoading} style={{ flex: 1 }}>
+                                            {actionLoading === post.id + 'REMOVED' ? '...' : 'Take Down'}
+                                        </button>
+                                    )}
+                                    {post.moderationStatus === 'REMOVED' && (
+                                        <button className="btn-approve" onClick={() => act(post.id, 'RESTORED')} disabled={!!actionLoading} style={{ flex: 1 }}>
+                                            {actionLoading === post.id + 'RESTORED' ? '...' : 'Restore'}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -562,7 +587,7 @@ export default function AdminPage() {
 
     const tabs = [
         { id: 'dashboard', icon: '📊', label: 'Dashboard' },
-        { id: 'moderation', icon: '🛡️', label: 'Moderation' },
+        { id: 'moderation', icon: '🛡️', label: 'Content' },
         { id: 'users', icon: '👥', label: 'Users' },
         { id: 'verifications', icon: '✓', label: 'Verifications' },
     ];
@@ -617,7 +642,7 @@ export default function AdminPage() {
 
                 <div className="admin-content">
                     {activeTab === 'dashboard' && <DashboardTab />}
-                    {activeTab === 'moderation' && <ModerationTab />}
+                    {activeTab === 'moderation' && <ContentManagementTab />}
                     {activeTab === 'users' && <UsersTab />}
                     {activeTab === 'verifications' && <VerificationTab />}
                 </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { HiOutlineXMark, HiOutlineUser } from 'react-icons/hi2';
 import { Link } from 'react-router-dom';
-import api from '../../../services/api';
+import api from '../../services/api';
 import './FollowListModal.css';
 
 export default function FollowListModal({ isOpen, onClose, userId, type, title }) {
