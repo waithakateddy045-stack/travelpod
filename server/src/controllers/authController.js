@@ -1,8 +1,46 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const nodemailer = require('nodemailer');
 const prisma = require('../utils/prisma');
 const { AppError } = require('../middleware/errorHandler');
+
+// ── Email helper ──────────────────────────────────────────────
+const sendWelcomeEmail = async (toEmail) => {
+    try {
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return; // skip if not configured
+        const transporter = nodemailer.createTransport({
+            host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+            port: parseInt(process.env.EMAIL_PORT || '587'),
+            secure: false,
+            auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+        });
+        await transporter.sendMail({
+            from: `"Travelpod" <${process.env.EMAIL_USER}>`,
+            to: toEmail,
+            subject: '✈️ Welcome to Travelpod!',
+            html: `
+                <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#0A0A0F;color:#F5F5F7;padding:40px;border-radius:16px;">
+                    <div style="font-size:2rem;margin-bottom:12px;">✈️</div>
+                    <h1 style="font-size:1.5rem;margin-bottom:8px;">Welcome to Travelpod!</h1>
+                    <p style="color:#A0A0B0;line-height:1.6;margin-bottom:24px;">
+                        You're now part of the world's first video-first travel community. Discover honest travel videos, connect with businesses, and share your adventures.
+                    </p>
+                    <a href="${process.env.CLIENT_URL || 'https://travelpod-liard.vercel.app'}/feed"
+                       style="display:inline-block;padding:12px 28px;background:linear-gradient(135deg,#6C63FF,#06D6A0);color:white;border-radius:999px;font-weight:700;text-decoration:none;">
+                        Start Exploring →
+                    </a>
+                    <p style="color:#6B6B7B;font-size:0.8rem;margin-top:32px;">
+                        You're receiving this because you created an account at Travelpod.
+                    </p>
+                </div>
+            `,
+        });
+    } catch (e) {
+        console.warn('Welcome email failed (non-critical):', e.message);
+    }
+};
+
 
 const SALT_ROUNDS = 12;
 
@@ -98,8 +136,8 @@ const register = async (req, res, next) => {
             },
         });
 
-        // TODO: send verification email — Phase 2 email service
-        // await emailService.sendVerification(user.email, emailVerifyToken);
+        // Send welcome email (non-blocking — failure won't affect registration)
+        sendWelcomeEmail(user.email).catch(() => { });
 
         // Generate tokens
         const accessToken = generateAccessToken(user);

@@ -186,16 +186,26 @@ export default function PostPage() {
                             ) : (
                                 comments.map(comment => (
                                     <div key={comment.id} className="comment-item">
-                                        <div className="comment-avatar">
+                                        <Link
+                                            to={`/profile/${comment.user?.profile?.handle}`}
+                                            className="comment-avatar"
+                                            style={{ textDecoration: 'none', color: 'inherit' }}
+                                        >
                                             {comment.user?.profile?.avatarUrl ? (
                                                 <img src={comment.user.profile.avatarUrl} alt="" />
                                             ) : (
                                                 <HiOutlineUser />
                                             )}
-                                        </div>
+                                        </Link>
                                         <div className="comment-content">
                                             <div className="comment-header">
-                                                <span className="comment-author">{comment.user?.profile?.displayName}</span>
+                                                <Link
+                                                    to={`/profile/${comment.user?.profile?.handle}`}
+                                                    className="comment-author"
+                                                    style={{ textDecoration: 'none' }}
+                                                >
+                                                    {comment.user?.profile?.displayName}
+                                                </Link>
                                                 <span className="comment-time">{new Date(comment.createdAt).toLocaleDateString()}</span>
                                             </div>
                                             <p className="comment-text">{comment.content}</p>

@@ -44,7 +44,7 @@ const createPost = async (req, res, next) => {
                 postType: postType || 'STANDARD',
                 categoryId: categoryId || null,
                 locationTag: locationTag || null,
-                moderationStatus: 'PENDING',
+                moderationStatus: 'APPROVED',
             },
         });
 
