@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import VerificationDetailsModal from '../../components/verification/VerificationDetailsModal';
+import FollowListModal from '../../components/profile/FollowListModal';
 import './ProfilePage.css';
 
 const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
@@ -33,6 +34,7 @@ export default function ProfilePage() {
     const [isEnquiryModalOpen, setIsEnquiryModalOpen] = useState(false);
     const [badges, setBadges] = useState([]);
     const [boards, setBoards] = useState([]);
+    const [followModalType, setFollowModalType] = useState(null); // 'followers' | 'following' | null
 
     const isOwn = user && profile && user.id === profile.userId;
     const isBusiness = profile && BUSINESS_TYPES.includes(profile.accountType);
@@ -172,11 +174,11 @@ export default function ProfilePage() {
                                 <span className="stat-value">{profile.postCount || 0}</span>
                                 <span className="stat-label">Posts</span>
                             </div>
-                            <div className="stat-item">
+                            <div className="stat-item" onClick={() => setFollowModalType('followers')} style={{ cursor: 'pointer' }}>
                                 <span className="stat-value">{profile.followerCount || 0}</span>
                                 <span className="stat-label">Followers</span>
                             </div>
-                            <div className="stat-item">
+                            <div className="stat-item" onClick={() => setFollowModalType('following')} style={{ cursor: 'pointer' }}>
                                 <span className="stat-value">{profile.followingCount || 0}</span>
                                 <span className="stat-label">Following</span>
                             </div>
@@ -424,9 +426,9 @@ export default function ProfilePage() {
             {/* Verification Details Modal */}
             <VerificationDetailsModal
                 userId={profile.userId}
-                businessName={profile.displayName}
                 isOpen={isVerificationModalOpen}
                 onClose={() => setIsVerificationModalOpen(false)}
+                businessProfile={profile.businessProfile}
             />
 
             {/* Modals and Renderings */}
@@ -435,6 +437,14 @@ export default function ProfilePage() {
                 businessName={profile.displayName}
                 isOpen={isEnquiryModalOpen}
                 onClose={() => setIsEnquiryModalOpen(false)}
+            />
+
+            <FollowListModal
+                isOpen={!!followModalType}
+                onClose={() => setFollowModalType(null)}
+                userId={profile.userId}
+                type={followModalType}
+                title={followModalType === 'followers' ? 'Followers' : 'Following'}
             />
         </div>
     );

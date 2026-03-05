@@ -52,4 +52,60 @@ const unfollowUser = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-module.exports = { followUser, unfollowUser };
+const getFollowers = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        const limit = parseInt(req.query.limit) || 20;
+        const page = parseInt(req.query.page) || 1;
+
+        const [followers, total] = await Promise.all([
+            prisma.follow.findMany({
+                where: { followingId: userId },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    follower: {
+                        select: {
+                            id: true, accountType: true,
+                            profile: { select: { displayName: true, handle: true, avatarUrl: true } }
+                        }
+                    }
+                },
+                orderBy: { createdAt: 'desc' }
+            }),
+            prisma.follow.count({ where: { followingId: userId } })
+        ]);
+
+        res.json({ success: true, followers: followers.map(f => f.follower), total, totalPages: Math.ceil(total / limit) });
+    } catch (err) { next(err); }
+};
+
+const getFollowing = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        const limit = parseInt(req.query.limit) || 20;
+        const page = parseInt(req.query.page) || 1;
+
+        const [following, total] = await Promise.all([
+            prisma.follow.findMany({
+                where: { followerId: userId },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    following: {
+                        select: {
+                            id: true, accountType: true,
+                            profile: { select: { displayName: true, handle: true, avatarUrl: true } }
+                        }
+                    }
+                },
+                orderBy: { createdAt: 'desc' }
+            }),
+            prisma.follow.count({ where: { followerId: userId } })
+        ]);
+
+        res.json({ success: true, following: following.map(f => f.following), total, totalPages: Math.ceil(total / limit) });
+    } catch (err) { next(err); }
+};
+
+module.exports = { followUser, unfollowUser, getFollowers, getFollowing };
