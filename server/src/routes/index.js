@@ -1,0 +1,46 @@
+const express = require('express');
+const router = express.Router();
+
+// Import all route modules
+const authRoutes = require('./auth');
+const onboardingRoutes = require('./onboarding');
+const profileRoutes = require('./profile');
+const postRoutes = require('./posts');
+const engagementRoutes = require('./engagement');
+const feedRoutes = require('./feed');
+const followRoutes = require('./follow');
+const reviewRoutes = require('./reviews');
+const messageRoutes = require('./messages');
+const enquiryRoutes = require('./enquiries');
+const collaborationRoutes = require('./collaborations');
+const broadcastRoutes = require('./broadcasts');
+const searchRoutes = require('./search');
+const notificationRoutes = require('./notifications');
+const analyticsRoutes = require('./analytics');
+const badgeRoutes = require('./badges');
+const featuredRoutes = require('./featured');
+const adminRoutes = require('./admin');
+const settingsRoutes = require('./settings');
+
+// Mount all routes
+router.use('/auth', authRoutes);
+router.use('/onboarding', onboardingRoutes);
+router.use('/profile', profileRoutes);
+router.use('/posts', postRoutes);
+router.use('/engagement', engagementRoutes);
+router.use('/feed', feedRoutes);
+router.use('/follow', followRoutes);
+router.use('/reviews', reviewRoutes);
+router.use('/messages', messageRoutes);
+router.use('/enquiries', enquiryRoutes);
+router.use('/collaborations', collaborationRoutes);
+router.use('/broadcasts', broadcastRoutes);
+router.use('/search', searchRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/analytics', analyticsRoutes);
+router.use('/badges', badgeRoutes);
+router.use('/featured', featuredRoutes);
+router.use('/admin', adminRoutes);
+router.use('/settings', settingsRoutes);
+
+module.exports = router;

@@ -1,0 +1,840 @@
+// Travelpod — Complete Prisma Schema
+// Task 1.3 — Full database schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum AccountType {
+  TRAVELER
+  TRAVEL_AGENCY
+  HOTEL_RESORT
+  DESTINATION
+  AIRLINE
+  ASSOCIATION
+  ADMIN
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REMOVED
+  EDIT_REQUESTED
+  PAUSED
+  UNDER_REVIEW
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EnquiryStatus {
+  PENDING
+  RESPONDED
+  EXPIRED
+}
+
+enum DisputeDecision {
+  REVIEW_STANDS
+  REVIEW_REMOVED
+  REVIEW_AMENDED
+}
+
+enum PostType {
+  STANDARD
+  REVIEW
+  COLLABORATION
+  BROADCAST
+}
+
+enum AdminActionType {
+  WARNING
+  POSTING_RESTRICTION
+  SUSPENSION
+  PERMANENT_REMOVAL
+}
+
+enum ReportReason {
+  MISLEADING
+  INAPPROPRIATE
+  SPAM
+  FAKE_REVIEW
+  HARASSMENT
+}
+
+enum BadgeType {
+  FIRST_POST
+  FIRST_VERIFIED_REVIEW
+  TEN_REVIEWS
+  FIFTY_REVIEWS
+  TEN_THOUSAND_WATCH_MINUTES
+  ONE_THOUSAND_FOLLOWERS
+}
+
+enum CollaborationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+// ============================================================
+// CORE IDENTITY
+// ============================================================
+
+model User {
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  hashedPassword        String?   @map("hashed_password")
+  accountType           AccountType @map("account_type")
+  onboardingComplete    Boolean   @default(false) @map("onboarding_complete")
+  isSuspended           Boolean   @default(false) @map("is_suspended")
+  isDeleted             Boolean   @default(false) @map("is_deleted")
+  deletedAt             DateTime? @map("deleted_at")
+  postingRestrictedUntil DateTime? @map("posting_restricted_until")
+  flaggingRestricted    Boolean   @default(false) @map("flagging_restricted")
+  googleId              String?   @unique @map("google_id")
+  emailVerified         Boolean   @default(false) @map("email_verified")
+  emailVerifyToken      String?   @map("email_verify_token")
+  passwordResetToken    String?   @map("password_reset_token")
+  passwordResetExpiry   DateTime? @map("password_reset_expiry")
+  preferenceVector      Json?     @map("preference_vector")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  profile               Profile?
+  postsAuthored         Post[]    @relation("PostAuthor")
+  postsLinked           Post[]    @relation("PostLinkedBusiness")
+  reviewsWritten        VideoReview[] @relation("ReviewAuthor")
+  reviewsReceived       VideoReview[] @relation("ReviewBusiness")
+  likes                 Like[]
+  comments              Comment[]
+  saves                 Save[]
+  followers             Follow[]  @relation("Following")
+  following             Follow[]  @relation("Follower")
+  notifications         Notification[]
+  notificationPrefs     NotificationPreference[]
+  badges                Badge[]
+  blockedBy             BlockedUser[] @relation("BlockedUser")
+  blocking              BlockedUser[] @relation("Blocker")
+  conversationsAsP1     Conversation[] @relation("ConversationP1")
+  conversationsAsP2     Conversation[] @relation("ConversationP2")
+  messagesSent          DirectMessage[]
+  enquiriesAsClient     Enquiry[] @relation("EnquiryTraveler")
+  enquiriesAsBusiness   Enquiry[] @relation("EnquiryBusiness")
+  enquiryResponses      EnquiryResponse[]
+  verificationReviews   VerificationApplication[] @relation("VerificationReviewer")
+  collaborationsCreated CollaborationPost[]
+  collaborationParticipations CollaborationParticipant[]
+  broadcastsCreated     BroadcastPost[]
+  featuredPlacements    FeaturedPlacement[]
+  analyticsEvents       AnalyticsEvent[]
+  sessions              Session[]
+  reportsMade           Report[]
+  disputesRaised        Dispute[]
+  adminActions          AdminActionLog[] @relation("AdminActor")
+  adminActionsReceived  AdminActionLog[] @relation("AdminTarget")
+  moderationAssignments ModerationQueue[]
+  moderationDecisions   ModerationDecision[]
+  reviewResponses       ReviewResponse[]
+  reviewUpvotes         ReviewUpvote[]
+
+  @@index([accountType])
+  @@map("users")
+}
+
+model Profile {
+  id                String    @id @default(uuid())
+  userId            String    @unique @map("user_id")
+  displayName       String    @map("display_name")
+  handle            String    @unique
+  avatarUrl         String?   @map("avatar_url")
+  personalityTags   Json      @default("[]") @map("personality_tags")
+  preferredRegions  Json      @default("[]") @map("preferred_regions")
+  contentPreferences Json     @default("[]") @map("content_preferences")
+  followerCount     Int       @default(0) @map("follower_count")
+  followingCount    Int       @default(0) @map("following_count")
+  verifiedReviewCount Int     @default(0) @map("verified_review_count")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessProfile   BusinessProfile?
+
+  @@index([handle])
+  @@map("profiles")
+}
+
+model BusinessProfile {
+  id                    String              @id @default(uuid())
+  profileId             String              @unique @map("profile_id")
+  logoUrl               String?             @map("logo_url")
+  country               String?
+  description           String?             @db.Text
+  websiteUrl            String?             @map("website_url")
+  verificationStatus    VerificationStatus  @default(UNVERIFIED) @map("verification_status")
+  verifiedAt            DateTime?           @map("verified_at")
+  starRating            Decimal?            @db.Decimal(2, 1) @map("star_rating")
+  verifiedReviewCount   Int                 @default(0) @map("verified_review_count")
+  responseRate          Decimal?            @db.Decimal(5, 2) @map("response_rate")
+  avgResponseTimeMinutes Int?               @map("avg_response_time_minutes")
+  broadcastSubscription Boolean             @default(false) @map("broadcast_subscription")
+  badFaithDisputeFlag   Boolean             @default(false) @map("bad_faith_dispute_flag")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+
+  profile               Profile             @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  verificationApplications VerificationApplication[]
+
+  @@index([verificationStatus])
+  @@map("business_profiles")
+}
+
+// ============================================================
+// CATEGORIES & TAGS
+// ============================================================
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  postCount Int      @default(0) @map("post_count")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  posts     Post[]
+
+  @@map("categories")
+}
+
+model Tag {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  postTags  PostTag[]
+
+  @@map("tags")
+}
+
+// ============================================================
+// CONTENT
+// ============================================================
+
+model Post {
+  id                String           @id @default(uuid())
+  userId            String           @map("user_id")
+  videoUrl          String           @map("video_url")
+  thumbnailUrl      String?          @map("thumbnail_url")
+  title             String           @db.VarChar(100)
+  description       String?          @db.VarChar(500)
+  duration          Int
+  categoryId        String?          @map("category_id")
+  locationTag       String?          @map("location_tag") @db.VarChar(200)
+  postType          PostType         @default(STANDARD) @map("post_type")
+  isReview          Boolean          @default(false) @map("is_review")
+  linkedBusinessId  String?          @map("linked_business_id")
+  moderationStatus  ModerationStatus @default(PENDING) @map("moderation_status")
+  viewCount         Int              @default(0) @map("view_count")
+  likeCount         Int              @default(0) @map("like_count")
+  commentCount      Int              @default(0) @map("comment_count")
+  saveCount         Int              @default(0) @map("save_count")
+  perceptualHash    String?          @map("perceptual_hash")
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  author            User             @relation("PostAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  linkedBusiness    User?            @relation("PostLinkedBusiness", fields: [linkedBusinessId], references: [id])
+  category          Category?        @relation(fields: [categoryId], references: [id])
+  postTags          PostTag[]
+  likes             Like[]
+  comments          Comment[]
+  saves             Save[]
+  videoReview       VideoReview?
+  collaborationPost CollaborationPost?
+  broadcastPost     BroadcastPost?
+  featuredPlacements FeaturedPlacement[]
+  reports           Report[]         @relation("ReportedPost")
+
+  @@index([userId])
+  @@index([moderationStatus])
+  @@index([categoryId])
+  @@index([createdAt(sort: Desc)])
+  @@index([linkedBusinessId])
+  @@index([moderationStatus, createdAt(sort: Desc)])
+  @@map("posts")
+}
+
+model PostTag {
+  id     String @id @default(uuid())
+  postId String @map("post_id")
+  tagId  String @map("tag_id")
+
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tagId])
+  @@map("post_tags")
+}
+
+model VideoReview {
+  id                      String           @id @default(uuid())
+  postId                  String           @unique @map("post_id")
+  reviewerId              String           @map("reviewer_id")
+  businessId              String           @map("business_id")
+  starRating              Int              @map("star_rating")
+  caption                 String           @db.VarChar(150)
+  isVerified              Boolean          @default(false) @map("is_verified")
+  verificationMethod      String?          @map("verification_method") @db.VarChar(50)
+  verificationDocumentUrl String?          @map("verification_document_url") @db.VarChar(500)
+  helpfulnessScore        Int              @default(0) @map("helpfulness_score")
+  moderationStatus        ModerationStatus @default(PENDING) @map("moderation_status")
+  locationSubRating       Int?             @map("location_sub_rating")
+  serviceSubRating        Int?             @map("service_sub_rating")
+  valueSubRating          Int?             @map("value_sub_rating")
+  experienceSubRating     Int?             @map("experience_sub_rating")
+  createdAt               DateTime         @default(now()) @map("created_at")
+
+  post                    Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reviewer                User             @relation("ReviewAuthor", fields: [reviewerId], references: [id])
+  business                User             @relation("ReviewBusiness", fields: [businessId], references: [id])
+  reviewResponse          ReviewResponse?
+  reviewUpvotes           ReviewUpvote[]
+  disputes                Dispute[]
+
+  @@index([businessId])
+  @@index([reviewerId])
+  @@index([moderationStatus])
+  @@index([businessId, isVerified, moderationStatus])
+  @@map("video_reviews")
+}
+
+// ============================================================
+// ENGAGEMENT
+// ============================================================
+
+model Like {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  postId    String   @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("likes")
+}
+
+model Comment {
+  id        String    @id @default(uuid())
+  postId    String    @map("post_id")
+  userId    String    @map("user_id")
+  parentId  String?   @map("parent_id")
+  content   String    @db.Text
+  replyCount Int      @default(0) @map("reply_count")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+
+  @@index([postId])
+  @@index([parentId])
+  @@map("comments")
+}
+
+model Save {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  postId    String   @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("saves")
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+model ReviewUpvote {
+  id        String      @id @default(uuid())
+  userId    String      @map("user_id")
+  reviewId  String      @map("review_id")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review    VideoReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, reviewId])
+  @@map("review_upvotes")
+}
+
+model ReviewResponse {
+  id         String      @id @default(uuid())
+  reviewId   String      @unique @map("review_id")
+  businessId String      @map("business_id")
+  content    String      @db.VarChar(500)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  review     VideoReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  business   User        @relation(fields: [businessId], references: [id])
+
+  @@map("review_responses")
+}
+
+// ============================================================
+// MESSAGING
+// ============================================================
+
+model Conversation {
+  id                  String    @id @default(uuid())
+  participant1Id      String    @map("participant_1_id")
+  participant2Id      String    @map("participant_2_id")
+  lastMessagePreview  String?   @db.VarChar(200) @map("last_message_preview")
+  lastMessageAt       DateTime? @map("last_message_at")
+  unreadCountP1       Int       @default(0) @map("unread_count_p1")
+  unreadCountP2       Int       @default(0) @map("unread_count_p2")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  participant1        User      @relation("ConversationP1", fields: [participant1Id], references: [id])
+  participant2        User      @relation("ConversationP2", fields: [participant2Id], references: [id])
+  messages            DirectMessage[]
+
+  @@unique([participant1Id, participant2Id])
+  @@index([participant1Id])
+  @@index([participant2Id])
+  @@index([lastMessageAt(sort: Desc)])
+  @@map("conversations")
+}
+
+model DirectMessage {
+  id             String       @id @default(uuid())
+  conversationId String       @map("conversation_id")
+  senderId       String       @map("sender_id")
+  content        String       @db.Text
+  sentAt         DateTime     @default(now()) @map("sent_at")
+  readAt         DateTime?    @map("read_at")
+  deletedAt      DateTime?    @map("deleted_at")
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId])
+  @@index([sentAt])
+  @@map("direct_messages")
+}
+
+model BlockedUser {
+  id        String   @id @default(uuid())
+  blockerId String   @map("blocker_id")
+  blockedId String   @map("blocked_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("BlockedUser", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@map("blocked_users")
+}
+
+// ============================================================
+// ENQUIRIES
+// ============================================================
+
+model Enquiry {
+  id           String        @id @default(uuid())
+  travelerId   String        @map("traveler_id")
+  businessId   String        @map("business_id")
+  travelDates  String        @map("travel_dates") @db.VarChar(100)
+  groupSize    Int           @map("group_size")
+  budgetRange  String        @map("budget_range") @db.VarChar(50)
+  requirements String?       @db.Text
+  message      String        @db.Text
+  status       EnquiryStatus @default(PENDING)
+  submittedAt  DateTime      @default(now()) @map("submitted_at")
+
+  traveler     User          @relation("EnquiryTraveler", fields: [travelerId], references: [id])
+  business     User          @relation("EnquiryBusiness", fields: [businessId], references: [id])
+  response     EnquiryResponse?
+
+  @@index([businessId])
+  @@index([travelerId])
+  @@index([status])
+  @@map("enquiries")
+}
+
+model EnquiryResponse {
+  id         String   @id @default(uuid())
+  enquiryId  String   @unique @map("enquiry_id")
+  businessId String   @map("business_id")
+  content    String   @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  enquiry    Enquiry  @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  business   User     @relation(fields: [businessId], references: [id])
+
+  @@map("enquiry_responses")
+}
+
+// ============================================================
+// COLLABORATION
+// ============================================================
+
+model CollaborationPost {
+  id           String                    @id @default(uuid())
+  postId       String                    @unique @map("post_id")
+  creatorId    String                    @map("creator_id")
+  createdAt    DateTime                  @default(now()) @map("created_at")
+
+  post         Post                      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  creator      User                      @relation(fields: [creatorId], references: [id])
+  participants CollaborationParticipant[]
+
+  @@map("collaboration_posts")
+}
+
+model CollaborationParticipant {
+  id               String              @id @default(uuid())
+  collaborationId  String              @map("collaboration_id")
+  participantId    String              @map("participant_id")
+  status           CollaborationStatus @default(PENDING)
+  respondedAt      DateTime?           @map("responded_at")
+  createdAt        DateTime            @default(now()) @map("created_at")
+
+  collaboration    CollaborationPost   @relation(fields: [collaborationId], references: [id], onDelete: Cascade)
+  participant      User               @relation(fields: [participantId], references: [id])
+
+  @@map("collaboration_participants")
+}
+
+// ============================================================
+// BROADCAST
+// ============================================================
+
+model BroadcastPost {
+  id              String            @id @default(uuid())
+  postId          String            @unique @map("post_id")
+  associationId   String            @map("association_id")
+  sectorTargeting Json              @map("sector_targeting")
+  reachCount      Int               @default(0) @map("reach_count")
+  viewCount       Int               @default(0) @map("view_count")
+  engagementRate  Decimal?          @db.Decimal(5, 2) @map("engagement_rate")
+  createdAt       DateTime          @default(now()) @map("created_at")
+
+  post            Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  association     User              @relation(fields: [associationId], references: [id])
+  targets         BroadcastTarget[]
+
+  @@map("broadcast_posts")
+}
+
+model BroadcastTarget {
+  id            String        @id @default(uuid())
+  broadcastId   String        @map("broadcast_id")
+  targetUserId  String        @map("target_user_id")
+  delivered     Boolean       @default(false)
+  viewed        Boolean       @default(false)
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  broadcast     BroadcastPost @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+
+  @@index([targetUserId])
+  @@index([broadcastId])
+  @@map("broadcast_targets")
+}
+
+// ============================================================
+// VERIFICATION
+// ============================================================
+
+model VerificationApplication {
+  id                  String             @id @default(uuid())
+  businessProfileId   String             @map("business_profile_id")
+  registrationDocUrl  String             @map("registration_doc_url") @db.VarChar(500)
+  licenceDocUrl       String?            @map("licence_doc_url") @db.VarChar(500)
+  operatingAddress    String             @map("operating_address") @db.Text
+  status              VerificationStatus @default(PENDING)
+  reviewedBy          String?            @map("reviewed_by")
+  reviewReason        String?            @map("review_reason") @db.Text
+  reviewedAt          DateTime?          @map("reviewed_at")
+  createdAt           DateTime           @default(now()) @map("created_at")
+
+  businessProfile     BusinessProfile    @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  reviewer            User?              @relation("VerificationReviewer", fields: [reviewedBy], references: [id])
+
+  @@map("verification_applications")
+}
+
+// ============================================================
+// MODERATION & REPORTING
+// ============================================================
+
+model ModerationQueue {
+  id          String              @id @default(uuid())
+  entityId    String              @map("entity_id")
+  entityType  String              @map("entity_type") @db.VarChar(50)
+  flagReason  String?             @map("flag_reason") @db.VarChar(200)
+  severity    String              @default("STANDARD") @db.VarChar(20)
+  slaDeadline DateTime            @map("sla_deadline")
+  assignedTo  String?             @map("assigned_to")
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  assignee    User?               @relation(fields: [assignedTo], references: [id])
+  decisions   ModerationDecision[]
+
+  @@index([severity])
+  @@index([slaDeadline])
+  @@map("moderation_queue")
+}
+
+model ModerationDecision {
+  id           String          @id @default(uuid())
+  queueItemId  String          @map("queue_item_id")
+  moderatorId  String          @map("moderator_id")
+  decision     String          @db.VarChar(30)
+  reason       String?         @db.Text
+  createdAt    DateTime        @default(now()) @map("created_at")
+
+  queueItem    ModerationQueue @relation(fields: [queueItemId], references: [id], onDelete: Cascade)
+  moderator    User            @relation(fields: [moderatorId], references: [id])
+
+  @@map("moderation_decisions")
+}
+
+model Report {
+  id         String       @id @default(uuid())
+  reporterId String       @map("reporter_id")
+  entityId   String       @map("entity_id")
+  entityType String       @map("entity_type") @db.VarChar(50)
+  reason     ReportReason
+  postId     String?      @map("post_id")
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  reporter   User         @relation(fields: [reporterId], references: [id])
+  post       Post?        @relation("ReportedPost", fields: [postId], references: [id])
+
+  @@index([entityId])
+  @@index([reporterId])
+  @@index([entityId, entityType, createdAt])
+  @@map("reports")
+}
+
+model Dispute {
+  id          String          @id @default(uuid())
+  reviewId    String          @map("review_id")
+  businessId  String          @map("business_id")
+  reason      String          @db.VarChar(100)
+  explanation String          @db.Text
+  evidenceUrl String?         @map("evidence_url") @db.VarChar(500)
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  review      VideoReview     @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  business    User            @relation(fields: [businessId], references: [id])
+  decision    DisputeDecisionRecord?
+
+  @@map("disputes")
+}
+
+model DisputeDecisionRecord {
+  id          String          @id @default(uuid())
+  disputeId   String          @unique @map("dispute_id")
+  adminId     String          @map("admin_id")
+  decision    DisputeDecision
+  explanation String          @db.Text
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  dispute     Dispute         @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  @@map("dispute_decisions")
+}
+
+model AdminActionLog {
+  id              String          @id @default(uuid())
+  adminId         String          @map("admin_id")
+  actionType      AdminActionType @map("action_type")
+  targetAccountId String          @map("target_account_id")
+  reason          String          @db.Text
+  durationDays    Int?            @map("duration_days")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  admin           User            @relation("AdminActor", fields: [adminId], references: [id])
+  targetAccount   User            @relation("AdminTarget", fields: [targetAccountId], references: [id])
+
+  @@index([actionType])
+  @@index([adminId])
+  @@index([createdAt(sort: Desc)])
+  @@map("admin_action_logs")
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+model Notification {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  type              String    @db.VarChar(50)
+  title             String    @db.VarChar(200)
+  body              String?   @db.Text
+  relatedEntityId   String?   @map("related_entity_id")
+  relatedEntityType String?   @map("related_entity_type") @db.VarChar(50)
+  readAt            DateTime? @map("read_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, readAt])
+  @@index([createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id               String  @id @default(uuid())
+  userId           String  @map("user_id")
+  notificationType String  @map("notification_type") @db.VarChar(50)
+  enabled          Boolean @default(true)
+
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationType])
+  @@map("notification_preferences")
+}
+
+// ============================================================
+// BADGES
+// ============================================================
+
+model Badge {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  badgeType BadgeType @map("badge_type")
+  awardedAt DateTime  @default(now()) @map("awarded_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeType])
+  @@map("badges")
+}
+
+model BadgeMilestone {
+  id          String    @id @default(uuid())
+  badgeType   BadgeType @unique @map("badge_type")
+  threshold   Int
+  description String    @db.VarChar(200)
+
+  @@map("badge_milestones")
+}
+
+// ============================================================
+// FEATURED PLACEMENTS
+// ============================================================
+
+model FeaturedPlacement {
+  id                  String   @id @default(uuid())
+  postId              String   @map("post_id")
+  businessId          String   @map("business_id")
+  startAt             DateTime @map("start_at")
+  endAt               DateTime @map("end_at")
+  targetingCriteria   Json     @map("targeting_criteria")
+  dailyReachTarget    Int      @map("daily_reach_target")
+  status              String   @default("ACTIVE") @db.VarChar(20)
+  paymentId           String?  @map("payment_id") @db.VarChar(200)
+  impressions         Int      @default(0)
+  profileVisits       Int      @default(0) @map("profile_visits")
+  enquiriesAttributed Int      @default(0) @map("enquiries_attributed")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  post                Post     @relation(fields: [postId], references: [id])
+  business            User     @relation(fields: [businessId], references: [id])
+
+  @@index([status])
+  @@index([endAt])
+  @@index([businessId])
+  @@map("featured_placements")
+}
+
+// ============================================================
+// ANALYTICS
+// ============================================================
+
+model AnalyticsEvent {
+  id           String   @id @default(uuid())
+  userId       String?  @map("user_id")
+  eventType    String   @map("event_type") @db.VarChar(50)
+  entityId     String?  @map("entity_id")
+  entityType   String?  @map("entity_type") @db.VarChar(50)
+  sessionId    String?  @map("session_id") @db.VarChar(100)
+  metadataJson Json?    @map("metadata_json")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user         User?    @relation(fields: [userId], references: [id])
+
+  @@index([eventType])
+  @@index([entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([sessionId])
+  @@map("analytics_events")
+}
+
+model EnquiryAnalytics {
+  id                   String   @id @default(uuid())
+  businessId           String   @map("business_id")
+  totalEnquiries       Int      @default(0) @map("total_enquiries")
+  respondedCount       Int      @default(0) @map("responded_count")
+  expiredCount         Int      @default(0) @map("expired_count")
+  avgResponseMinutes   Int?     @map("avg_response_minutes")
+  periodStart          DateTime @map("period_start") @db.Date
+  periodEnd            DateTime @map("period_end") @db.Date
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  @@map("enquiry_analytics")
+}
+
+// ============================================================
+// SESSIONS (refresh tokens)
+// ============================================================
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  refreshToken String   @map("refresh_token") @db.VarChar(500)
+  expiresAt    DateTime @map("expires_at")
+  isRevoked    Boolean  @default(false) @map("is_revoked")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@map("sessions")
+}
