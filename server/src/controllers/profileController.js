@@ -2,6 +2,17 @@ const prisma = require('../utils/prisma');
 const { AppError } = require('../middleware/errorHandler');
 
 // ============================================================
+// Helper: Parse safely (handles seed scripts that inserted JSON strings)
+// ============================================================
+const safeParseArray = (val) => {
+    if (!val) return [];
+    if (typeof val === 'string') {
+        try { return JSON.parse(val); } catch { return []; }
+    }
+    return Array.isArray(val) ? val : [];
+};
+
+// ============================================================
 // GET /api/profile/:handle  — Public profile view
 // ============================================================
 const getProfileByHandle = async (req, res, next) => {
@@ -41,8 +52,8 @@ const getProfileByHandle = async (req, res, next) => {
                 displayName: profile.displayName,
                 handle: profile.handle,
                 avatarUrl: profile.avatarUrl,
-                personalityTags: profile.personalityTags,
-                preferredRegions: profile.preferredRegions,
+                personalityTags: safeParseArray(profile.personalityTags),
+                preferredRegions: safeParseArray(profile.preferredRegions),
                 followerCount: profile.followerCount,
                 followingCount: profile.followingCount,
                 verifiedReviewCount: profile.verifiedReviewCount,
@@ -140,15 +151,21 @@ const getProfileReviews = async (req, res, next) => {
 const updateMyProfile = async (req, res, next) => {
     try {
         const userId = req.user.id;
-        const { displayName, personalityTags, preferredRegions, contentPreferences } = req.body;
+        const { displayName, handle, avatarUrl, personalityTags, preferredRegions, contentPreferences } = req.body;
+
+        const safeTags = safeParseArray(personalityTags);
+        const safeRegions = safeParseArray(preferredRegions);
+        const safePrefs = safeParseArray(contentPreferences);
 
         const profile = await prisma.profile.update({
             where: { userId },
             data: {
                 ...(displayName && { displayName }),
-                ...(personalityTags && { personalityTags }),
-                ...(preferredRegions && { preferredRegions }),
-                ...(contentPreferences && { contentPreferences }),
+                ...(handle && { handle }),
+                ...(avatarUrl && { avatarUrl }),
+                ...(personalityTags && { personalityTags: safeTags }),
+                ...(preferredRegions && { preferredRegions: safeRegions }),
+                ...(contentPreferences && { contentPreferences: safePrefs }),
             },
         });
 
