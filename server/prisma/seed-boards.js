@@ -107,7 +107,6 @@ async function seed() {
                 userId: systemUser.id,
                 displayName: 'Travelpod Curated',
                 handle: 'travelpod-curated',
-                bio: 'Official curated boards by the Travelpod team',
             },
         });
         console.log('  Created system user: boards@travelpod.com');

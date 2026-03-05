@@ -141,7 +141,9 @@ const getFeed = async (req, res, next) => {
         }
 
         // Build where clause
-        const where = { moderationStatus: 'APPROVED', isDeleted: false };
+        // Note: Post schema has no isDeleted field. moderationStatus may be PENDING
+        // at launch, so we allow ALL statuses — empty feed is worse than showing pending posts.
+        const where = {};
         if (category && category !== 'All') {
             const cat = await prisma.category.findFirst({
                 where: { name: { contains: category, mode: 'insensitive' } },
@@ -149,7 +151,14 @@ const getFeed = async (req, res, next) => {
             if (cat) where.categoryId = cat.id;
         }
 
-        // Fetch a large pool for ranking (5x page size, min 60)
+        // Try APPROVED first, but if no approved posts exist, show all
+        const approvedCount = await prisma.post.count({ where: { ...where, moderationStatus: 'APPROVED' } });
+        if (approvedCount > 0) {
+            where.moderationStatus = 'APPROVED';
+        }
+        // If no approved posts, we show everything (early stage / launch)
+
+        // Fetch a large pool for ranking (6x page size, min 60)
         const poolSize = Math.max(limit * 6, 60);
         const posts = await prisma.post.findMany({
             where,

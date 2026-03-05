@@ -19,6 +19,12 @@ const PERSONALITY_TAGS = [
     'Solo Traveler', 'Family Vacationer', 'Photography Fan', 'Wellness & Spa',
 ];
 
+const BUSINESS_PERSONALITY_TAGS = [
+    'Safari Operator', 'Beach Resort', 'Boutique Hotel', 'Tour Operator',
+    'Activity Provider', 'Luxury Experiences', 'Budget Friendly', 'Eco Tourism',
+    'Cultural Tours', 'Adventure Sports', 'City Tours', 'Wellness Retreat',
+];
+
 const REGION_TAGS = [
     'East Africa', 'West Africa', 'Southern Africa', 'North Africa',
     'Southeast Asia', 'Middle East', 'Europe', 'Caribbean',
@@ -29,6 +35,12 @@ const CONTENT_PREFS = [
     'Hotel Reviews', 'Destination Guides', 'Food & Dining', 'Adventure Activities',
     'Travel Tips', 'Flight Reviews', 'Safari Experiences', 'Beach Getaways',
     'City Walks', 'Cultural Experiences', 'Nightlife', 'Budget Travel',
+];
+
+const BUSINESS_CONTENT_PREFS = [
+    'Showcase Packages', 'Behind the Scenes', 'Client Testimonials', 'Destination Highlights',
+    'Staff Spotlights', 'Seasonal Offers', 'Travel Tips', 'Property Tours',
+    'Safari Drives', 'Food & Dining', 'Adventure Activities', 'Local Culture',
 ];
 
 const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
@@ -144,15 +156,19 @@ export default function OnboardingPage() {
                 {/* ─── Step 1: Profile basics ─── */}
                 {step === 1 && (
                     <>
-                        <h1 className="onboarding-title">Set up your profile</h1>
-                        <p className="onboarding-subtitle">Tell us who you are</p>
+                        <h1 className="onboarding-title">
+                            {isBusiness ? 'Set up your business profile' : 'Tell us about yourself'}
+                        </h1>
+                        <p className="onboarding-subtitle">
+                            {isBusiness ? 'Help travelers discover and connect with your business' : 'Personalize your Travelpod experience'}
+                        </p>
                         <div className="onboarding-form">
                             <div className="form-field">
                                 <label className="form-label">Display name</label>
                                 <input
                                     id="onboarding-name"
                                     className="form-input"
-                                    placeholder="Your name or brand"
+                                    placeholder={isBusiness ? 'Business or brand name' : 'Your name or nickname'}
                                     value={form.displayName}
                                     onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))}
                                 />
@@ -170,9 +186,12 @@ export default function OnboardingPage() {
                             </div>
 
                             <div className="form-field">
-                                <label className="form-label">What kind of traveler are you? <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(pick a few)</span></label>
+                                <label className="form-label">
+                                    {isBusiness ? 'What best describes your business?' : 'What kind of traveler are you?'}
+                                    {' '}<span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(pick a few)</span>
+                                </label>
                                 <div className="tag-grid">
-                                    {PERSONALITY_TAGS.map(tag => (
+                                    {(isBusiness ? BUSINESS_PERSONALITY_TAGS : PERSONALITY_TAGS).map(tag => (
                                         <button
                                             key={tag} type="button"
                                             className={`tag-chip${form.personalityTags.includes(tag) ? ' selected' : ''}`}
@@ -183,7 +202,9 @@ export default function OnboardingPage() {
                             </div>
 
                             <div className="form-field">
-                                <label className="form-label">Preferred regions</label>
+                                <label className="form-label">
+                                    {isBusiness ? 'Regions you operate in' : 'Preferred regions'}
+                                </label>
                                 <div className="tag-grid">
                                     {REGION_TAGS.map(tag => (
                                         <button
@@ -196,9 +217,11 @@ export default function OnboardingPage() {
                             </div>
 
                             <div className="form-field">
-                                <label className="form-label">Content you want to see</label>
+                                <label className="form-label">
+                                    {isBusiness ? 'Content you want to create' : 'Content you want to see'}
+                                </label>
                                 <div className="tag-grid">
-                                    {CONTENT_PREFS.map(tag => (
+                                    {(isBusiness ? BUSINESS_CONTENT_PREFS : CONTENT_PREFS).map(tag => (
                                         <button
                                             key={tag} type="button"
                                             className={`tag-chip${form.contentPreferences.includes(tag) ? ' selected' : ''}`}
@@ -225,8 +248,12 @@ export default function OnboardingPage() {
                 {/* ─── Step 2: Avatar ─── */}
                 {step === 2 && (
                     <>
-                        <h1 className="onboarding-title">Add a profile photo</h1>
-                        <p className="onboarding-subtitle">Help others recognize you</p>
+                        <h1 className="onboarding-title">
+                            {isBusiness ? 'Add your business logo' : 'Add a profile photo'}
+                        </h1>
+                        <p className="onboarding-subtitle">
+                            {isBusiness ? 'A great logo builds trust with travelers' : 'Help others recognize you'}
+                        </p>
                         <div className="onboarding-form">
                             <div className="avatar-upload">
                                 <div
@@ -330,7 +357,10 @@ export default function OnboardingPage() {
                             </div>
                             <h1 className="onboarding-title">You're all set!</h1>
                             <p className="onboarding-subtitle">
-                                Your profile is ready. Start exploring travel content from creators and businesses around the world.
+                                {isBusiness
+                                    ? 'Your business profile is live! Start showcasing your services, creating trip boards, and connecting with travelers worldwide.'
+                                    : 'Your profile is ready. Start exploring travel content from creators and businesses around the world.'
+                                }
                             </p>
                         </div>
 
