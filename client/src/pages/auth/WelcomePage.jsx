@@ -22,7 +22,7 @@ export default function WelcomePage() {
     const navigate = useNavigate();
 
     const handleGetStarted = () => {
-        navigate('/onboarding');
+        navigate('/auth/register');
     };
 
     return (
