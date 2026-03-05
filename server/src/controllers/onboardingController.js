@@ -133,6 +133,33 @@ const completeOnboarding = async (req, res, next) => {
             data: { onboardingComplete: true },
         });
 
+        // ── Auto-follow the official @travelpod account ──
+        try {
+            const officialProfile = await prisma.profile.findUnique({ where: { handle: 'travelpod' } });
+            if (officialProfile && officialProfile.userId !== userId) {
+                const alreadyFollowing = await prisma.follow.findUnique({
+                    where: { followerId_followingId: { followerId: userId, followingId: officialProfile.userId } },
+                });
+                if (!alreadyFollowing) {
+                    await prisma.follow.create({
+                        data: { followerId: userId, followingId: officialProfile.userId },
+                    });
+                    // Update counts
+                    await prisma.profile.update({
+                        where: { userId: officialProfile.userId },
+                        data: { followerCount: { increment: 1 } },
+                    });
+                    await prisma.profile.update({
+                        where: { userId },
+                        data: { followingCount: { increment: 1 } },
+                    });
+                }
+            }
+        } catch (autoFollowErr) {
+            // Non-critical — don't block onboarding if this fails
+            console.warn('Auto-follow @travelpod failed (non-critical):', autoFollowErr.message);
+        }
+
         res.json({ success: true, message: 'Onboarding complete! Welcome to Travelpod.' });
     } catch (err) {
         next(err);
