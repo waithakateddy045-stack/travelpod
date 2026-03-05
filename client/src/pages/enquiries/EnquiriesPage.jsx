@@ -59,9 +59,8 @@ export default function EnquiriesPage() {
     const getStatusChip = (status) => {
         switch (status) {
             case 'PENDING': return <span className="enquiry-status pending">Pending</span>;
-            case 'REPLIED': return <span className="enquiry-status replied"><HiOutlineCheckCircle /> Replied</span>;
-            case 'DECLINED': return <span className="enquiry-status declined"><HiOutlineXCircle /> Declined</span>;
-            case 'CLOSED': return <span className="enquiry-status closed">Closed</span>;
+            case 'RESPONDED': return <span className="enquiry-status replied"><HiOutlineCheckCircle /> Responded</span>;
+            case 'EXPIRED': return <span className="enquiry-status declined"><HiOutlineXCircle /> Expired</span>;
             default: return null;
         }
     };
@@ -152,7 +151,7 @@ export default function EnquiriesPage() {
                                             <button className="btn-reply" onClick={() => setReplyingTo(enq.id)}>
                                                 Reply & Start Chat
                                             </button>
-                                            <button className="btn-decline" onClick={() => handleUpdateStatus(enq.id, 'DECLINED')}>
+                                            <button className="btn-decline" onClick={() => handleUpdateStatus(enq.id, 'EXPIRED')}>
                                                 Decline
                                             </button>
                                         </div>
@@ -176,16 +175,18 @@ export default function EnquiriesPage() {
                                         </div>
                                     )}
 
-                                    {enq.status !== 'CLOSED' && enq.status !== 'DECLINED' && !isBusiness && (
+                                    {enq.status !== 'EXPIRED' && enq.status !== 'RESPONDED' && !isBusiness && (
                                         <div className="enquiry-actions-traveler">
-                                            <button className="btn-cancel" onClick={() => handleUpdateStatus(enq.id, 'CLOSED')}>
-                                                Close Request
+                                            <button className="btn-cancel" onClick={() => handleUpdateStatus(enq.id, 'EXPIRED')}>
+                                                Cancel Request
                                             </button>
-                                            {enq.status === 'REPLIED' && (
-                                                <button className="btn-reply" onClick={() => navigate('/messages')}>
-                                                    Go to Messages
-                                                </button>
-                                            )}
+                                        </div>
+                                    )}
+                                    {enq.status === 'RESPONDED' && !isBusiness && (
+                                        <div className="enquiry-actions-traveler">
+                                            <button className="btn-reply" onClick={() => navigate('/messages')}>
+                                                Go to Messages
+                                            </button>
                                         </div>
                                     )}
                                 </div>

@@ -81,7 +81,7 @@ const respondToEnquiry = async (req, res, next) => {
         const enquiry = await prisma.enquiry.findUnique({ where: { id } });
         if (!enquiry) throw new AppError('Enquiry not found', 404);
         if (enquiry.businessId !== businessId) throw new AppError('Unauthorized', 403);
-        if (enquiry.status !== 'PENDING') throw new AppError('Enquiry is already answered or closed', 400);
+        if (enquiry.status !== 'PENDING') throw new AppError('Enquiry has already been responded to', 400);
 
         // 1. Create the EnquiryResponse
         const responseData = await prisma.enquiryResponse.create({
@@ -95,7 +95,7 @@ const respondToEnquiry = async (req, res, next) => {
         // 2. Update Enquiry Status
         await prisma.enquiry.update({
             where: { id },
-            data: { status: 'REPLIED' }
+            data: { status: 'RESPONDED' }
         });
 
         // 3. (Optional but good UX) Also send it as a direct message so conversation can continue
@@ -142,8 +142,8 @@ const updateEnquiryStatus = async (req, res, next) => {
         const { id } = req.params;
         const { status } = req.body; // 'DECLINED', 'CLOSED'
 
-        if (!['DECLINED', 'CLOSED'].includes(status)) {
-            throw new AppError('Invalid status update', 400);
+        if (!['RESPONDED', 'EXPIRED'].includes(status)) {
+            throw new AppError('Invalid status. Use RESPONDED or EXPIRED.', 400);
         }
 
         const enquiry = await prisma.enquiry.findUnique({ where: { id } });

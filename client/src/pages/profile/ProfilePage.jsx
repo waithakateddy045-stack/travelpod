@@ -340,7 +340,7 @@ export default function ProfilePage() {
                     <div className="post-grid">
                         {(activeTab === 'posts' ? posts : savedPosts).length > 0 ? (
                             (activeTab === 'posts' ? posts : savedPosts).map(post => (
-                                <div key={post.id} className="post-grid-item">
+                                <Link key={post.id} to={`/post/${post.id}`} className="post-grid-item" style={{ textDecoration: 'none', color: 'inherit' }}>
                                     {post.thumbnailUrl ? (
                                         <img src={post.thumbnailUrl} alt={post.title} />
                                     ) : (
@@ -352,7 +352,7 @@ export default function ProfilePage() {
                                         <span><HiOutlineHeart /> {post.likeCount}</span>
                                         <span><HiOutlinePlayCircle /> {post.viewCount}</span>
                                     </div>
-                                </div>
+                                </Link>
                             ))
                         ) : (
                             <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
