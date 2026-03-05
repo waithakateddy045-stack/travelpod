@@ -10,6 +10,7 @@ const NOTIFICATION_TYPES = {
     CONTENT_REMOVED: 'content_removed',
     NEW_REVIEW: 'new_review',
     NEW_ENQUIRY: 'new_enquiry',
+    WELCOME_PROFILE_SETUP: 'welcome_profile_setup',
     COLLABORATION_REQUEST: 'collaboration_request',
     VERIFICATION_APPROVED: 'verification_approved',
     VERIFICATION_REJECTED: 'verification_rejected',

@@ -6,16 +6,19 @@ import {
     HiOutlineCheckBadge, HiOutlineChatBubbleLeft,
     HiOutlinePlayCircle, HiOutlineHeart, HiOutlineUser,
     HiOutlineArrowLeft, HiOutlineCog6Tooth,
-    HiOutlineChartBar
+    HiOutlineChartBar, HiOutlineEnvelope
 } from 'react-icons/hi2';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import './ProfilePage.css';
 
 const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
 
 export default function ProfilePage() {
     const { handle } = useParams();
+    const navigate = useNavigate();
     const { user } = useAuth();
     const [profile, setProfile] = useState(null);
     const [posts, setPosts] = useState([]);
@@ -83,6 +86,19 @@ export default function ProfilePage() {
             toast.error(err.response?.data?.error || 'Failed');
         } finally {
             setFollowLoading(false);
+        }
+    };
+
+    const handleStartMessage = async () => {
+        if (!user) { toast.error('Please sign in to message'); return; }
+        try {
+            await api.post('/messages', {
+                recipientId: profile.userId,
+                content: `👋 Hi ${profile.displayName}, I'd like to connect!`
+            });
+            navigate('/messages');
+        } catch (err) {
+            toast.error('Failed to start conversation');
         }
     };
 
@@ -232,8 +248,8 @@ export default function ProfilePage() {
                                         Enquire Now
                                     </button>
                                 )}
-                                <button className="profile-btn message">
-                                    <HiOutlineChatBubbleLeft style={{ marginRight: 4 }} />
+                                <button className="profile-btn message" onClick={handleStartMessage}>
+                                    <HiOutlineEnvelope style={{ marginRight: 4 }} /> Message
                                 </button>
                             </div>
                         )}
@@ -381,25 +397,13 @@ export default function ProfilePage() {
                 </div>
             )}
 
-            {/* Enquiry Modal Placeholder */}
-            {isEnquiryModalOpen && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ background: 'var(--bg-secondary)', padding: 'var(--space-6)', borderRadius: 'var(--radius-lg)', width: '90%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto' }}>
-                        <h2>Enquire with {profile.displayName}</h2>
-                        <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>Send a direct enquiry to book or learn more.</p>
-
-                        <div className="form-field">
-                            <label className="form-label">Message</label>
-                            <textarea className="form-input" rows="4" placeholder={`Hi ${profile.displayName}, I am interested in...`} />
-                        </div>
-
-                        <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-6)' }}>
-                            <button className="onboarding-btn secondary" onClick={() => setIsEnquiryModalOpen(false)} style={{ flex: 1 }}>Cancel</button>
-                            <button className="onboarding-btn primary" onClick={() => { setIsEnquiryModalOpen(false); toast.success('Enquiry sent!'); }} style={{ flex: 1 }}>Send Enquiry</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Modals and Renderings */}
+            <EnquiryModal
+                businessId={profile.userId}
+                businessName={profile.displayName}
+                isOpen={isEnquiryModalOpen}
+                onClose={() => setIsEnquiryModalOpen(false)}
+            />
         </div>
     );
 }

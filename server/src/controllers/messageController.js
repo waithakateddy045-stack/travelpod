@@ -1,96 +1,119 @@
 const prisma = require('../utils/prisma');
 const { AppError } = require('../middleware/errorHandler');
 
-// GET /api/messages/conversations — List user's conversations
+// GET /api/messages/conversations
 const getConversations = async (req, res, next) => {
     try {
         const userId = req.user.id;
+
         const conversations = await prisma.conversation.findMany({
-            where: { participants: { some: { userId } } },
-            orderBy: { updatedAt: 'desc' },
-            include: {
-                participants: {
-                    include: { user: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } } } },
-                },
-                messages: { orderBy: { createdAt: 'desc' }, take: 1 },
-            },
-        });
-        res.json({ success: true, conversations });
-    } catch (err) { next(err); }
-};
-
-// POST /api/messages/conversations — Create or get existing conversation
-const createConversation = async (req, res, next) => {
-    try {
-        const userId = req.user.id;
-        const { recipientId } = req.body;
-        if (!recipientId) throw new AppError('Recipient ID required', 400);
-        if (recipientId === userId) throw new AppError('Cannot message yourself', 400);
-
-        // Check for existing 1-on-1 conversation
-        const existing = await prisma.conversation.findFirst({
             where: {
-                AND: [
-                    { participants: { some: { userId } } },
-                    { participants: { some: { userId: recipientId } } },
-                ],
+                OR: [
+                    { participant1Id: userId },
+                    { participant2Id: userId }
+                ]
             },
-            include: { participants: { include: { user: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } } } } } },
+            orderBy: { lastMessageAt: 'desc' },
+            include: {
+                participant1: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } }, accountType: true } },
+                participant2: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } }, accountType: true } }
+            }
         });
-        if (existing) return res.json({ success: true, conversation: existing });
 
-        const conversation = await prisma.conversation.create({
-            data: {
-                participants: {
-                    create: [{ userId }, { userId: recipientId }],
-                },
-            },
-            include: { participants: { include: { user: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } } } } } },
+        // Format for frontend
+        const formatted = conversations.map(c => {
+            const isP1 = c.participant1Id === userId;
+            return {
+                id: c.id,
+                otherUser: isP1 ? c.participant2 : c.participant1,
+                lastMessagePreview: c.lastMessagePreview,
+                lastMessageAt: c.lastMessageAt,
+                unreadCount: isP1 ? c.unreadCountP1 : c.unreadCountP2,
+                createdAt: c.createdAt
+            };
         });
-        res.status(201).json({ success: true, conversation });
+
+        res.json({ success: true, conversations: formatted });
     } catch (err) { next(err); }
 };
 
-// GET /api/messages/:conversationId — Get messages
+// GET /api/messages/:conversationId
 const getMessages = async (req, res, next) => {
     try {
         const { conversationId } = req.params;
+        const userId = req.user.id;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 30;
 
-        const messages = await prisma.message.findMany({
+        const conversation = await prisma.conversation.findUnique({ where: { id: conversationId } });
+        if (!conversation) throw new AppError('Conversation not found', 404);
+        if (conversation.participant1Id !== userId && conversation.participant2Id !== userId) {
+            throw new AppError('Unauthorized', 403);
+        }
+
+        const messages = await prisma.directMessage.findMany({
             where: { conversationId },
-            orderBy: { createdAt: 'desc' },
-            skip: (page - 1) * limit, take: limit,
-            include: { sender: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } } } },
+            orderBy: { sentAt: 'desc' },
+            skip: (page - 1) * limit,
+            take: limit
         });
+
+        // Mark read
+        const isP1 = conversation.participant1Id === userId;
+        if ((isP1 && conversation.unreadCountP1 > 0) || (!isP1 && conversation.unreadCountP2 > 0)) {
+            await prisma.conversation.update({
+                where: { id: conversationId },
+                data: isP1 ? { unreadCountP1: 0 } : { unreadCountP2: 0 }
+            });
+            await prisma.directMessage.updateMany({
+                where: { conversationId, senderId: { not: userId }, readAt: null },
+                data: { readAt: new Date() }
+            });
+        }
 
         res.json({ success: true, messages: messages.reverse(), page });
     } catch (err) { next(err); }
 };
 
-// POST /api/messages/:conversationId — Send message
+// POST /api/messages
 const sendMessage = async (req, res, next) => {
     try {
-        const { conversationId } = req.params;
-        const { text, mediaUrl } = req.body;
-        if (!text?.trim() && !mediaUrl) throw new AppError('Message text or media required', 400);
+        const senderId = req.user.id;
+        const { recipientId, content } = req.body;
 
-        const message = await prisma.message.create({
-            data: {
-                conversationId,
-                senderId: req.user.id,
-                text: text?.trim() || null,
-                mediaUrl: mediaUrl || null,
-            },
-            include: { sender: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } } } },
+        if (!recipientId || !content) throw new AppError('Recipient and content required', 400);
+        if (senderId === recipientId) throw new AppError('Cannot message yourself', 400);
+
+        const p1 = senderId < recipientId ? senderId : recipientId;
+        const p2 = senderId < recipientId ? recipientId : senderId;
+
+        let conversation = await prisma.conversation.findUnique({
+            where: { participant1Id_participant2Id: { participant1Id: p1, participant2Id: p2 } }
         });
 
-        // Update conversation timestamp
-        await prisma.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } });
+        if (!conversation) {
+            conversation = await prisma.conversation.create({
+                data: { participant1Id: p1, participant2Id: p2, lastMessageAt: new Date() }
+            });
+        }
 
-        res.status(201).json({ success: true, message });
+        const message = await prisma.directMessage.create({
+            data: { conversationId: conversation.id, senderId, content }
+        });
+
+        const isSenderP1 = conversation.participant1Id === senderId;
+        await prisma.conversation.update({
+            where: { id: conversation.id },
+            data: {
+                lastMessagePreview: content.substring(0, 50),
+                lastMessageAt: new Date(),
+                unreadCountP1: isSenderP1 ? undefined : { increment: 1 },
+                unreadCountP2: isSenderP1 ? { increment: 1 } : undefined
+            }
+        });
+
+        res.status(201).json({ success: true, message, conversationId: conversation.id });
     } catch (err) { next(err); }
 };
 
-module.exports = { getConversations, createConversation, getMessages, sendMessage };
+module.exports = { getConversations, getMessages, sendMessage };

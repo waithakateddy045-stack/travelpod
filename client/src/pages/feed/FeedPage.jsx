@@ -31,6 +31,7 @@ export default function FeedPage() {
     const [activeChip, setActiveChip] = useState(
         () => localStorage.getItem('feedChip') || 'All'
     );
+    const [unreadNotifications, setUnreadNotifications] = useState(0);
     const [reportPostId, setReportPostId] = useState(null);
 
     const handleShare = (id) => {
@@ -56,6 +57,14 @@ export default function FeedPage() {
 
     useEffect(() => { setPage(1); }, [activeChip]);
     useEffect(() => { loadFeed(); }, [loadFeed]);
+
+    // Load unread notifications count
+    useEffect(() => {
+        if (!user) return;
+        api.get('/notifications').then(res => {
+            if (res.data?.unreadCount) setUnreadNotifications(res.data.unreadCount);
+        }).catch(() => { });
+    }, [user]);
 
     const handleLike = async (postId, isLiked) => {
         try {
@@ -105,8 +114,19 @@ export default function FeedPage() {
                         <button className="feed-nav-btn" onClick={() => navigate('/explore')} title="Explore">
                             <HiOutlineMagnifyingGlass />
                         </button>
-                        <button className="feed-nav-btn" title="Notifications">
+                        <button className="feed-nav-btn" onClick={() => navigate('/messages')} title="Messages">
+                            <HiOutlineEnvelope />
+                        </button>
+                        {BUSINESS_TYPES.includes(user?.accountType) && (
+                            <button className="feed-nav-btn" onClick={() => navigate('/enquiries')} title="Enquiries">
+                                <span style={{ fontSize: '1.1rem' }}>✉️</span>
+                            </button>
+                        )}
+                        <button className="feed-nav-btn" onClick={() => navigate('/notifications')} title="Notifications" style={{ position: 'relative' }}>
                             <HiOutlineBell />
+                            {unreadNotifications > 0 && (
+                                <span style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, background: 'var(--color-primary-light)', borderRadius: '50%' }} />
+                            )}
                         </button>
                         <Link to={user?.profile?.handle ? `/profile/${user.profile.handle}` : '#'} className="feed-nav-btn" title="Profile">
                             <HiOutlineUser />

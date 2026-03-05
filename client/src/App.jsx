@@ -16,6 +16,8 @@ import PostPage from './pages/post/PostPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import ExplorePage from './pages/explore/ExplorePage';
+import NotificationsPage from './pages/notifications/NotificationsPage';
+import EnquiriesPage from './pages/enquiries/EnquiriesPage';
 import AdminPage from './pages/admin/AdminPage';
 import NotFoundPage from './pages/NotFoundPage';
 import './index.css';
@@ -56,6 +58,8 @@ function App() {
             <Route path="/profile/:handle" element={<ProfilePage />} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+            <Route path="/enquiries" element={<ProtectedRoute><EnquiriesPage /></ProtectedRoute>} />
             <Route path="/explore" element={<ExplorePage />} />
 
             {/* Admin Console — web-only, standalone, NOT linked from the app UI */}

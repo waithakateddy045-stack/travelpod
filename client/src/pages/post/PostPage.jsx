@@ -9,7 +9,10 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import VideoPlayer from '../../components/video/VideoPlayer';
+import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import './PostPage.css';
+
+const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
 
 export default function PostPage() {
     const { id } = useParams();
@@ -21,6 +24,9 @@ export default function PostPage() {
     const [loading, setLoading] = useState(true);
     const [commentText, setCommentText] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [isEnquiryModalOpen, setIsEnquiryModalOpen] = useState(false);
+
+    const isBusiness = post && BUSINESS_TYPES.includes(post.author?.accountType);
 
     const loadData = useCallback(async () => {
         try {
@@ -148,6 +154,22 @@ export default function PostPage() {
                                 ))}
                             </div>
                         )}
+
+                        {isBusiness && post.author.id !== user?.id && (
+                            <button
+                                className="btn-primary"
+                                style={{ width: '100%', marginTop: 'var(--space-4)', display: 'block' }}
+                                onClick={() => {
+                                    if (!user) {
+                                        toast.error('Please login to send an enquiry');
+                                    } else {
+                                        setIsEnquiryModalOpen(true);
+                                    }
+                                }}
+                            >
+                                Enquire Now
+                            </button>
+                        )}
                     </div>
 
                     {/* Engagement Bar */}
@@ -239,6 +261,15 @@ export default function PostPage() {
                     </div>
                 </div>
             </div>
+
+            {post && (
+                <EnquiryModal
+                    businessId={post.author.id}
+                    businessName={post.author.profile?.displayName}
+                    isOpen={isEnquiryModalOpen}
+                    onClose={() => setIsEnquiryModalOpen(false)}
+                />
+            )}
         </div>
     );
 }

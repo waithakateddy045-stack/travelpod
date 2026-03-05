@@ -144,6 +144,15 @@ const register = async (req, res, next) => {
         const refreshToken = generateRefreshToken();
         await storeRefreshToken(user.id, refreshToken);
 
+        // In-app Welcome Notification
+        const { createNotification } = require('./notificationController');
+        createNotification({
+            userId: user.id,
+            type: 'welcome_profile_setup',
+            title: 'Welcome to Travelpod! 👋',
+            body: 'We are thrilled to have you. Please complete your profile to start connecting and sharing.',
+        }).catch(() => { });
+
         res.status(201).json({
             success: true,
             message: 'Account created successfully. Please verify your email.',

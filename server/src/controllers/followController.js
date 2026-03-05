@@ -15,11 +15,20 @@ const followUser = async (req, res, next) => {
 
         await prisma.follow.create({ data: { followerId, followingId } });
 
-        // Update counts
         await Promise.all([
             prisma.profile.updateMany({ where: { userId: followingId }, data: { followerCount: { increment: 1 } } }),
             prisma.profile.updateMany({ where: { userId: followerId }, data: { followingCount: { increment: 1 } } }),
         ]);
+
+        const { createNotification } = require('./notificationController');
+        createNotification({
+            userId: followingId,
+            type: 'new_follower',
+            title: 'New Follower!',
+            body: 'Someone just started following you.',
+            relatedEntityId: followerId,
+            relatedEntityType: 'user',
+        }).catch(() => { });
 
         res.status(201).json({ success: true, message: 'Followed' });
     } catch (err) { next(err); }

@@ -2,10 +2,10 @@ const prisma = require('../utils/prisma');
 const { NOTIFICATION_TYPES } = require('../utils/constants');
 
 // Create a notification
-const createNotification = async ({ recipientId, type, actorId, postId, reviewId, message }) => {
+const createNotification = async ({ userId, type, title, body, relatedEntityId, relatedEntityType }) => {
     try {
         return await prisma.notification.create({
-            data: { recipientId, type, actorId, postId, reviewId, message },
+            data: { userId, type, title, body, relatedEntityId, relatedEntityType },
         });
     } catch (err) {
         console.error('Failed to create notification:', err.message);
@@ -21,16 +21,12 @@ const getNotifications = async (req, res, next) => {
 
         const [notifications, total, unreadCount] = await Promise.all([
             prisma.notification.findMany({
-                where: { recipientId: userId },
+                where: { userId },
                 orderBy: { createdAt: 'desc' },
                 skip: (page - 1) * limit, take: limit,
-                include: {
-                    actor: { select: { profile: { select: { displayName: true, handle: true, avatarUrl: true } } } },
-                    post: { select: { id: true, title: true, thumbnailUrl: true } },
-                },
             }),
-            prisma.notification.count({ where: { recipientId: userId } }),
-            prisma.notification.count({ where: { recipientId: userId, isRead: false } }),
+            prisma.notification.count({ where: { userId } }),
+            prisma.notification.count({ where: { userId, readAt: null } }),
         ]);
 
         res.json({ success: true, notifications, total, unreadCount, page });
