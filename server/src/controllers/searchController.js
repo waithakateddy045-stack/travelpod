@@ -46,31 +46,31 @@ const search = async (req, res, next) => {
             const [posts, count] = await Promise.all([
                 prisma.post.findMany({
                     where: {
-                        moderationStatus: 'APPROVED', isDeleted: false,
+                        moderationStatus: 'APPROVED',
                         OR: [
                             { title: { contains: query, mode: 'insensitive' } },
                             { description: { contains: query, mode: 'insensitive' } },
-                            { location: { contains: query, mode: 'insensitive' } },
-                            { category: { contains: query, mode: 'insensitive' } },
+                            { locationTag: { contains: query, mode: 'insensitive' } },
                         ],
                     },
                     skip: (page - 1) * limit, take: limit,
                     select: {
                         id: true, title: true, thumbnailUrl: true, viewCount: true,
-                        likeCount: true, category: true, location: true, createdAt: true,
-                        user: { select: { profile: { select: { displayName: true, handle: true, avatarUrl: true } } } },
+                        likeCount: true, categoryId: true, locationTag: true, createdAt: true,
+                        author: { select: { profile: { select: { displayName: true, handle: true, avatarUrl: true } } } },
                     },
                 }),
                 prisma.post.count({
                     where: {
-                        moderationStatus: 'APPROVED', isDeleted: false, OR: [
+                        moderationStatus: 'APPROVED', OR: [
                             { title: { contains: query, mode: 'insensitive' } },
                             { description: { contains: query, mode: 'insensitive' } },
+                            { locationTag: { contains: query, mode: 'insensitive' } },
                         ]
                     },
                 }),
             ]);
-            results = posts.map(p => ({ ...p, resultType: 'post' }));
+            results = posts.map(p => ({ ...p, category: p.categoryId, location: p.locationTag, user: p.author, resultType: 'post' }));
             total = count;
         }
 
@@ -82,13 +82,13 @@ const search = async (req, res, next) => {
 const getCategories = async (req, res, next) => {
     try {
         const categories = await prisma.post.groupBy({
-            by: ['category'],
-            where: { moderationStatus: 'APPROVED', isDeleted: false, category: { not: null } },
+            by: ['categoryId'],
+            where: { moderationStatus: 'APPROVED', categoryId: { not: null } },
             _count: true,
-            orderBy: { _count: { category: 'desc' } },
+            orderBy: { _count: { categoryId: 'desc' } },
             take: 20,
         });
-        res.json({ success: true, categories });
+        res.json({ success: true, categories: categories.map(c => ({ category: c.categoryId, _count: c._count })) });
     } catch (err) { next(err); }
 };
 
