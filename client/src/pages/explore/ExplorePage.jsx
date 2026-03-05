@@ -18,13 +18,17 @@ export default function ExplorePage() {
     const [query, setQuery] = useState('');
     const [searchType, setSearchType] = useState('posts');
     const [results, setResults] = useState([]);
+    const [suggestions, setSuggestions] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(false);
 
+    // Full search (on enter or tab click)
     const doSearch = useCallback(async (q) => {
         if (!q.trim()) { setResults([]); setSearched(false); return; }
         setLoading(true);
         setSearched(true);
+        setShowSuggestions(false);
         try {
             const { data } = await api.get(`/search?q=${encodeURIComponent(q)}&type=${searchType}`);
             setResults(data.results || []);
@@ -35,10 +39,52 @@ export default function ExplorePage() {
         }
     }, [searchType]);
 
+    // Live suggestions as user types (lightweight, mixed users + posts)
     useEffect(() => {
-        const delay = setTimeout(() => { if (query.trim()) doSearch(query); }, 400);
+        if (!query.trim() || query.length < 2) {
+            setSuggestions([]);
+            setShowSuggestions(false);
+            return;
+        }
+
+        const delay = setTimeout(async () => {
+            try {
+                // Fetch both users and posts suggestions in parallel
+                const [usersRes, postsRes] = await Promise.all([
+                    api.get(`/search?q=${encodeURIComponent(query)}&type=users&limit=5`),
+                    api.get(`/search?q=${encodeURIComponent(query)}&type=posts&limit=5`),
+                ]);
+                const userSugs = (usersRes.data.results || []).map(u => ({
+                    type: 'user',
+                    id: u.handle,
+                    label: u.displayName,
+                    sub: `@${u.handle}`,
+                    avatar: u.avatarUrl,
+                    link: `/profile/${u.handle}`,
+                }));
+                const postSugs = (postsRes.data.results || []).map(p => ({
+                    type: 'post',
+                    id: p.id,
+                    label: p.title,
+                    sub: p.user?.profile?.handle ? `@${p.user.profile.handle}` : p.category || '',
+                    avatar: p.thumbnailUrl,
+                    link: `/post/${p.id}`,
+                }));
+                const combined = [...userSugs, ...postSugs].slice(0, 8);
+                setSuggestions(combined);
+                setShowSuggestions(combined.length > 0);
+            } catch {
+                setSuggestions([]);
+            }
+        }, 300);
+
         return () => clearTimeout(delay);
-    }, [query, doSearch]);
+    }, [query]);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (query.trim()) doSearch(query);
+    };
 
     return (
         <div className="explore-page">
@@ -46,7 +92,7 @@ export default function ExplorePage() {
                 <button className="explore-back" onClick={() => navigate(-1)}>
                     <HiOutlineArrowLeft />
                 </button>
-                <div className="explore-search-wrap">
+                <form className="explore-search-wrap" onSubmit={handleSubmit}>
                     <HiOutlineMagnifyingGlass className="explore-search-icon" />
                     <input
                         id="explore-search-input"
@@ -56,11 +102,38 @@ export default function ExplorePage() {
                         placeholder="Search videos, places, creators..."
                         value={query}
                         onChange={e => setQuery(e.target.value)}
+                        onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
                     />
                     {query && (
-                        <button className="explore-clear" onClick={() => { setQuery(''); setResults([]); setSearched(false); }}>✕</button>
+                        <button type="button" className="explore-clear" onClick={() => { setQuery(''); setResults([]); setSearched(false); setSuggestions([]); setShowSuggestions(false); }}>✕</button>
                     )}
-                </div>
+
+                    {/* Live Suggestions Dropdown */}
+                    {showSuggestions && (
+                        <div className="explore-suggestions">
+                            {suggestions.map((sug, i) => (
+                                <Link
+                                    key={`${sug.type}-${sug.id}-${i}`}
+                                    to={sug.link}
+                                    className="explore-suggestion-item"
+                                    onClick={() => setShowSuggestions(false)}
+                                >
+                                    <div className={`suggestion-avatar ${sug.type === 'post' ? 'square' : ''}`}>
+                                        {sug.avatar
+                                            ? <img src={sug.avatar} alt="" />
+                                            : sug.type === 'user' ? <HiOutlineUser /> : <HiOutlineFilm />
+                                        }
+                                    </div>
+                                    <div className="suggestion-text">
+                                        <span className="suggestion-label">{sug.label}</span>
+                                        <span className="suggestion-sub">{sug.sub}</span>
+                                    </div>
+                                    <span className="suggestion-type">{sug.type === 'user' ? 'Creator' : 'Video'}</span>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </form>
             </nav>
 
             {/* Type toggle */}
@@ -85,7 +158,7 @@ export default function ExplorePage() {
                             <button
                                 key={cat}
                                 className="explore-category-chip"
-                                onClick={() => { setQuery(cat); setSearchType('posts'); }}
+                                onClick={() => { setQuery(cat); setSearchType('posts'); doSearch(cat); }}
                             >
                                 <HiOutlineMapPin />
                                 {cat}

@@ -18,6 +18,7 @@ import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import ExplorePage from './pages/explore/ExplorePage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
 import EnquiriesPage from './pages/enquiries/EnquiriesPage';
+import MessagesPage from './pages/messages/MessagesPage';
 import AdminPage from './pages/admin/AdminPage';
 import NotFoundPage from './pages/NotFoundPage';
 import './index.css';
@@ -60,6 +61,7 @@ function App() {
             <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
             <Route path="/enquiries" element={<ProtectedRoute><EnquiriesPage /></ProtectedRoute>} />
+            <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
             <Route path="/explore" element={<ExplorePage />} />
 
             {/* Admin Console — web-only, standalone, NOT linked from the app UI */}

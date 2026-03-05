@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import VideoPlayer from '../../components/video/VideoPlayer';
 import ReportModal from '../../components/common/ReportModal';
+import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import './FeedPage.css';
 
 const FILTER_CHIPS = [
@@ -33,6 +34,7 @@ export default function FeedPage() {
     );
     const [unreadNotifications, setUnreadNotifications] = useState(0);
     const [reportPostId, setReportPostId] = useState(null);
+    const [enquiryTarget, setEnquiryTarget] = useState(null); // { userId, displayName }
 
     const handleShare = (id) => {
         const link = `${window.location.origin}/post/${id}`;
@@ -233,13 +235,12 @@ export default function FeedPage() {
                                 {/* Business CTAs (Enquire / Review links) */}
                                 {BUSINESS_TYPES.includes(post.user?.accountType) && (
                                     <div style={{ display: 'flex', gap: 'var(--space-2)', padding: '0 var(--space-4) var(--space-2)' }}>
-                                        <Link
-                                            to={`/profile/${post.user?.profile?.handle}`}
-                                            state={{ openEnquiry: true }}
-                                            style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--color-primary-light)', fontWeight: 600, textDecoration: 'none' }}
+                                        <button
+                                            onClick={() => setEnquiryTarget({ userId: post.user?.id || post.userId, displayName: post.user?.profile?.displayName || 'Business' })}
+                                            style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--color-primary-light)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                                         >
                                             <HiOutlineEnvelope style={{ fontSize: '0.9rem' }} /> Enquire
-                                        </Link>
+                                        </button>
                                         <span style={{ color: 'var(--border-primary)', fontSize: 'var(--text-xs)' }}>·</span>
                                         <button
                                             onClick={() => navigate('/upload', { state: { reviewBusiness: post.user?.profile?.handle } })}
@@ -275,6 +276,16 @@ export default function FeedPage() {
             {/* Report Modal */}
             {reportPostId && (
                 <ReportModal postId={reportPostId} onClose={() => setReportPostId(null)} />
+            )}
+
+            {/* Enquiry Modal */}
+            {enquiryTarget && (
+                <EnquiryModal
+                    businessId={enquiryTarget.userId}
+                    businessName={enquiryTarget.displayName}
+                    isOpen={true}
+                    onClose={() => setEnquiryTarget(null)}
+                />
             )}
         </div>
     );

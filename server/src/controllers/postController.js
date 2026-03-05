@@ -9,7 +9,7 @@ const fs = require('fs');
 const createPost = async (req, res, next) => {
     try {
         const userId = req.user.id;
-        const { title, description, postType, categoryId, locationTag, tags, isReview, businessId, starRating } = req.body;
+        const { title, description, postType, categoryId, category, locationTag, tags, isReview, businessId, starRating } = req.body;
 
         if (!title) throw new AppError('Title is required', 400);
         if (!req.file) throw new AppError('Video file is required', 400);
@@ -33,6 +33,18 @@ const createPost = async (req, res, next) => {
 
         const thumbnailUrl = getVideoThumbnail(cloudResult.public_id);
 
+        // Resolve category name to categoryId if needed
+        let resolvedCategoryId = categoryId || null;
+        if (!resolvedCategoryId && category) {
+            const slug = category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            const cat = await prisma.category.upsert({
+                where: { slug },
+                update: {},
+                create: { name: category, slug },
+            });
+            resolvedCategoryId = cat.id;
+        }
+
         const post = await prisma.post.create({
             data: {
                 userId,
@@ -42,7 +54,7 @@ const createPost = async (req, res, next) => {
                 thumbnailUrl,
                 duration: Math.round(cloudResult.duration || 0),
                 postType: postType || 'STANDARD',
-                categoryId: categoryId || null,
+                categoryId: resolvedCategoryId,
                 locationTag: locationTag || null,
                 moderationStatus: 'APPROVED',
             },

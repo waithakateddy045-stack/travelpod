@@ -337,18 +337,27 @@
     .post-container {
         flex-direction: column;
         height: auto;
+        min-height: calc(100vh - 73px);
     }
 
     .post-video-section {
         flex: none;
-        height: 60vh;
+        height: auto;
+        max-height: 50vh;
         border-right: none;
         border-bottom: 1px solid var(--border-primary);
+        position: relative;
     }
 
     .post-details-section {
         flex: none;
         min-width: 100%;
-        height: calc(100vh - 60vh - 73px);
+        height: auto;
+        min-height: 50vh;
+    }
+
+    .post-comments {
+        overflow-y: visible;
+        max-height: none;
     }
 }
