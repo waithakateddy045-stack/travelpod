@@ -5,7 +5,8 @@
     justify-content: center;
     background: var(--bg-primary);
     position: relative;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     padding: var(--space-6);
 }
 

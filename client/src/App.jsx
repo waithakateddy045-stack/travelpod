@@ -7,6 +7,7 @@ import WelcomePage from './pages/auth/WelcomePage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import OAuthCallbackPage from './pages/auth/OAuthCallbackPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import OnboardingPage from './pages/onboarding/OnboardingPage';
 import ProfilePage from './pages/profile/ProfilePage';
 import FeedPage from './pages/feed/FeedPage';
@@ -42,6 +43,7 @@ function App() {
             <Route path="/auth/login" element={<LoginPage />} />
             <Route path="/auth/register" element={<RegisterPage />} />
             <Route path="/auth/callback" element={<OAuthCallbackPage />} />
+            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
 
             {/* Protected */}
             <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />

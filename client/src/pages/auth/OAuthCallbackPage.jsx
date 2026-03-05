@@ -16,10 +16,12 @@ export default function OAuthCallbackPage() {
             localStorage.setItem('travelpod_token', accessToken);
             if (refreshToken) localStorage.setItem('travelpod_refresh', refreshToken);
             loadUser().then(() => {
+                // onboarding param is 'true' when onboarding IS complete (comes from backend)
                 navigate(onboarding === 'true' ? '/feed' : '/onboarding', { replace: true });
             });
         } else {
-            navigate('/', { replace: true });
+            // No token was returned — oauth failed
+            navigate('/auth/login?error=oauth_failed', { replace: true });
         }
     }, [params, navigate, loadUser]);
 
