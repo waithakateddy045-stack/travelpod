@@ -5,7 +5,8 @@ import {
     HiOutlineBuildingStorefront,
     HiOutlineMapPin,
     HiOutlinePaperAirplane,
-    HiOutlineUserGroup
+    HiOutlineUserGroup,
+    HiOutlineDevicePhoneMobile
 } from 'react-icons/hi2';
 import './WelcomePage.css';
 
@@ -77,17 +78,29 @@ export default function WelcomePage() {
             </div>
 
             {isNonIOS && (
-                <div style={{ marginTop: 'var(--space-6)', padding: 'var(--space-4)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-primary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-3)', width: '100%', maxWidth: 400 }}>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>📱 Download our Android App</div>
-                    <a
-                        href="https://github.com/waithakateddy045-stack/travelpod/releases/download/v1.0.0/app-debug.apk"
-                        download
-                        className="welcome-cta"
-                        style={{ background: '#22c55e', width: '100%', padding: '12px', fontSize: '15px', display: 'flex', justifyContent: 'center' }}
-                    >
-                        Download APK
-                    </a>
-                </div>
+                <a
+                    href="https://github.com/waithakateddy045-stack/travelpod/releases/download/v1.0.0/app-debug.apk"
+                    download
+                    title="Download Android App"
+                    style={{
+                        position: 'absolute',
+                        top: 'var(--space-5)',
+                        right: 'var(--space-5)',
+                        background: '#22c55e',
+                        color: 'white',
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textDecoration: 'none',
+                        zIndex: 10,
+                        boxShadow: '0 4px 12px rgba(34,197,94,0.3)'
+                    }}
+                >
+                    <HiOutlineDevicePhoneMobile size={24} />
+                </a>
             )}
         </div>
     );

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
@@ -30,6 +30,7 @@ export default function FeedPage() {
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
     const [activeChip, setActiveChip] = useState(
         () => localStorage.getItem('feedChip') || 'All'
     );
@@ -49,6 +50,7 @@ export default function FeedPage() {
             const category = activeChip !== 'All' ? `&category=${encodeURIComponent(activeChip)}` : '';
             const { data } = await api.get(`/feed?page=${page}&limit=10${category}`);
             if (data.posts) {
+                if (data.posts.length < 10) setHasMore(false); else setHasMore(true);
                 setPosts(prev => page === 1 ? data.posts : [...prev, ...data.posts]);
             }
         } catch {
@@ -58,7 +60,7 @@ export default function FeedPage() {
         }
     }, [page, activeChip]);
 
-    useEffect(() => { setPage(1); }, [activeChip]);
+    useEffect(() => { setPage(1); setHasMore(true); }, [activeChip]);
     useEffect(() => { loadFeed(); }, [loadFeed]);
 
     // Load unread notifications count
@@ -98,6 +100,19 @@ export default function FeedPage() {
             toast.error('Failed to update save');
         }
     };
+
+    const observer = useRef();
+    const lastPostElementRef = useCallback(node => {
+        if (loading) return;
+        if (!hasMore) return;
+        if (observer.current) observer.current.disconnect();
+        observer.current = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting) {
+                setPage(prevPage => prevPage + 1);
+            }
+        });
+        if (node) observer.current.observe(node);
+    }, [loading, hasMore]);
 
     return (
         <div className="feed-page">
@@ -263,16 +278,17 @@ export default function FeedPage() {
                             </div>
                         ))}
 
-                        {/* Load more */}
-                        <div style={{ textAlign: 'center', padding: 'var(--space-6)' }}>
-                            <button
-                                className="feed-action-btn"
-                                onClick={() => setPage(p => p + 1)}
-                                style={{ fontSize: 'var(--text-sm)', padding: '8px 20px', border: '1px solid var(--border-primary)', borderRadius: 'var(--radius-full)' }}
-                            >
-                                <HiOutlineArrowPath /> Load more
-                            </button>
-                        </div>
+                        {/* Infinite scroll loader */}
+                        {hasMore && (
+                            <div ref={lastPostElementRef} style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>
+                                {loading && posts.length > 0 ? "Loading more..." : ""}
+                            </div>
+                        )}
+                        {!hasMore && posts.length > 0 && (
+                            <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>
+                                You've reached the end!
+                            </div>
+                        )}
                     </>
                 )}
             </div>
