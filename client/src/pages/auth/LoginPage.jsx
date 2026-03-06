@@ -21,7 +21,9 @@ export default function LoginPage() {
         try {
             const user = await login(formData.email, formData.password);
             toast.success('Welcome back!');
-            navigate(user.onboardingComplete ? '/feed' : '/onboarding');
+            const returnUrl = sessionStorage.getItem('returnUrl') || '/feed';
+            sessionStorage.removeItem('returnUrl');
+            navigate(user.onboardingComplete ? returnUrl : '/onboarding');
         } catch (err) {
             setApiError(err.response?.data?.error || 'Login failed. Please try again.');
         } finally {

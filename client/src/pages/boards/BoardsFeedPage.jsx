@@ -5,6 +5,8 @@ import {
     HiOutlineMapPin, HiOutlineFilm, HiOutlinePlusCircle, HiOutlineCheckBadge,
     HiOutlineFunnel, HiOutlineSparkles, HiOutlineClock
 } from 'react-icons/hi2';
+import { useAuth } from '../../context/AuthContext';
+import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import api from '../../services/api';
 import './BoardsFeedPage.css';
 
@@ -17,12 +19,14 @@ const DESTINATIONS = [
 
 export default function BoardsFeedPage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [boards, setBoards] = useState([]);
     const [loading, setLoading] = useState(true);
     const [destination, setDestination] = useState('All');
     const [sort, setSort] = useState('newest');
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
 
     const loadBoards = useCallback(async () => {
         setLoading(true);
@@ -43,6 +47,10 @@ export default function BoardsFeedPage() {
 
     const handleLike = async (e, boardId) => {
         e.preventDefault(); e.stopPropagation();
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Like trip boards to save them for later' });
+            return;
+        }
         try {
             const { data } = await api.post(`/boards/${boardId}/like`);
             setBoards(prev => prev.map(b => b.id === boardId ? { ...b, isLiked: data.liked, likeCount: b.likeCount + (data.liked ? 1 : -1) } : b));
@@ -51,6 +59,10 @@ export default function BoardsFeedPage() {
 
     const handleSave = async (e, boardId) => {
         e.preventDefault(); e.stopPropagation();
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Save videos to your trip boards' });
+            return;
+        }
         try {
             const { data } = await api.post(`/boards/${boardId}/save`);
             setBoards(prev => prev.map(b => b.id === boardId ? { ...b, isSaved: data.saved, saveCount: b.saveCount + (data.saved ? 1 : -1) } : b));
@@ -65,9 +77,11 @@ export default function BoardsFeedPage() {
                     <HiOutlineArrowLeft />
                 </button>
                 <h1 className="boards-title">Trip Boards</h1>
-                <button className="boards-create-btn" onClick={() => navigate('/boards/create')}>
-                    <HiOutlinePlusCircle />
-                </button>
+                {user && (
+                    <button className="boards-create-btn" onClick={() => navigate('/boards/create')}>
+                        <HiOutlinePlusCircle />
+                    </button>
+                )}
             </nav>
 
             {/* Sort toggle */}
@@ -166,6 +180,12 @@ export default function BoardsFeedPage() {
                     <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next →</button>
                 </div>
             )}
+
+            <AuthPromptModal
+                isOpen={authModal.isOpen}
+                onClose={() => setAuthModal({ isOpen: false, message: '' })}
+                message={authModal.message}
+            />
         </div>
     );
 }

@@ -16,6 +16,7 @@ import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import VerificationDetailsModal from '../../components/verification/VerificationDetailsModal';
 import VerificationApplicationModal from '../../components/verification/VerificationApplicationModal';
 import FollowListModal from '../../components/profile/FollowListModal';
+import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import './ProfilePage.css';
 
 const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
@@ -37,6 +38,7 @@ export default function ProfilePage() {
     const [badges, setBadges] = useState([]);
     const [boards, setBoards] = useState([]);
     const [followModalType, setFollowModalType] = useState(null); // 'followers' | 'following' | null
+    const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
 
     const isOwn = user && profile && user.id === profile.userId;
     const isBusiness = profile && BUSINESS_TYPES.includes(profile.accountType);
@@ -86,7 +88,10 @@ export default function ProfilePage() {
     }, [loadProfile, loadPosts, loadSavedPosts, loadBadges, loadBoards]);
 
     const handleFollow = async () => {
-        if (!user) { toast.error('Please sign in to follow'); return; }
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Follow creators and never miss their content' });
+            return;
+        }
         setFollowLoading(true);
         try {
             if (profile.isFollowing) {
@@ -104,7 +109,10 @@ export default function ProfilePage() {
     };
 
     const handleStartMessage = async () => {
-        if (!user) { toast.error('Please sign in to message'); return; }
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Message creators and friends' });
+            return;
+        }
         try {
             await api.post('/messages', {
                 recipientId: profile.userId,
@@ -176,11 +184,17 @@ export default function ProfilePage() {
                                 <span className="stat-value">{profile.postCount || 0}</span>
                                 <span className="stat-label">Posts</span>
                             </div>
-                            <div className="stat-item" onClick={() => setFollowModalType('followers')} style={{ cursor: 'pointer' }}>
+                            <div className="stat-item" onClick={() => {
+                                if (!user) { setAuthModal({ isOpen: true, message: 'Join Travelpod to see connections' }); return; }
+                                setFollowModalType('followers');
+                            }} style={{ cursor: 'pointer' }}>
                                 <span className="stat-value">{profile.followerCount || 0}</span>
                                 <span className="stat-label">Followers</span>
                             </div>
-                            <div className="stat-item" onClick={() => setFollowModalType('following')} style={{ cursor: 'pointer' }}>
+                            <div className="stat-item" onClick={() => {
+                                if (!user) { setAuthModal({ isOpen: true, message: 'Join Travelpod to see connections' }); return; }
+                                setFollowModalType('following');
+                            }} style={{ cursor: 'pointer' }}>
                                 <span className="stat-value">{profile.followingCount || 0}</span>
                                 <span className="stat-label">Following</span>
                             </div>

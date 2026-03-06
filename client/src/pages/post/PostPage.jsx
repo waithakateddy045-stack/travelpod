@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import VideoPlayer from '../../components/video/VideoPlayer';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
+import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import './PostPage.css';
 
 const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
@@ -25,6 +26,7 @@ export default function PostPage() {
     const [commentText, setCommentText] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [isEnquiryModalOpen, setIsEnquiryModalOpen] = useState(false);
+    const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
 
     const isBusiness = post && BUSINESS_TYPES.includes(post.author?.accountType);
 
@@ -48,7 +50,10 @@ export default function PostPage() {
     useEffect(() => { loadData(); }, [loadData]);
 
     const handleLike = async () => {
-        if (!user) return toast.error('Please login to like posts');
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Like videos and save your favourites' });
+            return;
+        }
         try {
             if (post.isLiked) {
                 await api.delete(`/engagement/like/${id}`);
@@ -62,7 +67,10 @@ export default function PostPage() {
     };
 
     const handleSave = async () => {
-        if (!user) return toast.error('Please login to save posts');
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Save videos to your trip boards' });
+            return;
+        }
         try {
             if (post.isSaved) {
                 await api.delete(`/engagement/save/${id}`);
@@ -77,7 +85,10 @@ export default function PostPage() {
 
     const handleSubmitComment = async (e) => {
         e.preventDefault();
-        if (!user) return toast.error('Please login to comment');
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Join the conversation' });
+            return;
+        }
         if (!commentText.trim()) return;
 
         try {
@@ -161,7 +172,7 @@ export default function PostPage() {
                                 style={{ width: '100%', marginTop: 'var(--space-4)', display: 'block' }}
                                 onClick={() => {
                                     if (!user) {
-                                        toast.error('Please login to send an enquiry');
+                                        setAuthModal({ isOpen: true, message: 'Send booking enquiries to travel businesses' });
                                     } else {
                                         setIsEnquiryModalOpen(true);
                                     }
@@ -270,6 +281,12 @@ export default function PostPage() {
                     onClose={() => setIsEnquiryModalOpen(false)}
                 />
             )}
+
+            <AuthPromptModal
+                isOpen={authModal.isOpen}
+                onClose={() => setAuthModal({ isOpen: false, message: '' })}
+                message={authModal.message}
+            />
         </div>
     );
 }

@@ -15,6 +15,7 @@ import api from '../../services/api';
 import VideoPlayer from '../../components/video/VideoPlayer';
 import ReportModal from '../../components/common/ReportModal';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
+import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import './FeedPage.css';
 
 const FILTER_CHIPS = [
@@ -37,6 +38,11 @@ export default function FeedPage() {
     const [unreadNotifications, setUnreadNotifications] = useState(0);
     const [reportPostId, setReportPostId] = useState(null);
     const [enquiryTarget, setEnquiryTarget] = useState(null); // { userId, displayName }
+    const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
+
+    // Nudge State
+    const [videosViewed, setVideosViewed] = useState(0);
+    const [showNudge, setShowNudge] = useState(false);
 
     const handleShare = (id) => {
         const link = `${window.location.origin}/post/${id}`;
@@ -72,6 +78,10 @@ export default function FeedPage() {
     }, [user]);
 
     const handleLike = async (postId, isLiked) => {
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Like videos and save your favourites' });
+            return;
+        }
         try {
             if (isLiked) {
                 await api.delete(`/engagement/like/${postId}`);
@@ -87,6 +97,10 @@ export default function FeedPage() {
     };
 
     const handleSave = async (postId, isSaved) => {
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Save videos to your trip boards' });
+            return;
+        }
         try {
             if (isSaved) {
                 await api.delete(`/engagement/save/${postId}`);
@@ -104,6 +118,20 @@ export default function FeedPage() {
     const observer = useRef();
     const lastPostElementRef = useCallback(node => {
         if (loading) return;
+
+        // Track unique video views for nudge
+        if (node && !user && !sessionStorage.getItem('travelpod_nudged')) {
+            setVideosViewed(prev => {
+                const next = prev + 1;
+                if (next === 5) {
+                    setShowNudge(true);
+                    sessionStorage.setItem('travelpod_nudged', 'true');
+                    setTimeout(() => setShowNudge(false), 8000);
+                }
+                return next;
+            });
+        }
+
         if (!hasMore) return;
         if (observer.current) observer.current.disconnect();
         observer.current = new IntersectionObserver(entries => {
@@ -112,7 +140,7 @@ export default function FeedPage() {
             }
         });
         if (node) observer.current.observe(node);
-    }, [loading, hasMore]);
+    }, [loading, hasMore, user]);
 
     return (
         <div className="feed-page">
@@ -121,37 +149,59 @@ export default function FeedPage() {
                 <nav className="feed-nav">
                     <span className="feed-nav-logo">Travelpod</span>
                     <div className="feed-nav-actions">
-                        <button className="feed-nav-btn" onClick={() => navigate('/upload')} title="Upload">
-                            <HiOutlinePlusCircle />
-                        </button>
-                        {BUSINESS_TYPES.includes(user?.accountType) && (
-                            <button className="feed-nav-btn" onClick={() => navigate('/analytics')} title="Analytics">
-                                <HiOutlineChartBar />
-                            </button>
+                        {user ? (
+                            <>
+                                <button className="feed-nav-btn" onClick={() => navigate('/upload')} title="Upload">
+                                    <HiOutlinePlusCircle />
+                                </button>
+                                {BUSINESS_TYPES.includes(user?.accountType) && (
+                                    <button className="feed-nav-btn" onClick={() => navigate('/analytics')} title="Analytics">
+                                        <HiOutlineChartBar />
+                                    </button>
+                                )}
+                                <button className="feed-nav-btn" onClick={() => navigate('/explore')} title="Explore">
+                                    <HiOutlineMagnifyingGlass />
+                                </button>
+                                <button className="feed-nav-btn" onClick={() => navigate('/messages')} title="Messages">
+                                    <HiOutlineEnvelope />
+                                </button>
+                                <button className="feed-nav-btn" onClick={() => navigate('/boards')} title="Trip Boards">
+                                    <HiOutlineRectangleStack />
+                                </button>
+                                {BUSINESS_TYPES.includes(user?.accountType) && (
+                                    <button className="feed-nav-btn" onClick={() => navigate('/enquiries')} title="Enquiries">
+                                        <span style={{ fontSize: '1.1rem' }}>✉️</span>
+                                    </button>
+                                )}
+                                <button className="feed-nav-btn" onClick={() => navigate('/notifications')} title="Notifications" style={{ position: 'relative' }}>
+                                    <HiOutlineBell />
+                                    {unreadNotifications > 0 && (
+                                        <span style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, background: 'var(--color-primary-light)', borderRadius: '50%' }} />
+                                    )}
+                                </button>
+                                <Link to={user?.profile?.handle ? `/profile/${user.profile.handle}` : '#'} className="feed-nav-btn" title="Profile">
+                                    <HiOutlineUser />
+                                </Link>
+                            </>
+                        ) : (
+                            <>
+                                <button className="feed-nav-btn" onClick={() => navigate('/explore')} title="Explore">
+                                    <HiOutlineMagnifyingGlass />
+                                </button>
+                                <button
+                                    onClick={() => navigate('/auth/login')}
+                                    style={{ background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-primary)', padding: '6px 16px', borderRadius: 'var(--radius-full)', fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer', marginLeft: 'var(--space-2)' }}
+                                >
+                                    Log In
+                                </button>
+                                <button
+                                    onClick={() => navigate('/auth/register')}
+                                    style={{ background: 'var(--gradient-brand)', color: 'white', border: 'none', padding: '6px 16px', borderRadius: 'var(--radius-full)', fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                    Sign Up
+                                </button>
+                            </>
                         )}
-                        <button className="feed-nav-btn" onClick={() => navigate('/explore')} title="Explore">
-                            <HiOutlineMagnifyingGlass />
-                        </button>
-                        <button className="feed-nav-btn" onClick={() => navigate('/messages')} title="Messages">
-                            <HiOutlineEnvelope />
-                        </button>
-                        <button className="feed-nav-btn" onClick={() => navigate('/boards')} title="Trip Boards">
-                            <HiOutlineRectangleStack />
-                        </button>
-                        {BUSINESS_TYPES.includes(user?.accountType) && (
-                            <button className="feed-nav-btn" onClick={() => navigate('/enquiries')} title="Enquiries">
-                                <span style={{ fontSize: '1.1rem' }}>✉️</span>
-                            </button>
-                        )}
-                        <button className="feed-nav-btn" onClick={() => navigate('/notifications')} title="Notifications" style={{ position: 'relative' }}>
-                            <HiOutlineBell />
-                            {unreadNotifications > 0 && (
-                                <span style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, background: 'var(--color-primary-light)', borderRadius: '50%' }} />
-                            )}
-                        </button>
-                        <Link to={user?.profile?.handle ? `/profile/${user.profile.handle}` : '#'} className="feed-nav-btn" title="Profile">
-                            <HiOutlineUser />
-                        </Link>
                     </div>
                 </nav>
 
@@ -232,7 +282,17 @@ export default function FeedPage() {
                                         {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
                                         {post.likeCount || 0}
                                     </button>
-                                    <button className="feed-action-btn" onClick={() => navigate(`/post/${post.id}`)}>
+                                    <button
+                                        type="button"
+                                        className="feed-action-btn"
+                                        onClick={() => {
+                                            if (!user) {
+                                                setAuthModal({ isOpen: true, message: 'Join the conversation' });
+                                                return;
+                                            }
+                                            navigate(`/post/${post.id}`)
+                                        }}
+                                    >
                                         <HiOutlineChatBubbleOvalLeft />
                                         {post.commentCount || 0}
                                     </button>
@@ -255,7 +315,13 @@ export default function FeedPage() {
                                 {BUSINESS_TYPES.includes(post.user?.accountType) && (
                                     <div style={{ display: 'flex', gap: 'var(--space-2)', padding: '0 var(--space-4) var(--space-2)' }}>
                                         <button
-                                            onClick={() => setEnquiryTarget({ userId: post.user?.id || post.userId, displayName: post.user?.profile?.displayName || 'Business' })}
+                                            onClick={() => {
+                                                if (!user) {
+                                                    setAuthModal({ isOpen: true, message: 'Send booking enquiries to travel businesses' });
+                                                    return;
+                                                }
+                                                setEnquiryTarget({ userId: post.user?.id || post.userId, displayName: post.user?.profile?.displayName || 'Business' });
+                                            }}
                                             style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--color-primary-light)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                                         >
                                             <HiOutlineEnvelope style={{ fontSize: '0.9rem' }} /> Enquire
@@ -306,6 +372,37 @@ export default function FeedPage() {
                     isOpen={true}
                     onClose={() => setEnquiryTarget(null)}
                 />
+            )}
+
+            <AuthPromptModal
+                isOpen={authModal.isOpen}
+                onClose={() => setAuthModal({ isOpen: false, message: '' })}
+                message={authModal.message}
+            />
+
+            {/* Subtle Signup Nudge */}
+            {showNudge && !user && (
+                <div className="feed-signup-nudge animate-slideUp">
+                    <div className="nudge-content">
+                        <span className="nudge-icon">✈️</span>
+                        <div className="nudge-text">
+                            <strong>Enjoying Travelpod?</strong>
+                            <p>Create a free account to save favourites.</p>
+                        </div>
+                    </div>
+                    <div className="nudge-actions">
+                        <button
+                            className="nudge-btn"
+                            onClick={() => {
+                                sessionStorage.setItem('returnUrl', window.location.pathname + window.location.search);
+                                navigate('/auth/register');
+                            }}
+                        >
+                            Sign Up
+                        </button>
+                        <button className="nudge-close" onClick={() => setShowNudge(false)}>×</button>
+                    </div>
+                </div>
             )}
         </div>
     );

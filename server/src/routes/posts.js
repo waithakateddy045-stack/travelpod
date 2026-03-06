@@ -31,9 +31,11 @@ const upload = multer({
     },
 });
 
-// Post CRUD
+// Public routes
+router.get('/:id', getPost); // Updated: removed optionalAuth middleware
+
+// Post CRUD (Protected routes)
 router.post('/', authenticate, upload.single('video'), createPost);
-router.get('/:id', optionalAuth, getPost);
 router.delete('/:id', authenticate, deletePost);
 
 // Admin moderation

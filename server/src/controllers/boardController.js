@@ -131,7 +131,7 @@ const getBoard = async (req, res, next) => {
 
         if (!board) throw new AppError('Board not found', 404);
 
-        let engagement = {};
+        let engagement = { isLiked: false, isSaved: false, isFollowed: false };
         if (userId) {
             const [like, save, follow] = await Promise.all([
                 prisma.boardLike.findUnique({ where: { boardId_userId: { boardId: id, userId } } }),

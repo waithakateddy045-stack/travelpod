@@ -66,24 +66,24 @@ function App() {
             <Route path="/auth/callback" element={<OAuthCallbackPage />} />
             <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
 
+            {/* Public Content Pages */}
+            <Route path="/feed" element={<FeedPage />} />
+            <Route path="/explore" element={<ExplorePage />} />
+            <Route path="/boards" element={<BoardsFeedPage />} />
+            <Route path="/boards/:id" element={<BoardDetailPage />} />
+            <Route path="/post/:id" element={<PostPage />} />
+            <Route path="/profile/:handle" element={<ProfilePage />} />
+
             {/* Protected */}
-            <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
             <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
             <Route path="/onboarding" element={<OnboardingPage />} />
 
-            {/* Posts & Profile */}
-            <Route path="/post/:id" element={<PostPage />} />
-            <Route path="/profile/:handle" element={<ProfilePage />} />
+            {/* Protected User Pages */}
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
             <Route path="/enquiries" element={<ProtectedRoute><EnquiriesPage /></ProtectedRoute>} />
             <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
-            <Route path="/explore" element={<ExplorePage />} />
-
-            {/* Boards */}
-            <Route path="/boards" element={<ProtectedRoute><BoardsFeedPage /></ProtectedRoute>} />
-            <Route path="/boards/:id" element={<ProtectedRoute><BoardDetailPage /></ProtectedRoute>} />
 
             {/* Admin Console — web-only, standalone, NOT linked from the app UI */}
             <Route path="/admin" element={<AdminPage />} />

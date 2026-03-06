@@ -63,7 +63,9 @@ export default function RegisterPage() {
         try {
             const user = await register(formData.email, formData.password, formData.accountType);
             toast.success('Account created! Let\'s set up your profile.');
-            navigate(user.onboardingComplete ? '/feed' : '/onboarding');
+            const returnUrl = sessionStorage.getItem('returnUrl') || '/feed';
+            sessionStorage.removeItem('returnUrl');
+            navigate(user.onboardingComplete ? returnUrl : '/onboarding');
         } catch (err) {
             setApiError(err.response?.data?.error || 'Registration failed. Please try again.');
         } finally {

@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { optionalAuth } = require('../middleware/auth');
-const { getFeed } = require('../controllers/feedController');
+const { getFeed, getDestinationsFeed } = require('../controllers/feedController');
+const authenticate = require('../middleware/authenticate');
 
-router.get('/', optionalAuth, getFeed);
+// Public routes (controller handles optional req.user internally)
+router.get('/', getFeed);
+router.get('/destinations', getDestinationsFeed);
 
 module.exports = router;

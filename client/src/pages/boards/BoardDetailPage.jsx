@@ -6,17 +6,21 @@ import {
     HiOutlineCheckBadge, HiOutlinePlay, HiOutlineUserPlus, HiUserPlus,
     HiOutlineChatBubbleOvalLeft, HiOutlineTrash
 } from 'react-icons/hi2';
+import { useAuth } from '../../context/AuthContext';
+import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import api from '../../services/api';
 import './BoardDetailPage.css';
 
 export default function BoardDetailPage() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [board, setBoard] = useState(null);
     const [comments, setComments] = useState([]);
     const [commentText, setCommentText] = useState('');
     const [loading, setLoading] = useState(true);
     const [posting, setPosting] = useState(false);
+    const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
 
     const load = useCallback(async () => {
         try {
@@ -37,6 +41,10 @@ export default function BoardDetailPage() {
     useEffect(() => { load(); }, [load]);
 
     const toggleLike = async () => {
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Like trip boards to save them for later' });
+            return;
+        }
         try {
             const { data } = await api.post(`/boards/${id}/like`);
             setBoard(prev => ({ ...prev, isLiked: data.liked, likeCount: prev.likeCount + (data.liked ? 1 : -1) }));
@@ -44,6 +52,10 @@ export default function BoardDetailPage() {
     };
 
     const toggleSave = async () => {
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Save videos to your trip boards' });
+            return;
+        }
         try {
             const { data } = await api.post(`/boards/${id}/save`);
             setBoard(prev => ({ ...prev, isSaved: data.saved, saveCount: prev.saveCount + (data.saved ? 1 : -1) }));
@@ -51,6 +63,10 @@ export default function BoardDetailPage() {
     };
 
     const toggleFollow = async () => {
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Follow creators and never miss their content' });
+            return;
+        }
         try {
             const { data } = await api.post(`/boards/${id}/follow`);
             setBoard(prev => ({ ...prev, isFollowed: data.followed, followerCount: prev.followerCount + (data.followed ? 1 : -1) }));
@@ -59,6 +75,10 @@ export default function BoardDetailPage() {
 
     const postComment = async (e) => {
         e.preventDefault();
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Join the conversation' });
+            return;
+        }
         if (!commentText.trim() || posting) return;
         setPosting(true);
         try {
@@ -194,12 +214,20 @@ export default function BoardDetailPage() {
                             <p className="bd-comment-text">{c.content}</p>
                             <span className="bd-comment-time">{new Date(c.createdAt).toLocaleDateString()}</span>
                         </div>
-                        <button className="bd-comment-delete" onClick={() => deleteComment(c.id)}>
-                            <HiOutlineTrash />
-                        </button>
+                        {user && user.id === c.userId && (
+                            <button className="bd-comment-delete" onClick={() => deleteComment(c.id)}>
+                                <HiOutlineTrash />
+                            </button>
+                        )}
                     </div>
                 ))}
             </div>
+
+            <AuthPromptModal
+                isOpen={authModal.isOpen}
+                onClose={() => setAuthModal({ isOpen: false, message: '' })}
+                message={authModal.message}
+            />
         </div>
     );
 }

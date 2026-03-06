@@ -198,18 +198,25 @@ const getFeed = async (req, res, next) => {
         if (userId) {
             const postIds = paged.map(p => p.id);
             const [likes, saves] = await Promise.all([
-                prisma.like.findMany({ where: { userId, postId: { in: postIds } }, select: { postId: true } }),
-                prisma.save.findMany({ where: { userId, postId: { in: postIds } }, select: { postId: true } }),
+                prisma.like.findMany({ where: { userId, postId: { in: postIds } } }),
+                prisma.save.findMany({ where: { userId, postId: { in: postIds } } }),
             ]);
+
             const likedSet = new Set(likes.map(l => l.postId));
             const savedSet = new Set(saves.map(s => s.postId));
-            enrichedPosts = paged.map(p => ({
+
+            enrichedPosts = enrichedPosts.map(p => ({
                 ...p,
-                user: p.author,
-                category: p.category?.name || null,
                 isLiked: likedSet.has(p.id),
                 isSaved: savedSet.has(p.id),
-                isFollowed: followingSet.has(p.userId),
+                isFollowing: followingSet.has(p.userId)
+            }));
+        } else {
+            enrichedPosts = enrichedPosts.map(p => ({
+                ...p,
+                isLiked: false,
+                isSaved: false,
+                isFollowing: false
             }));
         }
 
