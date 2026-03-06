@@ -23,7 +23,7 @@ const updateEmail = async (req, res, next) => {
         if (!email || !password) throw new AppError('Email and current password required', 400);
 
         const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-        const valid = await bcrypt.compare(password, user.passwordHash);
+        const valid = await bcrypt.compare(password, user.hashedPassword);
         if (!valid) throw new AppError('Incorrect password', 401);
 
         await prisma.user.update({ where: { id: req.user.id }, data: { email } });
@@ -39,12 +39,37 @@ const updatePassword = async (req, res, next) => {
         if (newPassword.length < 8) throw new AppError('New password must be at least 8 characters', 400);
 
         const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-        const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+        const valid = await bcrypt.compare(currentPassword, user.hashedPassword);
         if (!valid) throw new AppError('Current password is incorrect', 401);
 
         const hash = await bcrypt.hash(newPassword, 12);
-        await prisma.user.update({ where: { id: req.user.id }, data: { passwordHash: hash } });
+        await prisma.user.update({ where: { id: req.user.id }, data: { hashedPassword: hash } });
         res.json({ success: true, message: 'Password updated' });
+    } catch (err) { next(err); }
+};
+
+// PUT /api/settings/social — Update business social links
+const updateSocialLinks = async (req, res, next) => {
+    try {
+        const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.id },
+            include: { profile: true }
+        });
+        if (!BUSINESS_TYPES.includes(user.accountType)) throw new AppError('Only business accounts can set social links', 403);
+
+        const { instagramUrl, facebookUrl, linkedinUrl, whatsappPhone } = req.body;
+
+        await prisma.businessProfile.update({
+            where: { profileId: user.profile.id },
+            data: {
+                instagramUrl: instagramUrl?.trim() || null,
+                facebookUrl: facebookUrl?.trim() || null,
+                linkedinUrl: linkedinUrl?.trim() || null,
+                whatsappPhone: whatsappPhone?.trim() || null,
+            }
+        });
+        res.json({ success: true, message: 'Social links updated' });
     } catch (err) { next(err); }
 };
 
@@ -53,12 +78,14 @@ const deleteAccount = async (req, res, next) => {
     try {
         const { password } = req.body;
         const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-        const valid = await bcrypt.compare(password, user.passwordHash);
-        if (!valid) throw new AppError('Incorrect password', 401);
+        if (user.hashedPassword) {
+            const valid = await bcrypt.compare(password, user.hashedPassword);
+            if (!valid) throw new AppError('Incorrect password', 401);
+        }
 
         await prisma.user.update({ where: { id: req.user.id }, data: { isDeleted: true } });
         res.json({ success: true, message: 'Account deleted' });
     } catch (err) { next(err); }
 };
 
-module.exports = { getSettings, updateEmail, updatePassword, deleteAccount };
+module.exports = { getSettings, updateEmail, updatePassword, deleteAccount, updateSocialLinks };

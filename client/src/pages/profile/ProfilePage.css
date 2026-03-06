@@ -297,6 +297,8 @@
 
     .profile-actions {
         justify-content: center;
+        flex-wrap: wrap;
+        width: 100%;
     }
 
     .post-grid {

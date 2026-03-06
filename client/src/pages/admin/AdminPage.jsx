@@ -250,6 +250,14 @@ const ContentManagementTab = () => {
                                     <strong>{previewPost.title}</strong>
                                     <p>Status: <Badge type={previewPost.moderationStatus} small /></p>
                                     <p className="modal-author">by {previewPost.user?.profile?.displayName || 'Unknown'} (@{previewPost.user?.profile?.handle})</p>
+                                    <a
+                                        href={`/post/${previewPost.id}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        style={{ display: 'inline-block', marginTop: 12, padding: '6px 16px', background: 'var(--bg-elevated)', color: 'var(--text-primary)', textDecoration: 'none', borderRadius: 20, fontSize: 14, fontWeight: 500, border: '1px solid var(--border-primary)' }}
+                                    >
+                                        Open Full Post ↗
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -285,7 +293,17 @@ const ContentManagementTab = () => {
                                             <button className="btn-reject" onClick={() => act(post.id, 'REMOVED')} disabled={!!actionLoading} style={{ flex: 1 }}>{actionLoading === post.id + 'REMOVED' ? '...' : 'Reject'}</button>
                                         </>
                                     )}
-                                    {post.moderationStatus === 'APPROVED' && (
+                                    {post.moderationStatus === 'APPROVED' && post._count?.reports > 0 && filterStatus === 'REPORTED' && (
+                                        <>
+                                            <button className="btn-approve" onClick={() => act(post.id, 'CLEAR_REPORTS')} disabled={!!actionLoading} style={{ flex: 1, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}>
+                                                {actionLoading === post.id + 'CLEAR_REPORTS' ? '...' : 'Clear Reports'}
+                                            </button>
+                                            <button className="btn-reject" onClick={() => act(post.id, 'REMOVED')} disabled={!!actionLoading} style={{ flex: 1 }}>
+                                                {actionLoading === post.id + 'REMOVED' ? '...' : 'Take Down'}
+                                            </button>
+                                        </>
+                                    )}
+                                    {post.moderationStatus === 'APPROVED' && filterStatus !== 'REPORTED' && (
                                         <button className="btn-reject" onClick={() => act(post.id, 'REMOVED')} disabled={!!actionLoading} style={{ flex: 1 }}>
                                             {actionLoading === post.id + 'REMOVED' ? '...' : 'Take Down'}
                                         </button>

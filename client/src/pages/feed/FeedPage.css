@@ -170,4 +170,15 @@
     .feed-container {
         padding: var(--space-2);
     }
+
+    .feed-card-actions {
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        justify-content: space-between;
+    }
+
+    .feed-action-btn span {
+        display: none;
+        /* Hide labels on very small screens to fit icons in a row */
+    }
 }

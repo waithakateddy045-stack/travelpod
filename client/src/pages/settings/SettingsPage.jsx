@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import {
     HiOutlineBell, HiOutlineLockClosed, HiOutlineTrash,
     HiOutlineArrowLeft, HiOutlineShieldCheck, HiOutlineArrowDownTray,
-    HiOutlineUser,
+    HiOutlineUser, HiOutlineGlobeAlt,
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -104,10 +104,38 @@ export default function SettingsPage() {
         } finally { setLoading(false); }
     };
 
+    const [socialLinks, setSocialLinks] = useState({
+        instagramUrl: '', facebookUrl: '', linkedinUrl: '', whatsappPhone: ''
+    });
+    const [socialLoading, setSocialLoading] = useState(false);
+
+    useEffect(() => {
+        if (!user) return;
+        const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
+        if (!BUSINESS_TYPES.includes(user?.accountType)) return;
+        api.get('/profile/' + user?.profile?.handle).then(res => {
+            const bp = res.data?.profile?.businessProfile;
+            if (bp) setSocialLinks({ instagramUrl: bp.instagramUrl || '', facebookUrl: bp.facebookUrl || '', linkedinUrl: bp.linkedinUrl || '', whatsappPhone: bp.whatsappPhone || '' });
+        }).catch(() => { });
+    }, [user]);
+
+    const saveSocialLinks = async () => {
+        setSocialLoading(true);
+        try {
+            await api.put('/settings/social', socialLinks);
+            toast.success('Social links saved');
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to save');
+        } finally { setSocialLoading(false); }
+    };
+
+    const isBusiness = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'].includes(user?.accountType);
+
     const SECTIONS = [
         { key: 'notifications', label: 'Notifications', icon: <HiOutlineBell /> },
         { key: 'privacy', label: 'Privacy & Safety', icon: <HiOutlineShieldCheck /> },
         { key: 'security', label: 'Security', icon: <HiOutlineLockClosed /> },
+        ...(isBusiness ? [{ key: 'social', label: 'Social Links', icon: <HiOutlineGlobeAlt /> }] : []),
         { key: 'data', label: 'Data & Export', icon: <HiOutlineArrowDownTray /> },
         { key: 'account', label: 'Account', icon: <HiOutlineUser /> },
     ];
@@ -256,6 +284,35 @@ export default function SettingsPage() {
                                         {loading ? 'Updating...' : 'Update Password'}
                                     </button>
                                 </form>
+                            </div>
+                        )}
+
+                        {/* Social Links */}
+                        {activeSection === 'social' && (
+                            <div>
+                                <h2 style={{ marginBottom: 'var(--space-4)', fontWeight: 700 }}>Social Links</h2>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-6)' }}>
+                                    Display your social presence on your verified Business Profile.
+                                </p>
+                                <div className="form-field">
+                                    <label className="form-label">Instagram URL</label>
+                                    <input type="url" className="form-input" placeholder="https://instagram.com/yourhandle" value={socialLinks.instagramUrl} onChange={e => setSocialLinks(s => ({ ...s, instagramUrl: e.target.value }))} />
+                                </div>
+                                <div className="form-field">
+                                    <label className="form-label">Facebook URL</label>
+                                    <input type="url" className="form-input" placeholder="https://facebook.com/yourpage" value={socialLinks.facebookUrl} onChange={e => setSocialLinks(s => ({ ...s, facebookUrl: e.target.value }))} />
+                                </div>
+                                <div className="form-field">
+                                    <label className="form-label">LinkedIn URL</label>
+                                    <input type="url" className="form-input" placeholder="https://linkedin.com/company/yourcompany" value={socialLinks.linkedinUrl} onChange={e => setSocialLinks(s => ({ ...s, linkedinUrl: e.target.value }))} />
+                                </div>
+                                <div className="form-field">
+                                    <label className="form-label">WhatsApp Phone (with Country Code)</label>
+                                    <input type="tel" className="form-input" placeholder="+1234567890" value={socialLinks.whatsappPhone} onChange={e => setSocialLinks(s => ({ ...s, whatsappPhone: e.target.value }))} />
+                                </div>
+                                <button className="auth-submit" onClick={saveSocialLinks} disabled={socialLoading} style={{ marginTop: 'var(--space-4)', width: 'auto', padding: '10px 28px' }}>
+                                    {socialLoading ? 'Saving...' : 'Save Social Links'}
+                                </button>
                             </div>
                         )}
 

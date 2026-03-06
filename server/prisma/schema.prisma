@@ -190,6 +190,10 @@ model BusinessProfile {
   country               String?
   description           String?             @db.Text
   websiteUrl            String?             @map("website_url")
+  instagramUrl          String?             @map("instagram_url")
+  facebookUrl           String?             @map("facebook_url")
+  linkedinUrl           String?             @map("linkedin_url")
+  whatsappPhone         String?             @map("whatsapp_phone")
   verificationStatus    VerificationStatus  @default(UNVERIFIED) @map("verification_status")
   verifiedAt            DateTime?           @map("verified_at")
   starRating            Decimal?            @db.Decimal(2, 1) @map("star_rating")

@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import VerificationDetailsModal from '../../components/verification/VerificationDetailsModal';
+import VerificationApplicationModal from '../../components/verification/VerificationApplicationModal';
 import FollowListModal from '../../components/profile/FollowListModal';
 import './ProfilePage.css';
 
@@ -28,9 +29,10 @@ export default function ProfilePage() {
     const [savedPosts, setSavedPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [followLoading, setFollowLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState('posts'); // 'posts', 'saved', or 'boards'
+    const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'boards' | 'saved'
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+    const [isVerificationAppModalOpen, setIsVerificationAppModalOpen] = useState(false);
     const [isEnquiryModalOpen, setIsEnquiryModalOpen] = useState(false);
     const [badges, setBadges] = useState([]);
     const [boards, setBoards] = useState([]);
@@ -238,11 +240,16 @@ export default function ProfilePage() {
                                 >
                                     Edit Profile
                                 </button>
-                                {isBusiness && profile.businessProfile?.verificationStatus !== 'APPROVED' && (
+                                {isBusiness && profile.businessProfile?.verificationStatus === 'PENDING' && (
+                                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', padding: '6px 12px', border: '1px solid var(--border-primary)', borderRadius: 'var(--radius-pill)' }}>
+                                        ⏳ Verification Pending
+                                    </span>
+                                )}
+                                {isBusiness && !['APPROVED', 'PENDING'].includes(profile.businessProfile?.verificationStatus) && (
                                     <button
                                         className="profile-btn primary"
                                         style={{ background: 'var(--color-primary-light)', padding: '6px 16px', fontSize: 'var(--text-xs)' }}
-                                        onClick={() => setIsVerificationModalOpen(true)}
+                                        onClick={() => setIsVerificationAppModalOpen(true)}
                                     >
                                         Get Verified
                                     </button>
@@ -445,6 +452,12 @@ export default function ProfilePage() {
                 userId={profile.userId}
                 type={followModalType}
                 title={followModalType === 'followers' ? 'Followers' : 'Following'}
+            />
+
+            <VerificationApplicationModal
+                isOpen={isVerificationAppModalOpen}
+                onClose={() => setIsVerificationAppModalOpen(false)}
+                onApplySuccess={loadProfile}
             />
         </div>
     );

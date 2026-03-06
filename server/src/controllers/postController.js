@@ -191,9 +191,14 @@ const moderatePost = async (req, res, next) => {
         const finalAction = action === 'REJECTED' ? 'REMOVED' :
             (action === 'RESTORED' || action === 'RESTORE' ? 'APPROVED' : action);
 
+        if (action === 'CLEAR_REPORTS') {
+            await prisma.report.deleteMany({ where: { postId: id } });
+            return res.json({ success: true, message: 'Reports cleared', count: 0 });
+        }
+
         const validStatuses = ['APPROVED', 'REMOVED', 'PENDING', 'UNDER_REVIEW'];
         if (!validStatuses.includes(finalAction)) {
-            throw new AppError('Invalid moderation action', 400);
+            throw new AppError('Invalid moderation action: ' + finalAction, 400);
         }
 
         const post = await prisma.post.update({
@@ -225,6 +230,16 @@ const reportPost = async (req, res, next) => {
                 entityType: 'POST',
                 metadataJson: { reason, detail: detail || null },
             },
+        });
+        // Create actual Report record so admin counts work
+        await prisma.report.create({
+            data: {
+                reason: reason.includes('SPAM') ? 'SPAM' : reason.includes('INAPPRO') ? 'INAPPROPRIATE' : reason.includes('HARASS') ? 'HARASSMENT' : reason.includes('MISLEAD') ? 'MISLEADING' : 'SPAM',
+                details: detail || null,
+                reporterId: userId || 'anonymous',
+                postId: id,
+                status: 'PENDING'
+            }
         });
 
         res.json({ success: true, message: 'Report received' });
