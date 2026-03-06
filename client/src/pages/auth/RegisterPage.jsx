@@ -71,7 +71,7 @@ export default function RegisterPage() {
     };
 
     const handleGoogleRegister = () => {
-        window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/google`;
+        window.location.href = `${import.meta.env.VITE_API_URL || 'https://travelpod-production.up.railway.app/api'}/auth/google`;
     };
 
     return (

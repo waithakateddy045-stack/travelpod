@@ -1,5 +1,9 @@
 {
   "appId": "com.travelpod.app",
   "appName": "Travelpod",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "url": "https://travelpod-liard.vercel.app",
+    "cleartext": true
+  }
 }
