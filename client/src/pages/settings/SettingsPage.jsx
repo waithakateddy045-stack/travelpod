@@ -8,6 +8,7 @@ import {
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { Capacitor } from '@capacitor/core';
 import '../auth/AuthPage.css';
 
 const NOTIF_PREFS = [
@@ -131,6 +132,7 @@ export default function SettingsPage() {
 
     const isBusiness = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'].includes(user?.accountType);
     const isNonIOS = !(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+    const isCapacitor = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform();
 
     const SECTIONS = [
         { key: 'notifications', label: 'Notifications', icon: <HiOutlineBell /> },
@@ -319,7 +321,7 @@ export default function SettingsPage() {
                         )}
 
                         {/* Get the App */}
-                        {activeSection === 'app' && isNonIOS && (
+                        {activeSection === 'app' && isNonIOS && !isCapacitor && (
                             <div>
                                 <h2 style={{ marginBottom: 'var(--space-4)', fontWeight: 700 }}>Get the App</h2>
                                 <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-6)' }}>

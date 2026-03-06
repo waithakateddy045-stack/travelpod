@@ -46,7 +46,7 @@
   --gradient-sunset: linear-gradient(135deg, #FF6B6B 0%, #FFD93D 100%);
   --gradient-ocean: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --gradient-card: linear-gradient(135deg, rgba(108, 99, 255, 0.05) 0%, rgba(6, 214, 160, 0.05) 100%);
-  --gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -108,7 +108,9 @@
 /* ============================================
    RESET & BASE
    ============================================ */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -146,7 +148,8 @@ a:hover {
   color: var(--color-primary);
 }
 
-img, video {
+img,
+video {
   max-width: 100%;
   height: auto;
   display: block;
@@ -160,7 +163,9 @@ button {
   color: inherit;
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   font-family: var(--font-body);
   color: var(--text-primary);
   background: var(--bg-tertiary);
@@ -173,7 +178,9 @@ input, textarea, select {
   width: 100%;
 }
 
-input:focus, textarea:focus, select:focus {
+input:focus,
+textarea:focus,
+select:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
@@ -200,7 +207,7 @@ input:focus, textarea:focus, select:focus {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(rgba(255,255,255,0.1), transparent);
+  background: linear-gradient(rgba(255, 255, 255, 0.1), transparent);
   opacity: 0;
   transition: opacity var(--transition-fast);
 }
@@ -322,8 +329,13 @@ input:focus, textarea:focus, select:focus {
    ANIMATIONS
    ============================================ */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes fadeInUp {
@@ -331,6 +343,7 @@ input:focus, textarea:focus, select:focus {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -342,6 +355,7 @@ input:focus, textarea:focus, select:focus {
     opacity: 0;
     transform: translateX(20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -349,13 +363,25 @@ input:focus, textarea:focus, select:focus {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes scaleIn {
@@ -363,6 +389,7 @@ input:focus, textarea:focus, select:focus {
     opacity: 0;
     transform: scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -370,23 +397,43 @@ input:focus, textarea:focus, select:focus {
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
-.animate-fadeIn { animation: fadeIn var(--transition-base) ease-out; }
-.animate-fadeInUp { animation: fadeInUp var(--transition-slow) ease-out; }
-.animate-slideInRight { animation: slideInRight var(--transition-slow) ease-out; }
-.animate-scaleIn { animation: scaleIn var(--transition-spring) ease-out; }
-.animate-pulse { animation: pulse 2s ease-in-out infinite; }
+.animate-fadeIn {
+  animation: fadeIn var(--transition-base) ease-out;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp var(--transition-slow) ease-out;
+}
+
+.animate-slideInRight {
+  animation: slideInRight var(--transition-slow) ease-out;
+}
+
+.animate-scaleIn {
+  animation: scaleIn var(--transition-spring) ease-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
 
 /* Skeleton loader */
 .skeleton {
   background: linear-gradient(90deg,
-    var(--bg-tertiary) 25%,
-    var(--bg-elevated) 50%,
-    var(--bg-tertiary) 75%
-  );
+      var(--bg-tertiary) 25%,
+      var(--bg-elevated) 50%,
+      var(--bg-tertiary) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: var(--radius-md);
@@ -420,5 +467,9 @@ input:focus, textarea:focus, select:focus {
     --text-5xl: 2.25rem;
     --text-4xl: 1.875rem;
     --text-3xl: 1.5rem;
+  }
+
+  #root {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom));
   }
 }

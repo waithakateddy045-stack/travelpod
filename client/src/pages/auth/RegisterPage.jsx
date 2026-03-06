@@ -24,6 +24,7 @@ const ACCOUNT_TYPES = [
 
 export default function RegisterPage() {
     const navigate = useNavigate();
+    const isCapacitor = typeof window !== 'undefined' && Capacitor.isNativePlatform();
     const { register } = useAuth();
     const [step, setStep] = useState(1); // 1 = credentials, 2 = account type
     const [formData, setFormData] = useState({ email: '', password: '', accountType: '' });
@@ -130,16 +131,22 @@ export default function RegisterPage() {
                             </button>
                         </form>
 
-                        <div className="auth-divider">or</div>
+                        {!isCapacitor && (
+                            <>
+                                <div className="auth-divider">
+                                    <span>or</span>
+                                </div>
 
-                        <button className="auth-google" onClick={handleGoogleRegister} type="button">
-                            <img src="https://www.google.com/favicon.ico" alt="Google" />
-                            Continue with Google
-                        </button>
+                                <button className="auth-google" onClick={handleGoogleRegister} type="button">
+                                    <img src="https://www.google.com/favicon.ico" alt="Google" />
+                                    Continue with Google
+                                </button>
+                            </>
+                        )}
 
-                        <div className="auth-footer">
+                        <p className="auth-footer">
                             Already have an account? <Link to="/auth/login">Sign in</Link>
-                        </div>
+                        </p>
                     </>
                 ) : (
                     <>

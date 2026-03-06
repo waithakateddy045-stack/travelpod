@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import {
     HiOutlineGlobeAlt,
     HiOutlineBuildingOffice2,
@@ -22,6 +23,7 @@ const accountTypes = [
 export default function WelcomePage() {
     const navigate = useNavigate();
     const isNonIOS = !(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+    const isCapacitor = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform();
 
     const handleGetStarted = () => {
         navigate('/auth/register');
@@ -77,7 +79,7 @@ export default function WelcomePage() {
                 </div>
             </div>
 
-            {isNonIOS && (
+            {isNonIOS && !isCapacitor && (
                 <a
                     href="https://github.com/waithakateddy045-stack/travelpod/releases/download/v1.0.1/Travelpod.apk"
                     download

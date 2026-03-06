@@ -55,7 +55,7 @@ const generateAccessToken = (user) => {
             accountType: user.accountType,
         },
         process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRY || '7d' }
+        { expiresIn: process.env.JWT_EXPIRY || '365d' }
     );
 };
 

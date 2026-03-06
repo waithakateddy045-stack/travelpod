@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import BottomNav from './components/common/BottomNav';
 import WelcomePage from './pages/auth/WelcomePage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
@@ -76,6 +77,7 @@ function App() {
             {/* 404 */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
+          <BottomNav />
         </Router>
       </AuthProvider>
     </ErrorBoundary>

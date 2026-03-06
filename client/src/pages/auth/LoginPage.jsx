@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { HiExclamationCircle } from 'react-icons/hi2';
+import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../../context/AuthContext';
 import './AuthPage.css';
 
 export default function LoginPage() {
     const navigate = useNavigate();
+    const isCapacitor = typeof window !== 'undefined' && Capacitor.isNativePlatform();
     const { login } = useAuth();
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [submitting, setSubmitting] = useState(false);
@@ -95,12 +97,17 @@ export default function LoginPage() {
                     </button>
                 </form>
 
-                <div className="auth-divider">or</div>
-
-                <button className="auth-google" onClick={handleGoogleLogin} type="button">
-                    <img src="https://www.google.com/favicon.ico" alt="Google" />
-                    Continue with Google
-                </button>
+                {!isCapacitor && (
+                    <>
+                        <div className="auth-divider">
+                            <span>or</span>
+                        </div>
+                        <button className="auth-google" onClick={handleGoogleLogin} type="button">
+                            <img src="https://www.google.com/favicon.ico" alt="Google" />
+                            Continue with Google
+                        </button>
+                    </>
+                )}
 
                 <div className="auth-footer">
                     Don't have an account? <Link to="/auth/register">Create one free</Link>

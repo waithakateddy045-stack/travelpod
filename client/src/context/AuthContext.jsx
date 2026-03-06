@@ -19,9 +19,11 @@ export const AuthProvider = ({ children }) => {
         try {
             const { data } = await api.get('/auth/me');
             setUser(data.user);
-        } catch {
-            localStorage.removeItem('travelpod_token');
-            localStorage.removeItem('travelpod_refresh');
+        } catch (error) {
+            if (error.response?.status === 401) {
+                localStorage.removeItem('travelpod_token');
+                localStorage.removeItem('travelpod_refresh');
+            }
         } finally {
             setLoading(false);
         }
