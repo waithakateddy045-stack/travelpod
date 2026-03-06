@@ -81,7 +81,7 @@ export default function WelcomePage() {
 
             {isNonIOS && !isCapacitor && (
                 <a
-                    href="https://github.com/waithakateddy045-stack/travelpod/releases/download/v1.0.1/Travelpod.apk"
+                    href="https://github.com/waithakateddy045-stack/travelpod/releases/download/v1.0.2/Travelpod.apk"
                     download
                     title="Download Android App"
                     style={{
