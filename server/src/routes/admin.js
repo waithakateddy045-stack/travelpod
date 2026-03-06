@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, adminOnly } = require('../middleware/auth');
 const { submitReport, getReports, resolveReport, suspendUser, unsuspendUser } = require('../controllers/moderationController');
-const { getDashboardStats, getUsers, getVerifications, reviewVerification } = require('../controllers/adminController');
+const { getDashboardStats, getUsers, getVerifications, reviewVerification, getBoards, deleteBoard } = require('../controllers/adminController');
 const { getModerationQueue, moderatePost } = require('../controllers/postController');
 const { getAdminVerifications, approveVerification, rejectVerification } = require('../controllers/verificationController');
 
@@ -31,5 +31,9 @@ router.put('/verifications/:id', authenticate, adminOnly, reviewVerification);
 router.get('/business-verifications', authenticate, adminOnly, getAdminVerifications);
 router.patch('/business-verifications/:id/approve', authenticate, adminOnly, approveVerification);
 router.patch('/business-verifications/:id/reject', authenticate, adminOnly, rejectVerification);
+
+// ── Trip Boards
+router.get('/boards', authenticate, adminOnly, getBoards);
+router.delete('/boards/:id', authenticate, adminOnly, deleteBoard);
 
 module.exports = router;

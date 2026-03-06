@@ -139,8 +139,9 @@ const DashboardTab = () => {
             <div className="stats-grid">
                 <StatCard icon="👥" label="Total Users" value={stats.totalUsers} accent="blue" sub={`${stats.suspendedUsers} suspended`} />
                 <StatCard icon="🎬" label="Total Posts" value={stats.totalPosts} accent="purple" sub={`${stats.recentPosts} this week`} />
+                <StatCard icon="📁" label="Trip Boards" value={stats.totalBoards} accent="teal" />
+                <StatCard icon="💬" label="Enquiries" value={stats.totalEnquiries} accent="orange" />
                 <StatCard icon="✅" label="Approved Posts" value={stats.approvedPosts} accent="green" />
-                <StatCard icon="⏳" label="Pending Moderation" value={stats.pendingPosts} accent="orange" />
                 <StatCard icon="📋" label="Pending Verifications" value={stats.pendingVerifications} accent="teal" />
                 <StatCard icon="🚩" label="Reports" value={stats.totalReports} accent="red" />
             </div>
@@ -432,6 +433,91 @@ const UsersTab = () => {
     );
 };
 
+// ─── Trip Boards Management ─────────────────────────────────────────────────────
+const TripBoardsTab = () => {
+    const [boards, setBoards] = useState([]);
+    const [total, setTotal] = useState(0);
+    const [page, setPage] = useState(1);
+    const [loading, setLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState(null);
+
+    const load = useCallback(async (p) => {
+        setLoading(true);
+        try {
+            const d = await apiCall(`/admin/boards?page=${p}&limit=15`);
+            setBoards(d.boards);
+            setTotal(d.total);
+        } catch (e) { console.error(e); } finally { setLoading(false); }
+    }, []);
+
+    useEffect(() => { load(page); }, [page, load]);
+
+    const actDelete = async (boardId) => {
+        if (!window.confirm('Are you sure you want to permanently delete this Trip Board?')) return;
+        setActionLoading(boardId);
+        try {
+            await apiCall(`/admin/boards/${boardId}`, { method: 'DELETE' });
+            setBoards(prev => prev.filter(b => b.id !== boardId));
+            setTotal(prev => prev - 1);
+        } catch (e) { alert('Action failed: ' + e.message); }
+        finally { setActionLoading(null); }
+    };
+
+    return (
+        <div className="tab-content">
+            <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h2>Trip Boards</h2>
+                    <p>{total} boards found • Monitor and manage user-generated trip boards</p>
+                </div>
+            </div>
+
+            {loading ? (
+                <div className="loading-state"><div className="spinner" /><p>Loading trip boards...</p></div>
+            ) : boards.length === 0 ? (
+                <div className="empty-state">
+                    <div className="empty-icon">📁</div>
+                    <p>No trip boards found on the platform.</p>
+                </div>
+            ) : (
+                <>
+                    <div className="users-table">
+                        <div className="table-header" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 100px' }}>
+                            <span>Title</span>
+                            <span>Creator</span>
+                            <span>Videos</span>
+                            <span>Created At</span>
+                            <span>Action</span>
+                        </div>
+                        {boards.map(board => (
+                            <div key={board.id} className="table-row" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 100px', alignItems: 'center', cursor: 'default' }}>
+                                <div style={{ fontWeight: '600' }}>{board.title}</div>
+                                <div>
+                                    <div className="user-name">{board.user?.profile?.displayName || 'Unknown'}</div>
+                                    <div className="user-handle" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>@{board.user?.profile?.handle || '—'}</div>
+                                </div>
+                                <div className="cell-center">{board._count?.videos ?? 0}</div>
+                                <div className="cell-muted">{new Date(board.createdAt).toLocaleDateString()}</div>
+                                <div>
+                                    <button
+                                        className="btn-reject"
+                                        style={{ padding: '6px 12px', width: '100%', fontSize: 12 }}
+                                        onClick={() => actDelete(board.id)}
+                                        disabled={actionLoading === board.id}
+                                    >
+                                        {actionLoading === board.id ? '...' : 'Take Down'}
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <Pagination page={page} totalPages={Math.ceil(total / 15)} onChange={setPage} />
+                </>
+            )}
+        </div>
+    );
+};
+
 // ─── Verification Tab ─────────────────────────────────────────────────────────
 const VerificationTab = () => {
     const [apps, setApps] = useState([]);
@@ -444,8 +530,8 @@ const VerificationTab = () => {
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const d = await apiCall(`/admin/verifications?page=${page}&status=${statusFilter}&limit=15`);
-            setApps(d.applications);
+            const d = await apiCall(`/admin/business-verifications?page=${page}&status=${statusFilter}&limit=15`);
+            setApps(d.verifications);
             setTotal(d.total);
         } catch (e) { console.error(e); } finally { setLoading(false); }
     }, [page, statusFilter]);
@@ -453,12 +539,20 @@ const VerificationTab = () => {
     useEffect(() => { load(); }, [load]);
 
     const decide = async (id, decision) => {
-        const reason = decision === 'REJECTED' ? prompt('Reason for rejection (optional):') : undefined;
+        const adminNotes = prompt('Admin notes (optional but recommended for rejection):');
+        if (decision === 'REJECTED' && adminNotes === null) return; // cancelled prompt
+
         setActionLoading(id);
         try {
-            await apiCall(`/admin/verifications/${id}`, {
-                method: 'PUT',
-                body: JSON.stringify({ decision, reason }),
+            const method = decision === 'APPROVED' ? 'approve' : 'reject';
+            const body = { adminNotes };
+            if (decision === 'APPROVED') {
+                body.websiteVerified = window.confirm('Did you verify their website? (Click OK for Yes, Cancel for No)');
+            }
+
+            await apiCall(`/admin/business-verifications/${id}/${method}`, {
+                method: 'PATCH',
+                body: JSON.stringify(body),
             });
             setApps(prev => prev.filter(a => a.id !== id));
             setTotal(prev => prev - 1);
@@ -470,7 +564,7 @@ const VerificationTab = () => {
         <div className="tab-content">
             <div className="section-header">
                 <h2>Business Verifications</h2>
-                <p>Review and approve verification applications. Approving grants the ✓ Verified badge.</p>
+                <p>Review and approve enhanced Business Verification applications.</p>
             </div>
 
             <div className="filter-bar">
@@ -496,10 +590,10 @@ const VerificationTab = () => {
                 <>
                     <div className="verif-grid">
                         {apps.map(app => {
-                            const bp = app.businessProfile;
-                            const prof = bp?.profile;
+                            const user = app.user;
+                            const prof = user?.profile;
                             return (
-                                <div key={app.id} className="verif-card">
+                                <div key={app.id} className="verif-card" style={{ maxWidth: '600px' }}>
                                     <div className="verif-header">
                                         <img
                                             src={prof?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${app.id}`}
@@ -507,43 +601,49 @@ const VerificationTab = () => {
                                             className="verif-avatar"
                                             onError={e => { e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${app.id}`; }}
                                         />
-                                        <div>
+                                        <div style={{ flex: 1 }}>
                                             <div className="verif-name">{prof?.displayName || 'Unknown Business'}</div>
                                             <div className="verif-handle">@{prof?.handle || '—'}</div>
-                                            {prof?.user && <Badge type={prof.user.accountType} small />}
+                                            {user && <Badge type={user.accountType} small />}
                                         </div>
                                         <Badge type={app.status} small />
                                     </div>
 
-                                    <div className="verif-docs">
-                                        <div className="doc-row">
-                                            <span className="doc-label">📄 Registration Doc</span>
-                                            <a href={app.registrationDocUrl} target="_blank" rel="noreferrer" className="doc-link">View</a>
+                                    <div className="verif-docs" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                        <div className="doc-row" style={{ gridColumn: '1 / -1' }}>
+                                            <span className="doc-label">🏢 Business Reg #</span>
+                                            <span className="doc-value">{app.businessRegistrationNumber}</span>
+                                            <a href={app.businessRegistrationDocument} target="_blank" rel="noreferrer" className="doc-link" style={{ marginLeft: 8 }}>View Doc</a>
                                         </div>
-                                        {app.licenceDocUrl && (
-                                            <div className="doc-row">
-                                                <span className="doc-label">🪪 Licence Doc</span>
-                                                <a href={app.licenceDocUrl} target="_blank" rel="noreferrer" className="doc-link">View</a>
+                                        {app.associationName && (
+                                            <div className="doc-row" style={{ gridColumn: '1 / -1' }}>
+                                                <span className="doc-label">🤝 Association</span>
+                                                <span className="doc-value">{app.associationName} ({app.associationMembershipNumber})</span>
+                                                {app.associationDocument && <a href={app.associationDocument} target="_blank" rel="noreferrer" className="doc-link" style={{ marginLeft: 8 }}>View Doc</a>}
                                             </div>
                                         )}
-                                        <div className="doc-row">
-                                            <span className="doc-label">📍 Address</span>
-                                            <span className="doc-value">{app.operatingAddress}</span>
+                                        <div className="doc-row" style={{ gridColumn: '1 / -1' }}>
+                                            <span className="doc-label">🌐 Website</span>
+                                            <a href={app.registeredWebsite} target="_blank" rel="noreferrer" className="doc-link">{app.registeredWebsite}</a>
                                         </div>
                                         <div className="doc-row">
                                             <span className="doc-label">📅 Applied</span>
                                             <span className="doc-value">{new Date(app.createdAt).toLocaleDateString()}</span>
                                         </div>
+                                        <div className="doc-row">
+                                            <span className="doc-label">✉️ Email</span>
+                                            <span className="doc-value" style={{ wordBreak: 'break-all' }}>{user?.email}</span>
+                                        </div>
                                     </div>
 
                                     {app.status === 'PENDING' && (
-                                        <div className="verif-actions">
+                                        <div className="verif-actions" style={{ marginTop: 16 }}>
                                             <button
                                                 className="btn-approve"
                                                 onClick={() => decide(app.id, 'APPROVED')}
                                                 disabled={!!actionLoading}
                                             >
-                                                {actionLoading === app.id ? '...' : '✓ Grant Verified Badge'}
+                                                {actionLoading === app.id ? '...' : '✓ Approve & Verify'}
                                             </button>
                                             <button
                                                 className="btn-reject"
@@ -588,6 +688,7 @@ export default function AdminPage() {
     const tabs = [
         { id: 'dashboard', icon: '📊', label: 'Dashboard' },
         { id: 'moderation', icon: '🛡️', label: 'Content' },
+        { id: 'boards', icon: '📁', label: 'Trip Boards' },
         { id: 'users', icon: '👥', label: 'Users' },
         { id: 'verifications', icon: '✓', label: 'Verifications' },
     ];
@@ -643,6 +744,7 @@ export default function AdminPage() {
                 <div className="admin-content">
                     {activeTab === 'dashboard' && <DashboardTab />}
                     {activeTab === 'moderation' && <ContentManagementTab />}
+                    {activeTab === 'boards' && <TripBoardsTab />}
                     {activeTab === 'users' && <UsersTab />}
                     {activeTab === 'verifications' && <VerificationTab />}
                 </div>

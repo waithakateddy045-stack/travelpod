@@ -12,6 +12,8 @@ const getDashboardStats = async (req, res, next) => {
             totalReports,
             suspendedUsers,
             approvedPosts,
+            totalBoards,
+            totalEnquiries,
         ] = await Promise.all([
             prisma.user.count({ where: { accountType: { not: 'ADMIN' } } }),
             prisma.post.count(),
@@ -20,6 +22,8 @@ const getDashboardStats = async (req, res, next) => {
             prisma.report.count(),
             prisma.user.count({ where: { isSuspended: true } }),
             prisma.post.count({ where: { moderationStatus: 'APPROVED' } }),
+            prisma.tripBoard.count(),
+            prisma.enquiry.count(),
         ]);
 
         const accountBreakdown = await prisma.user.groupBy({
@@ -41,11 +45,13 @@ const getDashboardStats = async (req, res, next) => {
                 totalUsers,
                 totalPosts,
                 pendingPosts,
-                approvedPosts,
+                totalVerifications: pendingVerifications, // Keep backwards compatible
                 pendingVerifications,
                 totalReports,
                 suspendedUsers,
                 recentPosts,
+                totalBoards,
+                totalEnquiries,
                 accountBreakdown: accountBreakdown.map(b => ({
                     type: b.accountType,
                     count: b._count.id,
@@ -192,4 +198,54 @@ const reviewVerification = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-module.exports = { getDashboardStats, getUsers, getVerifications, reviewVerification };
+// GET /api/admin/boards — List all trip boards
+const getBoards = async (req, res, next) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+
+        const [boards, total] = await Promise.all([
+            prisma.tripBoard.findMany({
+                skip: (page - 1) * limit,
+                take: limit,
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            profile: {
+                                select: {
+                                    displayName: true,
+                                    handle: true,
+                                },
+                            },
+                        },
+                    },
+                    _count: {
+                        select: {
+                            videos: true,
+                        },
+                    },
+                },
+            }),
+            prisma.tripBoard.count(),
+        ]);
+
+        res.json({ success: true, boards, total, page, totalPages: Math.ceil(total / limit) });
+    } catch (err) { next(err); }
+};
+
+// DELETE /api/admin/boards/:id — Delete a trip board
+const deleteBoard = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        await prisma.tripBoard.delete({
+            where: { id },
+        });
+
+        res.json({ success: true, message: 'Trip Board deleted successfully' });
+    } catch (err) { next(err); }
+};
+
+module.exports = { getDashboardStats, getUsers, getVerifications, reviewVerification, getBoards, deleteBoard };
