@@ -683,6 +683,227 @@ const VerificationTab = () => {
     );
 };
 
+// ─── Promoted Posts ─────────────────────────────────────────────────────────────
+const PromotedPostsTab = () => {
+    const [promotions, setPromotions] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const loadPromotions = useCallback(async () => {
+        try {
+            setLoading(true);
+            const data = await apiCall('/admin/promotions');
+            setPromotions(data.promotions || []);
+        } catch (err) {
+            console.error('Failed to load promotions', err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { loadPromotions(); }, [loadPromotions]);
+
+    const handleAction = async (id, status) => {
+        if (!window.confirm(`Mark promotion as ${status}?`)) return;
+        try {
+            await apiCall(`/admin/promotions/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
+            loadPromotions();
+        } catch (err) { alert('Action failed'); }
+    };
+
+    return (
+        <div className="tab-pane">
+            <div className="tab-header">
+                <h2>Featured Placements</h2>
+                <div className="tab-actions">
+                    <button className="btn-primary" onClick={() => alert('Add promotion flow via Post selection')}>+ New Promotion</button>
+                </div>
+            </div>
+            {loading ? <div className="loading-state">Loading promotions...</div> : (
+                <div className="cards-grid">
+                    {promotions.map(promo => (
+                        <div key={promo.id} className="admin-card">
+                            <div className="card-top">
+                                <strong>{promo.post?.title || 'Unknown Post'}</strong>
+                                <Badge type={promo.status === 'ACTIVE' ? 'APPROVED' : promo.status} small />
+                            </div>
+                            <div className="card-body">
+                                <p className="meta-text">Business: @{promo.business?.profile?.handle}</p>
+                                <p className="meta-text">Target: {promo.dailyReachTarget} reach/day</p>
+                                <div className="stats-row" style={{ marginTop: '12px' }}>
+                                    <div className="stat-mini"><span>👁️</span> {promo.impressions} Views</div>
+                                    <div className="stat-mini"><span>🔗</span> {promo.profileVisits || 0} Clicks</div>
+                                </div>
+                                <div className="meta-text" style={{ marginTop: '8px', fontSize: '0.75rem' }}>
+                                    {new Date(promo.startAt).toLocaleDateString()} - {new Date(promo.endAt).toLocaleDateString()}
+                                </div>
+                            </div>
+                            <div className="card-actions">
+                                {promo.status === 'ACTIVE' ? (
+                                    <button className="btn-outline danger" onClick={() => handleAction(promo.id, 'PAUSED')}>Pause</button>
+                                ) : (
+                                    <button className="btn-outline success" onClick={() => handleAction(promo.id, 'ACTIVE')}>Resume</button>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                    {promotions.length === 0 && <div className="empty-state">No promoted posts</div>}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── Broadcasts ─────────────────────────────────────────────────────────────
+const BroadcastsTab = () => {
+    const [broadcasts, setBroadcasts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const loadBroadcasts = useCallback(async () => {
+        try {
+            setLoading(true);
+            const data = await apiCall('/admin/broadcasts');
+            setBroadcasts(data.broadcasts || []);
+        } catch (err) {
+            console.error('Failed to load broadcasts', err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { loadBroadcasts(); }, [loadBroadcasts]);
+
+    const handleDelete = async (id) => {
+        if (!window.confirm('Delete this broadcast?')) return;
+        try {
+            await apiCall(`/admin/broadcasts/${id}`, { method: 'DELETE' });
+            loadBroadcasts();
+        } catch (err) { alert('Delete failed'); }
+    };
+
+    return (
+        <div className="tab-pane">
+            <div className="tab-header">
+                <h2>Network Broadcasts</h2>
+                <div className="tab-actions">
+                    <button className="btn-primary" onClick={() => alert('New Broadcast Flow')}>+ New Broadcast</button>
+                </div>
+            </div>
+            {loading ? <div className="loading-state">Loading broadcasts...</div> : (
+                <div className="data-table-wrapper">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>Sender</th>
+                                <th>Message</th>
+                                <th>Targets</th>
+                                <th>Viewed</th>
+                                <th>Sent At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {broadcasts.map(b => (
+                                <tr key={b.id}>
+                                    <td>@{b.association?.profile?.handle || 'Admin'}</td>
+                                    <td>
+                                        <div className="post-title" title={b.post?.description}>{b.post?.title || 'No Title'}</div>
+                                        <div className="meta-text" style={{ fontSize: '0.75rem', marginTop: '4px' }}>
+                                            {b.sectorTargeting?.length ? b.sectorTargeting.join(', ') : 'All Sectors'}
+                                        </div>
+                                    </td>
+                                    <td>{b.targetCount}</td>
+                                    <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span>{b.viewedCount}</span>
+                                            <div className="progress-bar-small">
+                                                <div className="progress-fill" style={{ width: `${b.viewRate}%` }}></div>
+                                            </div>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{b.viewRate}%</span>
+                                        </div>
+                                    </td>
+                                    <td>{new Date(b.createdAt).toLocaleDateString()}</td>
+                                    <td>
+                                        <button className="btn-icon danger" onClick={() => handleDelete(b.id)} title="Delete">🗑️</button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {broadcasts.length === 0 && <div className="empty-state">No broadcasts found</div>}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── Reports ─────────────────────────────────────────────────────────────
+const ReportsTab = () => {
+    const [reports, setReports] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const loadReports = useCallback(async () => {
+        try {
+            setLoading(true);
+            const data = await apiCall('/admin/reports');
+            setReports(data.reports || []);
+        } catch (err) {
+            console.error('Failed to load reports', err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { loadReports(); }, [loadReports]);
+
+    const handleResolve = async (id) => {
+        if (!window.confirm('Resolve this report?')) return;
+        try {
+            await apiCall(`/admin/reports/${id}/resolve`, { method: 'PUT' });
+            loadReports();
+        } catch (err) { alert('Resolve failed'); }
+    };
+
+    return (
+        <div className="tab-pane">
+            <div className="tab-header">
+                <h2>User Reports</h2>
+            </div>
+            {loading ? <div className="loading-state">Loading reports...</div> : (
+                <div className="data-table-wrapper">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>Reporter</th>
+                                <th>Reason</th>
+                                <th>Entity</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {reports.map(r => (
+                                <tr key={r.id}>
+                                    <td>{r.reporter?.email}</td>
+                                    <td><Badge type={r.reason} small /></td>
+                                    <td>
+                                        <div className="post-title">{r.entityType}</div>
+                                        <div className="meta-text" style={{ fontSize: '0.7rem', fontFamily: 'monospace' }}>{r.entityId}</div>
+                                    </td>
+                                    <td>{new Date(r.createdAt).toLocaleDateString()}</td>
+                                    <td>
+                                        <button className="btn-outline success" onClick={() => handleResolve(r.id)}>Resolve</button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {reports.length === 0 && <div className="empty-state">No pending reports</div>}
+                </div>
+            )}
+        </div>
+    );
+};
+
 // ─── Main Admin App ───────────────────────────────────────────────────────────
 export default function AdminPage() {
     const [user, setUser] = useState(() => {
@@ -706,9 +927,12 @@ export default function AdminPage() {
     const tabs = [
         { id: 'dashboard', icon: '📊', label: 'Dashboard' },
         { id: 'moderation', icon: '🛡️', label: 'Content' },
+        { id: 'promotions', icon: '🚀', label: 'Promoted Posts' },
+        { id: 'broadcasts', icon: '📢', label: 'Broadcasts' },
         { id: 'boards', icon: '📁', label: 'Trip Boards' },
         { id: 'users', icon: '👥', label: 'Users' },
         { id: 'verifications', icon: '✓', label: 'Verifications' },
+        { id: 'reports', icon: '🚩', label: 'Reports' },
     ];
 
     return (
@@ -762,9 +986,12 @@ export default function AdminPage() {
                 <div className="admin-content">
                     {activeTab === 'dashboard' && <DashboardTab />}
                     {activeTab === 'moderation' && <ContentManagementTab />}
+                    {activeTab === 'promotions' && <PromotedPostsTab />}
+                    {activeTab === 'broadcasts' && <BroadcastsTab />}
                     {activeTab === 'boards' && <TripBoardsTab />}
                     {activeTab === 'users' && <UsersTab />}
                     {activeTab === 'verifications' && <VerificationTab />}
+                    {activeTab === 'reports' && <ReportsTab />}
                 </div>
             </main>
         </div>

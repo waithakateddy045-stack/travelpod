@@ -5,6 +5,8 @@ const { submitReport, getReports, resolveReport, suspendUser, unsuspendUser } = 
 const { getDashboardStats, getUsers, getVerifications, reviewVerification, getBoards, deleteBoard } = require('../controllers/adminController');
 const { getModerationQueue, moderatePost } = require('../controllers/postController');
 const { getAdminVerifications, approveVerification, rejectVerification } = require('../controllers/verificationController');
+const { createPromotion, getPromotions, updatePromotion, deletePromotion } = require('../controllers/promotedController');
+const { getBroadcasts, deleteBroadcast } = require('../controllers/broadcastController');
 
 // ── Dashboard Stats ──────────────────────────────────────────
 router.get('/stats', authenticate, adminOnly, getDashboardStats);
@@ -22,6 +24,16 @@ router.put('/moderation/:id', authenticate, adminOnly, moderatePost);
 router.post('/reports', authenticate, submitReport);
 router.get('/reports', authenticate, adminOnly, getReports);
 router.put('/reports/:id/resolve', authenticate, adminOnly, resolveReport);
+
+// ── Promoted Posts / Featured Placements ───────────────────────
+router.post('/promotions', authenticate, adminOnly, createPromotion);
+router.get('/promotions', authenticate, adminOnly, getPromotions);
+router.put('/promotions/:id', authenticate, adminOnly, updatePromotion);
+router.delete('/promotions/:id', authenticate, adminOnly, deletePromotion);
+
+// ── Broadcasts Management ─────────────────────────────────────
+router.get('/broadcasts', authenticate, adminOnly, getBroadcasts);
+router.delete('/broadcasts/:id', authenticate, adminOnly, deleteBroadcast);
 
 // ── Business Verifications (legacy)
 router.get('/verifications', authenticate, adminOnly, getVerifications);

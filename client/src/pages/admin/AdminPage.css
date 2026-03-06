@@ -1173,6 +1173,38 @@ button:disabled {
   font-size: 40px;
 }
 
+/* ── STATS & PROGRESS ──────────────────────────────────────────── */
+.stats-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.stat-mini {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.progress-bar-small {
+  width: 80px;
+  height: 6px;
+  background: var(--bg-hover);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
 /* ── RESPONSIVE ────────────────────────────────────────────────── */
 @media (max-width: 860px) {
   .admin-app {
