@@ -188,37 +188,20 @@ export default function FeedPage() {
                                 <button className="feed-nav-btn" onClick={() => navigate('/explore')} title="Explore">
                                     <HiOutlineMagnifyingGlass />
                                 </button>
-                                <button
-                                    onClick={() => navigate('/auth/login')}
-                                    style={{ background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-primary)', padding: '6px 16px', borderRadius: 'var(--radius-full)', fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer', marginLeft: 'var(--space-2)' }}
-                                >
-                                    Log In
-                                </button>
-                                <button
-                                    onClick={() => navigate('/auth/register')}
-                                    style={{ background: 'var(--gradient-brand)', color: 'white', border: 'none', padding: '6px 16px', borderRadius: 'var(--radius-full)', fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer' }}
-                                >
-                                    Sign Up
-                                </button>
+                                <button className="feed-guest-login-btn" onClick={() => navigate('/auth/login')}>Log In</button>
+                                <button className="feed-guest-signup-btn" onClick={() => navigate('/auth/register')}>Sign Up</button>
                             </>
                         )}
                     </div>
                 </nav>
 
                 {/* Filter Chip Row */}
-                <div id="feed-filter-chips" style={{ display: 'flex', gap: 'var(--space-2)', overflowX: 'auto', padding: 'var(--space-3) var(--space-4)', scrollbarWidth: 'none', borderBottom: '1px solid var(--border-primary)', background: 'var(--bg-primary)' }}>
+                <div className="feed-filter-chips">
                     {FILTER_CHIPS.map(chip => (
                         <button
                             key={chip}
+                            className={`feed-chip${activeChip === chip ? ' active' : ''}`}
                             onClick={() => { setActiveChip(chip); localStorage.setItem('feed_filter', chip); }}
-                            style={{
-                                whiteSpace: 'nowrap', padding: '6px 16px', borderRadius: 'var(--radius-full)',
-                                border: '1px solid', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 500,
-                                background: activeChip === chip ? 'var(--color-primary)' : 'var(--bg-elevated)',
-                                borderColor: activeChip === chip ? 'var(--color-primary)' : 'var(--border-primary)',
-                                color: activeChip === chip ? 'white' : 'var(--text-secondary)',
-                                transition: 'all 0.15s',
-                            }}
                         >
                             {chip}
                         </button>
@@ -228,27 +211,16 @@ export default function FeedPage() {
                 {/* Feed content */}
                 {loading ? (
                     <div className="feed-empty">
-                        <div style={{ width: 40, height: 40, border: '3px solid var(--border-primary)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
-                        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                        <div className="feed-spinner" />
                     </div>
                 ) : posts.length === 0 ? (
                     <div className="feed-empty">
                         <HiOutlinePlayCircle />
-                        <h3 style={{ color: 'var(--text-primary)', marginBottom: 'var(--space-2)' }}>Your feed is empty</h3>
+                        <h3 className="feed-empty-title">Your feed is empty</h3>
                         <p>Follow travelers and businesses, or upload your first video!</p>
-                        <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'center', marginTop: 'var(--space-6)' }}>
-                            <button
-                                onClick={() => navigate('/upload')}
-                                style={{ padding: '10px 24px', borderRadius: 'var(--radius-full)', background: 'var(--gradient-brand)', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer', boxShadow: 'var(--shadow-glow)' }}
-                            >
-                                Upload Video
-                            </button>
-                            <button
-                                onClick={() => navigate('/explore')}
-                                style={{ padding: '10px 24px', borderRadius: 'var(--radius-full)', background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)', fontWeight: 600, cursor: 'pointer' }}
-                            >
-                                Explore
-                            </button>
+                        <div className="feed-empty-actions">
+                            <button className="feed-empty-cta-primary" onClick={() => navigate('/upload')}>Upload Video</button>
+                            <button className="feed-empty-cta-secondary" onClick={() => navigate('/explore')}>Explore</button>
                         </div>
                     </div>
                 ) : (
@@ -256,7 +228,7 @@ export default function FeedPage() {
                         {posts.map(post => (
                             <div key={post.id} className="feed-card">
                                 {/* Header */}
-                                <Link to={`/profile/${post.user?.profile?.handle || ''}`} className="feed-card-header" style={{ textDecoration: 'none', color: 'inherit' }}>
+                                <Link to={`/profile/${post.user?.profile?.handle || ''}`} className="feed-card-header">
                                     <div className="feed-card-avatar">
                                         {post.user?.profile?.avatarUrl ? (
                                             <img src={post.user.profile.avatarUrl} alt="" />
@@ -302,7 +274,7 @@ export default function FeedPage() {
                                     <button
                                         className={`feed-action-btn${post.isSaved ? ' saved' : ''}`}
                                         onClick={() => handleSave(post.id, post.isSaved)}
-                                        style={{ marginLeft: 'auto' }}
+
                                     >
                                         {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
                                     </button>
@@ -313,8 +285,9 @@ export default function FeedPage() {
 
                                 {/* Business CTAs (Enquire / Review links) */}
                                 {BUSINESS_TYPES.includes(post.user?.accountType) && (
-                                    <div style={{ display: 'flex', gap: 'var(--space-2)', padding: '0 var(--space-4) var(--space-2)' }}>
+                                    <div className="feed-business-ctas">
                                         <button
+                                            className="feed-biz-btn feed-biz-btn-primary"
                                             onClick={() => {
                                                 if (!user) {
                                                     setAuthModal({ isOpen: true, message: 'Send booking enquiries to travel businesses' });
@@ -322,16 +295,15 @@ export default function FeedPage() {
                                                 }
                                                 setEnquiryTarget({ userId: post.user?.id || post.userId, displayName: post.user?.profile?.displayName || 'Business' });
                                             }}
-                                            style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--color-primary-light)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                                         >
-                                            <HiOutlineEnvelope style={{ fontSize: '0.9rem' }} /> Enquire
+                                            <HiOutlineEnvelope /> Enquire
                                         </button>
-                                        <span style={{ color: 'var(--border-primary)', fontSize: 'var(--text-xs)' }}>·</span>
+                                        <span className="feed-biz-dot">·</span>
                                         <button
+                                            className="feed-biz-btn"
                                             onClick={() => navigate('/upload', { state: { reviewBusiness: post.user?.profile?.handle } })}
-                                            style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                                         >
-                                            <HiOutlineStar style={{ fontSize: '0.9rem' }} /> Write Review
+                                            <HiOutlineStar /> Write Review
                                         </button>
                                     </div>
                                 )}
@@ -346,12 +318,12 @@ export default function FeedPage() {
 
                         {/* Infinite scroll loader */}
                         {hasMore && (
-                            <div ref={lastPostElementRef} style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>
+                            <div ref={lastPostElementRef} className="feed-scroll-status">
                                 {loading && posts.length > 0 ? "Loading more..." : ""}
                             </div>
                         )}
                         {!hasMore && posts.length > 0 && (
-                            <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>
+                            <div className="feed-scroll-status">
                                 You've reached the end!
                             </div>
                         )}

@@ -184,6 +184,53 @@
     transform: translateX(4px);
 }
 
+/* Browse as Guest */
+.welcome-browse-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-3) var(--space-8);
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-full);
+    font-size: var(--text-base);
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: var(--space-4);
+    transition: all 0.2s;
+}
+
+.welcome-browse-btn:hover {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border-color: var(--color-primary);
+}
+
+/* Download App link */
+.welcome-download-btn {
+    position: absolute;
+    top: var(--space-5);
+    right: var(--space-5);
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    font-weight: 600;
+    font-size: var(--text-sm);
+    transition: transform 0.2s;
+}
+
+.welcome-download-btn:hover {
+    transform: translateY(-1px);
+}
+
 /* Account types preview */
 .welcome-types {
     margin-top: var(--space-12);

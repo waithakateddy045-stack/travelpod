@@ -68,6 +68,13 @@ export default function WelcomePage() {
                     <span className="arrow">→</span>
                 </button>
 
+                <button
+                    className="welcome-browse-btn"
+                    onClick={() => navigate('/feed')}
+                >
+                    Explore Videos
+                </button>
+
                 {/* Account types preview */}
                 <div className="welcome-types">
                     {accountTypes.map((type) => (
@@ -84,26 +91,9 @@ export default function WelcomePage() {
                     href="https://github.com/waithakateddy045-stack/travelpod/releases/download/v1.0.3/Travelpod.apk"
                     download
                     title="Download Android App"
-                    style={{
-                        position: 'absolute',
-                        top: 'var(--space-5)',
-                        right: 'var(--space-5)',
-                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                        color: 'white',
-                        padding: '8px 16px',
-                        borderRadius: 'var(--radius-pill)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        textDecoration: 'none',
-                        zIndex: 10,
-                        boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
-                        fontWeight: 600,
-                        fontSize: 'var(--text-sm)',
-                        transition: 'transform 0.2s'
-                    }}
+                    className="welcome-download-btn"
                 >
-                    <span style={{ fontSize: '1.2rem' }}>✈️</span>
+                    <span>✈️</span>
                     <span>Download App</span>
                 </a>
             )}

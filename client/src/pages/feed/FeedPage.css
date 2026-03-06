@@ -166,6 +166,175 @@
     margin-bottom: var(--space-3);
 }
 
+/* Feed card header link */
+.feed-card-header {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* ═══════════════════════════════════════
+   Filter Chip Row
+   ═══════════════════════════════════════ */
+.feed-filter-chips {
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    padding: var(--space-3) var(--space-4);
+    scrollbar-width: none;
+    border-bottom: 1px solid var(--border-primary);
+    background: var(--bg-primary);
+}
+
+.feed-filter-chips::-webkit-scrollbar {
+    display: none;
+}
+
+.feed-chip {
+    white-space: nowrap;
+    padding: 6px 16px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-primary);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.feed-chip.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+.feed-chip:hover:not(.active) {
+    border-color: var(--color-primary);
+    color: var(--color-primary-light);
+}
+
+/* ═══════════════════════════════════════
+   Loading Spinner
+   ═══════════════════════════════════════ */
+.feed-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-primary);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: feedSpin 0.8s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes feedSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ═══════════════════════════════════════
+   Empty State
+   ═══════════════════════════════════════ */
+.feed-empty-title {
+    color: var(--text-primary);
+    margin-bottom: var(--space-2);
+}
+
+.feed-empty-actions {
+    display: flex;
+    gap: var(--space-3);
+    justify-content: center;
+    margin-top: var(--space-6);
+}
+
+.feed-empty-cta-primary {
+    padding: 10px 24px;
+    border-radius: var(--radius-full);
+    background: var(--gradient-brand);
+    color: white;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow-glow);
+    transition: transform 0.2s;
+}
+
+.feed-empty-cta-primary:hover {
+    transform: translateY(-1px);
+}
+
+.feed-empty-cta-secondary {
+    padding: 10px 24px;
+    border-radius: var(--radius-full);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.feed-empty-cta-secondary:hover {
+    border-color: var(--color-primary);
+}
+
+/* ═══════════════════════════════════════
+   Business CTAs
+   ═══════════════════════════════════════ */
+.feed-business-ctas {
+    display: flex;
+    gap: var(--space-2);
+    padding: 0 var(--space-4) var(--space-2);
+    align-items: center;
+}
+
+.feed-biz-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    font-weight: 600;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.15s;
+}
+
+.feed-biz-btn:hover {
+    color: var(--text-primary);
+}
+
+.feed-biz-btn-primary {
+    color: var(--color-primary-light);
+}
+
+.feed-biz-btn-primary:hover {
+    color: var(--color-primary);
+}
+
+.feed-biz-dot {
+    color: var(--border-primary);
+    font-size: var(--text-xs);
+}
+
+/* ═══════════════════════════════════════
+   Scroll Status (loading more / end)
+   ═══════════════════════════════════════ */
+.feed-scroll-status {
+    text-align: center;
+    padding: var(--space-6);
+    color: var(--text-tertiary);
+    font-size: var(--text-sm);
+}
+
+/* Save button spacer */
+.feed-action-btn.saved {
+    margin-left: auto;
+}
+
 /* ═══════════════════════════════════════
    Guest Auth Buttons in header
    ═══════════════════════════════════════ */
