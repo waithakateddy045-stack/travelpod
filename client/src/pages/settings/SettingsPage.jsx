@@ -326,19 +326,22 @@ export default function SettingsPage() {
                                     Download the official Travelpod Android application for the best experience.
                                 </p>
                                 <div style={{ background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', border: '1px solid var(--border-primary)', marginBottom: 'var(--space-4)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                                    <div style={{ fontSize: 48, marginBottom: 'var(--space-3)', color: '#22c55e' }}>
-                                        <HiOutlineDevicePhoneMobile />
+                                    <div style={{ fontSize: 48, marginBottom: 'var(--space-4)' }}>
+                                        <div style={{ width: 80, height: 80, background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(16,185,129,0.4)' }}>
+                                            <span style={{ fontSize: '2.5rem' }}>✈️</span>
+                                        </div>
                                     </div>
                                     <div style={{ fontWeight: 600, fontSize: '1.2rem', marginBottom: 8 }}>Travelpod for Android</div>
                                     <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-5)', maxWidth: 320 }}>
                                         Experience immersive travel videos, faster load times, and native push notifications.
                                     </div>
                                     <a
-                                        href="https://github.com/waithakateddy045-stack/travelpod/releases/download/v1.0.0/app-debug.apk"
+                                        href="https://github.com/waithakateddy045-stack/travelpod/releases/download/v1.0.1/Travelpod.apk"
                                         download
-                                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 28px', borderRadius: 'var(--radius-pill)', border: 'none', background: '#22c55e', color: '#fff', textDecoration: 'none', fontSize: 'var(--text-md)', fontWeight: 600, transition: 'transform 0.2s', boxShadow: '0 4px 16px rgba(34,197,94,0.3)' }}
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 28px', borderRadius: 'var(--radius-pill)', border: 'none', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#fff', textDecoration: 'none', fontSize: 'var(--text-md)', fontWeight: 600, transition: 'transform 0.2s', boxShadow: '0 4px 16px rgba(16,185,129,0.3)' }}
                                     >
-                                        <HiOutlineArrowDownTray /> Download APK
+                                        <span style={{ fontSize: '1.2rem' }}>✈️</span>
+                                        <span>Download App</span>
                                     </a>
                                 </div>
                             </div>

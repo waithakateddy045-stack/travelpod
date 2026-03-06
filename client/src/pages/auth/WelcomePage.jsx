@@ -79,27 +79,30 @@ export default function WelcomePage() {
 
             {isNonIOS && (
                 <a
-                    href="https://github.com/waithakateddy045-stack/travelpod/releases/download/v1.0.0/app-debug.apk"
+                    href="https://github.com/waithakateddy045-stack/travelpod/releases/download/v1.0.1/Travelpod.apk"
                     download
                     title="Download Android App"
                     style={{
                         position: 'absolute',
                         top: 'var(--space-5)',
                         right: 'var(--space-5)',
-                        background: '#22c55e',
+                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                         color: 'white',
-                        width: '44px',
-                        height: '44px',
-                        borderRadius: '50%',
+                        padding: '8px 16px',
+                        borderRadius: 'var(--radius-pill)',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
+                        gap: '8px',
                         textDecoration: 'none',
                         zIndex: 10,
-                        boxShadow: '0 4px 12px rgba(34,197,94,0.3)'
+                        boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
+                        fontWeight: 600,
+                        fontSize: 'var(--text-sm)',
+                        transition: 'transform 0.2s'
                     }}
                 >
-                    <HiOutlineDevicePhoneMobile size={24} />
+                    <span style={{ fontSize: '1.2rem' }}>✈️</span>
+                    <span>Download App</span>
                 </a>
             )}
         </div>
