@@ -30,18 +30,28 @@ router.get('/verify-email/:token', verifyEmail);
 router.get('/me', authenticate, me);
 
 // Google OAuth
-router.get('/google',
-    passport.authenticate('google', { scope: ['profile', 'email'], session: false })
-);
+router.get('/google', (req, res, next) => {
+    passport.authenticate('google', {
+        scope: ['profile', 'email'],
+        session: false,
+        state: req.query.source === 'app' ? 'app' : 'web'
+    })(req, res, next);
+});
 
 router.get('/google/callback',
     passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL}/auth/login?error=oauth_failed` }),
     (req, res) => {
         const { accessToken, refreshToken } = req.user;
-        // Redirect to frontend with tokens in query (frontend stores them)
-        res.redirect(
-            `${process.env.CLIENT_URL}/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}&onboarding=${req.user.onboardingComplete}`
-        );
+        const source = req.query.state;
+
+        if (source === 'app') {
+            res.redirect(`travelpod://callback?accessToken=${accessToken}&refreshToken=${refreshToken}&onboarding=${req.user.onboardingComplete}`);
+        } else {
+            // Redirect to frontend with tokens in query (frontend stores them)
+            res.redirect(
+                `${process.env.CLIENT_URL}/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}&onboarding=${req.user.onboardingComplete}`
+            );
+        }
     }
 );
 

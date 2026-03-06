@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
@@ -23,9 +24,23 @@ import AdminPage from './pages/admin/AdminPage';
 import BoardsFeedPage from './pages/boards/BoardsFeedPage';
 import BoardDetailPage from './pages/boards/BoardDetailPage';
 import NotFoundPage from './pages/NotFoundPage';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import './index.css';
 
 function App() {
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      CapacitorApp.addListener('appUrlOpen', (event) => {
+        const url = new URL(event.url);
+        if (url.protocol === 'travelpod:' && url.host === 'callback') {
+          // Push to React router handling
+          window.location.href = `/auth/callback${url.search}`;
+        }
+      });
+    }
+  }, []);
+
   return (
     <ErrorBoundary>
       <AuthProvider>
