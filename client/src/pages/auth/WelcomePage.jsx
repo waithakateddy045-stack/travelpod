@@ -20,6 +20,7 @@ const accountTypes = [
 
 export default function WelcomePage() {
     const navigate = useNavigate();
+    const isNonIOS = !(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
     const handleGetStarted = () => {
         navigate('/auth/register');
@@ -74,6 +75,20 @@ export default function WelcomePage() {
                     ))}
                 </div>
             </div>
+
+            {isNonIOS && (
+                <div style={{ marginTop: 'var(--space-6)', padding: 'var(--space-4)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-primary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-3)', width: '100%', maxWidth: 400 }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>📱 Download our Android App</div>
+                    <a
+                        href="https://github.com/waithakateddy045-stack/travelpod/releases/download/v1.0.0/app-debug.apk"
+                        download
+                        className="welcome-cta"
+                        style={{ background: '#22c55e', width: '100%', padding: '12px', fontSize: '15px', display: 'flex', justifyContent: 'center' }}
+                    >
+                        Download APK
+                    </a>
+                </div>
+            )}
         </div>
     );
 }

@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import {
     HiOutlineBell, HiOutlineLockClosed, HiOutlineTrash,
     HiOutlineArrowLeft, HiOutlineShieldCheck, HiOutlineArrowDownTray,
-    HiOutlineUser, HiOutlineGlobeAlt,
+    HiOutlineUser, HiOutlineGlobeAlt, HiOutlineDevicePhoneMobile
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -130,12 +130,14 @@ export default function SettingsPage() {
     };
 
     const isBusiness = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'].includes(user?.accountType);
+    const isNonIOS = !(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
     const SECTIONS = [
         { key: 'notifications', label: 'Notifications', icon: <HiOutlineBell /> },
         { key: 'privacy', label: 'Privacy & Safety', icon: <HiOutlineShieldCheck /> },
         { key: 'security', label: 'Security', icon: <HiOutlineLockClosed /> },
         ...(isBusiness ? [{ key: 'social', label: 'Social Links', icon: <HiOutlineGlobeAlt /> }] : []),
+        ...(isNonIOS ? [{ key: 'app', label: 'Get the App', icon: <HiOutlineDevicePhoneMobile /> }] : []),
         { key: 'data', label: 'Data & Export', icon: <HiOutlineArrowDownTray /> },
         { key: 'account', label: 'Account', icon: <HiOutlineUser /> },
     ];
@@ -313,6 +315,32 @@ export default function SettingsPage() {
                                 <button className="auth-submit" onClick={saveSocialLinks} disabled={socialLoading} style={{ marginTop: 'var(--space-4)', width: 'auto', padding: '10px 28px' }}>
                                     {socialLoading ? 'Saving...' : 'Save Social Links'}
                                 </button>
+                            </div>
+                        )}
+
+                        {/* Get the App */}
+                        {activeSection === 'app' && isNonIOS && (
+                            <div>
+                                <h2 style={{ marginBottom: 'var(--space-4)', fontWeight: 700 }}>Get the App</h2>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-6)' }}>
+                                    Download the official Travelpod Android application for the best experience.
+                                </p>
+                                <div style={{ background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', border: '1px solid var(--border-primary)', marginBottom: 'var(--space-4)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                                    <div style={{ fontSize: 48, marginBottom: 'var(--space-3)', color: '#22c55e' }}>
+                                        <HiOutlineDevicePhoneMobile />
+                                    </div>
+                                    <div style={{ fontWeight: 600, fontSize: '1.2rem', marginBottom: 8 }}>Travelpod for Android</div>
+                                    <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-5)', maxWidth: 320 }}>
+                                        Experience immersive travel videos, faster load times, and native push notifications.
+                                    </div>
+                                    <a
+                                        href="https://github.com/waithakateddy045-stack/travelpod/releases/download/v1.0.0/app-debug.apk"
+                                        download
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 28px', borderRadius: 'var(--radius-pill)', border: 'none', background: '#22c55e', color: '#fff', textDecoration: 'none', fontSize: 'var(--text-md)', fontWeight: 600, transition: 'transform 0.2s', boxShadow: '0 4px 16px rgba(34,197,94,0.3)' }}
+                                    >
+                                        <HiOutlineArrowDownTray /> Download APK
+                                    </a>
+                                </div>
                             </div>
                         )}
 

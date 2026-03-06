@@ -1,0 +1,236 @@
+.vam-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: var(--space-4);
+}
+
+.vam-modal {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.vam-close {
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: var(--space-1);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.vam-close:hover {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+}
+
+/* Intro Step */
+.vam-step-intro {
+    text-align: center;
+}
+
+.vam-icon-large {
+    width: 80px;
+    height: 80px;
+    background: var(--bg-elevated);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: var(--color-primary-light);
+    margin: 0 auto var(--space-4);
+}
+
+.vam-icon-large.success-icon {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+}
+
+.vam-step-intro h2 {
+    font-size: 1.5rem;
+    margin-bottom: var(--space-3);
+    color: var(--text-primary);
+}
+
+.vam-step-intro p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--space-6);
+}
+
+.vam-requirements {
+    text-align: left;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+
+.vam-requirements h3 {
+    font-size: 1rem;
+    margin-bottom: var(--space-3);
+    color: var(--text-primary);
+}
+
+.vam-requirements ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.vam-requirements li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-2);
+}
+
+.vam-requirements li:last-child {
+    margin-bottom: 0;
+}
+
+/* Buttons */
+.vam-btn {
+    width: 100%;
+    padding: var(--space-3);
+    border-radius: var(--radius-pill);
+    font-weight: 600;
+    font-size: var(--text-base);
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.vam-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.vam-btn-primary {
+    background: var(--color-primary-light);
+    color: white;
+}
+
+.vam-btn-primary:hover:not(:disabled) {
+    background: var(--color-primary);
+}
+
+.vam-btn-secondary {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+}
+
+.vam-btn-secondary:hover:not(:disabled) {
+    background: var(--border-primary);
+}
+
+/* Form Styles */
+.vam-form h2 {
+    font-size: 1.5rem;
+    margin-bottom: var(--space-2);
+    color: var(--text-primary);
+}
+
+.vam-subtitle {
+    color: var(--text-secondary);
+    margin-bottom: var(--space-6);
+}
+
+.vam-hint {
+    color: var(--text-tertiary);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-4);
+}
+
+.vam-form-group {
+    margin-bottom: var(--space-4);
+}
+
+.vam-form-group label {
+    display: block;
+    color: var(--text-primary);
+    font-weight: 500;
+    margin-bottom: var(--space-2);
+    font-size: var(--text-sm);
+}
+
+.vam-form-group input,
+.vam-form-group textarea {
+    width: 100%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-primary);
+    color: var(--text-primary);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
+}
+
+.vam-form-group input:focus,
+.vam-form-group textarea:focus {
+    outline: none;
+    border-color: var(--color-primary-light);
+}
+
+.vam-divider {
+    height: 1px;
+    background: var(--border-primary);
+    margin: var(--space-6) 0;
+}
+
+.vam-form-actions {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+}
+
+/* Success Step */
+.vam-step-success {
+    text-align: center;
+    padding: var(--space-6) 0;
+}
+
+.vam-step-success h2 {
+    font-size: 1.5rem;
+    margin-bottom: var(--space-3);
+    color: var(--text-primary);
+}
+
+.vam-step-success p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.vam-redirecting {
+    margin-top: var(--space-6);
+    font-size: var(--text-sm);
+    color: var(--text-tertiary) !important;
+}
