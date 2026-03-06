@@ -131,18 +131,14 @@ export default function RegisterPage() {
                             </button>
                         </form>
 
-                        {!isCapacitor && (
-                            <>
-                                <div className="auth-divider">
-                                    <span>or</span>
-                                </div>
+                        <div className="auth-divider">
+                            <span>or</span>
+                        </div>
 
-                                <button className="auth-google" onClick={handleGoogleRegister} type="button">
-                                    <img src="https://www.google.com/favicon.ico" alt="Google" />
-                                    Continue with Google
-                                </button>
-                            </>
-                        )}
+                        <button className="auth-google" onClick={handleGoogleRegister} type="button">
+                            <img src="https://www.google.com/favicon.ico" alt="Google" />
+                            Continue with Google
+                        </button>
 
                         <p className="auth-footer">
                             Already have an account? <Link to="/auth/login">Sign in</Link>

@@ -468,8 +468,4 @@ select:focus {
     --text-4xl: 1.875rem;
     --text-3xl: 1.5rem;
   }
-
-  #root {
-    padding-bottom: calc(60px + env(safe-area-inset-bottom));
-  }
 }

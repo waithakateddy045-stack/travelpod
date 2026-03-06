@@ -97,17 +97,13 @@ export default function LoginPage() {
                     </button>
                 </form>
 
-                {!isCapacitor && (
-                    <>
-                        <div className="auth-divider">
-                            <span>or</span>
-                        </div>
-                        <button className="auth-google" onClick={handleGoogleLogin} type="button">
-                            <img src="https://www.google.com/favicon.ico" alt="Google" />
-                            Continue with Google
-                        </button>
-                    </>
-                )}
+                <div className="auth-divider">
+                    <span>or</span>
+                </div>
+                <button className="auth-google" onClick={handleGoogleLogin} type="button">
+                    <img src="https://www.google.com/favicon.ico" alt="Google" />
+                    Continue with Google
+                </button>
 
                 <div className="auth-footer">
                     Don't have an account? <Link to="/auth/register">Create one free</Link>
