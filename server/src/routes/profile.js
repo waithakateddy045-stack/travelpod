@@ -7,7 +7,7 @@ const {
     submitVerification, getVerificationStatus,
 } = require('../controllers/profileController');
 
-// Public (with optional auth for follow status)
+// Public — optionalAuth so logged-in users see follow status
 router.get('/:handle', optionalAuth, getProfileByHandle);
 router.get('/:handle/posts', getProfilePosts);
 router.get('/:handle/reviews', getProfileReviews);

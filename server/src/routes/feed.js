@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { getFeed, getDestinationsFeed } = require('../controllers/feedController');
-const authenticate = require('../middleware/authenticate');
+const { getFeed } = require('../controllers/feedController');
+const { optionalAuth } = require('../middleware/auth');
 
-// Public routes (controller handles optional req.user internally)
-router.get('/', getFeed);
-router.get('/destinations', getDestinationsFeed);
+// Public route — optionalAuth attaches user if JWT present, so the
+// feed algorithm can personalise; guests get a generic discovery feed.
+router.get('/', optionalAuth, getFeed);
 
 module.exports = router;

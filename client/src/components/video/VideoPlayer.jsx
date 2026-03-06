@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { HiOutlinePlay, HiOutlinePause, HiOutlineSpeakerWave, HiOutlineSpeakerXMark } from 'react-icons/hi2';
+import { HiOutlinePlay, HiOutlinePause, HiOutlineSpeakerWave, HiOutlineSpeakerXMark, HiOutlineExclamationTriangle, HiOutlineArrowPath } from 'react-icons/hi2';
 import './VideoPlayer.css';
 
 export default function VideoPlayer({ src, poster, autoPlay = false, muted = true, loop = true, onView }) {
@@ -9,12 +9,15 @@ export default function VideoPlayer({ src, poster, autoPlay = false, muted = tru
     const [isMuted, setIsMuted] = useState(muted);
     const [progress, setProgress] = useState(0);
     const [viewCounted, setViewCounted] = useState(false);
+    const [hasError, setHasError] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [retryCount, setRetryCount] = useState(0);
 
     // Intersection Observer — autoplay/pause when scrolling in/out of view
     useEffect(() => {
         const video = videoRef.current;
         const container = containerRef.current;
-        if (!video || !container) return;
+        if (!video || !container || hasError) return;
 
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -31,7 +34,7 @@ export default function VideoPlayer({ src, poster, autoPlay = false, muted = tru
 
         observer.observe(container);
         return () => observer.disconnect();
-    }, []);
+    }, [hasError, retryCount]);
 
     // Track progress for the progress bar
     const handleTimeUpdate = useCallback(() => {
@@ -48,9 +51,10 @@ export default function VideoPlayer({ src, poster, autoPlay = false, muted = tru
     }, [viewCounted, onView]);
 
     const togglePlay = () => {
+        if (hasError) return;
         const video = videoRef.current;
         if (!video) return;
-        if (video.paused) { video.play(); setPlaying(true); }
+        if (video.paused) { video.play().catch(() => { }); setPlaying(true); }
         else { video.pause(); setPlaying(false); }
     };
 
@@ -62,9 +66,50 @@ export default function VideoPlayer({ src, poster, autoPlay = false, muted = tru
         setIsMuted(video.muted);
     };
 
+    const handleError = () => {
+        setHasError(true);
+        setIsLoading(false);
+        setPlaying(false);
+    };
+
+    const handleCanPlay = () => {
+        setIsLoading(false);
+        setHasError(false);
+    };
+
+    const handleRetry = (e) => {
+        e.stopPropagation();
+        setHasError(false);
+        setIsLoading(true);
+        setRetryCount(c => c + 1);
+        const video = videoRef.current;
+        if (video) {
+            video.load();
+        }
+    };
+
     return (
         <div ref={containerRef} className="video-player" onClick={togglePlay}>
+            {/* Loading skeleton */}
+            {isLoading && !hasError && (
+                <div className="video-overlay video-loading">
+                    <div className="video-loading-spinner" />
+                </div>
+            )}
+
+            {/* Error fallback */}
+            {hasError && (
+                <div className="video-overlay video-error">
+                    <HiOutlineExclamationTriangle className="video-error-icon" />
+                    <p className="video-error-text">Video unavailable</p>
+                    <button className="video-retry-btn" onClick={handleRetry}>
+                        <HiOutlineArrowPath /> Retry
+                    </button>
+                </div>
+            )}
+
             <video
+                key={retryCount}
                 ref={videoRef}
                 src={src}
                 poster={poster}
@@ -73,24 +118,31 @@ export default function VideoPlayer({ src, poster, autoPlay = false, muted = tru
                 playsInline
                 preload="none"
                 onTimeUpdate={handleTimeUpdate}
+                onError={handleError}
+                onCanPlay={handleCanPlay}
+                onLoadedData={handleCanPlay}
             />
 
             {/* Play/Pause overlay */}
-            {!playing && (
+            {!playing && !hasError && !isLoading && (
                 <div className="video-overlay play-overlay">
                     <HiOutlinePlay />
                 </div>
             )}
 
             {/* Mute toggle */}
-            <button className="video-mute-btn" onClick={toggleMute}>
-                {isMuted ? <HiOutlineSpeakerXMark /> : <HiOutlineSpeakerWave />}
-            </button>
+            {!hasError && (
+                <button className="video-mute-btn" onClick={toggleMute}>
+                    {isMuted ? <HiOutlineSpeakerXMark /> : <HiOutlineSpeakerWave />}
+                </button>
+            )}
 
             {/* Progress bar */}
-            <div className="video-progress">
-                <div className="video-progress-fill" style={{ width: `${progress}%` }} />
-            </div>
+            {!hasError && (
+                <div className="video-progress">
+                    <div className="video-progress-fill" style={{ width: `${progress}%` }} />
+                </div>
+            )}
         </div>
     );
 }

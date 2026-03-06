@@ -32,7 +32,7 @@ const upload = multer({
 });
 
 // Public routes
-router.get('/:id', getPost); // Updated: removed optionalAuth middleware
+router.get('/:id', getPost);
 
 // Post CRUD (Protected routes)
 router.post('/', authenticate, upload.single('video'), createPost);
@@ -42,7 +42,7 @@ router.delete('/:id', authenticate, deletePost);
 router.get('/moderation/queue', authenticate, adminOnly, getModerationQueue);
 router.put('/moderation/:id', authenticate, adminOnly, moderatePost);
 
-// Reporting
+// Reporting — allow anyone (optionalAuth for tracking logged-in reporters)
 router.post('/:id/report', optionalAuth, reportPost);
 
 module.exports = router;

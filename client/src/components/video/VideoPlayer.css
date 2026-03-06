@@ -34,6 +34,73 @@
     filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
 }
 
+/* Loading spinner */
+.video-loading {
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 3;
+}
+
+.video-loading-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Error state */
+.video-error {
+    flex-direction: column;
+    gap: 10px;
+    background: linear-gradient(135deg, rgba(20, 20, 30, 0.95), rgba(30, 25, 45, 0.95));
+    z-index: 4;
+}
+
+.video-error-icon {
+    font-size: 2.5rem;
+    color: var(--text-tertiary);
+    opacity: 0.6;
+}
+
+.video-error-text {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.video-retry-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-primary);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.video-retry-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--color-primary);
+    color: var(--color-primary-light);
+}
+
+.video-retry-btn svg {
+    font-size: 1rem;
+}
+
+/* Mute button */
 .video-mute-btn {
     position: absolute;
     bottom: 16px;
@@ -57,6 +124,7 @@
     transform: scale(1.1);
 }
 
+/* Progress bar */
 .video-progress {
     position: absolute;
     bottom: 0;
