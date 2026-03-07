@@ -19,7 +19,11 @@ const httpServer = createServer(app);
 // Socket.io setup
 const io = new Server(httpServer, {
     cors: {
-        origin: process.env.CLIENT_URL || 'http://localhost:5173',
+        origin: [
+            process.env.CLIENT_URL || 'http://localhost:5173',
+            'http://localhost:5174',
+            'http://localhost:5175'
+        ],
         methods: ['GET', 'POST']
     }
 });
@@ -28,12 +32,15 @@ const io = new Server(httpServer, {
 app.set('io', io);
 
 // Security middleware
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: false // Disable CSP for local dev to avoid blocking fetches
+}));
 
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100,
+    max: 1000, // Increased for admin sessions
     standardHeaders: true,
     legacyHeaders: false
 });
@@ -47,6 +54,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors({
     origin: [
         process.env.CLIENT_URL || 'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:5175',
         'https://travelpod-liard.vercel.app'
     ],
     credentials: true

@@ -5,7 +5,7 @@ const { AppError } = require('./errorHandler');
  * JWT authentication middleware.
  * Protects routes by requiring a valid JWT in the Authorization header.
  */
-const authenticate = (req, res, next) => {
+const authenticate = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
 

@@ -238,38 +238,57 @@ const getFeed = async (req, res, next) => {
             },
         });
 
-        // 2. Fallback Logic: If feed is too small, backfill with high-engagement RECYCLED content
+        // 2. Fallback Logic: If feed is too small, backfill with high-engagement content
         if (posts.length < limit) {
-            const needed = limit * 2; // fetch a bit more for ranking
-            const recycled = await prisma.post.findMany({
+            const needed = (limit - posts.length) * 2;
+
+            // Tier 1: Any other UNSEEN content by quality
+            let fallback = await prisma.post.findMany({
                 where: {
-                    id: { in: viewedIds, notIn: posts.map(p => p.id) }, // been seen, but not already in our current set
                     moderationStatus: 'APPROVED',
+                    id: { notIn: [...viewedIds, ...posts.map(p => p.id)] },
                     ...(where.categoryId ? { categoryId: where.categoryId } : {})
                 },
-                orderBy: [
-                    { likeCount: 'desc' },
-                    { saveCount: 'desc' },
-                    { viewCount: 'desc' }
-                ],
+                orderBy: { likeCount: 'desc' },
                 take: needed,
                 include: {
                     author: {
                         select: {
                             id: true, accountType: true,
-                            profile: {
-                                select: {
-                                    displayName: true, handle: true, avatarUrl: true,
-                                    businessProfile: { select: { verificationStatus: true } },
-                                },
-                            },
-                        },
+                            profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true } } } }
+                        }
                     },
                     category: true,
-                    postTags: { include: { tag: true } },
-                },
+                    postTags: { include: { tag: true } }
+                }
             });
-            posts = [...posts, ...recycled];
+
+            // Tier 2: Absolute Fallback - Show high engagement recyclables if EVERYTHING is seen
+            if (posts.length + fallback.length < limit) {
+                const absoluteNeeded = limit - (posts.length + fallback.length);
+                const recycled = await prisma.post.findMany({
+                    where: {
+                        moderationStatus: 'APPROVED',
+                        id: { notIn: posts.map(p => p.id) }, // Just don't duplicate what's currently on page
+                        ...(where.categoryId ? { categoryId: where.categoryId } : {})
+                    },
+                    orderBy: { likeCount: 'desc' },
+                    take: absoluteNeeded,
+                    include: {
+                        author: {
+                            select: {
+                                id: true, accountType: true,
+                                profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true } } } }
+                            }
+                        },
+                        category: true,
+                        postTags: { include: { tag: true } }
+                    }
+                });
+                fallback = [...fallback, ...recycled];
+            }
+
+            posts = [...posts, ...fallback];
         }
 
         // If STILL empty (no content in database at all), return empty gracefully
