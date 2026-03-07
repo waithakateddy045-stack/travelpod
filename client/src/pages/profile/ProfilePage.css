@@ -280,6 +280,49 @@
     margin-bottom: var(--space-3);
 }
 
+/* Follow Tabs Content */
+.tab-content-follow {
+    background: var(--bg-glass);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    min-height: 400px;
+    animation: fadeIn 0.3s ease;
+    margin-top: var(--space-2);
+}
+
+.tab-content-follow .follow-list-inline .follow-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--space-4);
+    border: none !important;
+}
+
+.tab-content-follow .follow-user-item-wrapper {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-primary) !important;
+    border-radius: var(--radius-lg);
+    transition: transform 0.2s ease, border-color 0.2s;
+    margin-bottom: 0 !important;
+}
+
+.tab-content-follow .follow-user-item-wrapper:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-active) !important;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 @media (max-width: 600px) {
     .profile-header {
         flex-direction: column;
