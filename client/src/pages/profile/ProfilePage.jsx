@@ -343,8 +343,7 @@ export default function ProfilePage() {
                     </div>
                 )}
 
-                {/* Content Tabs */}
-                <div className="profile-tabs" style={{ display: 'flex', gap: 'var(--space-4)', borderBottom: '1px solid var(--border-primary)', marginBottom: 'var(--space-4)' }}>
+                <div className="profile-tabs" style={{ display: 'flex', gap: 'var(--space-4)', borderBottom: '1px solid var(--border-primary)', marginBottom: 'var(--space-4)', overflowX: 'auto', whiteSpace: 'nowrap' }}>
                     <button
                         className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`}
                         onClick={() => setActiveTab('posts')}
@@ -352,6 +351,20 @@ export default function ProfilePage() {
                     >
                         <HiOutlinePlayCircle style={{ marginRight: 6, verticalAlign: 'middle' }} />
                         Posts
+                    </button>
+                    <button
+                        className={`tab-btn ${activeTab === 'followers' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('followers')}
+                        style={{ padding: 'var(--space-2) 0', background: 'none', border: 'none', borderBottom: activeTab === 'followers' ? '2px solid var(--color-primary)' : '2px solid transparent', color: activeTab === 'followers' ? 'var(--text-primary)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                        {profile.followerCount || 0} Followers
+                    </button>
+                    <button
+                        className={`tab-btn ${activeTab === 'following' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('following')}
+                        style={{ padding: 'var(--space-2) 0', background: 'none', border: 'none', borderBottom: activeTab === 'following' ? '2px solid var(--color-primary)' : '2px solid transparent', color: activeTab === 'following' ? 'var(--text-primary)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                        {profile.followingCount || 0} Following
                     </button>
                     <button
                         className={`tab-btn ${activeTab === 'boards' ? 'active' : ''}`}
@@ -373,8 +386,21 @@ export default function ProfilePage() {
                     )}
                 </div>
 
-                {/* Posts Grid */}
-                {activeTab !== 'boards' ? (
+                {/* Tab Content */}
+                {(activeTab === 'followers' || activeTab === 'following') && (
+                    <div className="tab-content-follow">
+                        <FollowListModal
+                            inline={true}
+                            username={profile.handle}
+                            type={activeTab}
+                            title={activeTab === 'followers' ? 'Followers' : 'Following'}
+                            isOpen={true} // Always "open" when in tab
+                        />
+                    </div>
+                )}
+
+                {/* Posts/Saved Grid */}
+                {(activeTab === 'posts' || activeTab === 'saved') && (
                     <div className="post-grid">
                         {(activeTab === 'posts' ? posts : savedPosts).length > 0 ? (
                             (activeTab === 'posts' ? posts : savedPosts).map(post => (
@@ -404,8 +430,10 @@ export default function ProfilePage() {
                             </div>
                         )}
                     </div>
-                ) : (
-                    /* Boards Grid */
+                )}
+
+                {/* Boards Grid */}
+                {activeTab === 'boards' && (
                     <div className="post-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
                         {boards.length > 0 ? boards.map(board => (
                             <Link key={board.id} to={`/boards/${board.id}`} className="post-grid-item" style={{ textDecoration: 'none', height: 200 }}>

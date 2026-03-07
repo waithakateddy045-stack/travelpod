@@ -24,12 +24,14 @@ const settingsRoutes = require('./settings');
 const boardRoutes = require('./boards');
 const verificationRoutes = require('./verification');
 const userRoutes = require('./users');
+const moderationRoutes = require('./moderation');
 
 // Mount all routes
 router.use('/auth', authRoutes);
 router.use('/onboarding', onboardingRoutes);
 router.use('/profile', profileRoutes);
 router.use('/users', userRoutes);
+router.use('/reports', moderationRoutes);
 router.use('/posts', postRoutes);
 router.use('/engagement', engagementRoutes);
 router.use('/feed', feedRoutes);

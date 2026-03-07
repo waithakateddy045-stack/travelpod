@@ -24,8 +24,13 @@ export default function ReportModal({ entityId, entityType, title = 'Post', onCl
         if (!reason) { toast.error('Please select a reason'); return; }
         setLoading(true);
         try {
-            // Use a generic report endpoint or the existing post one (backend will be updated to handle entityType)
-            await api.post(`/reports`, { entityId, entityType, reason, detail });
+            // Map the detailed reason to a generic category for backend enum compatibility
+            const mappedReason = reason.includes('Spam') ? 'SPAM' :
+                reason.includes('explicit') || reason.includes('Violence') ? 'INAPPROPRIATE' :
+                    reason.includes('Harassment') ? 'HARASSMENT' :
+                        reason.includes('Misinformation') ? 'MISLEADING' : 'SPAM';
+
+            await api.post('/reports', { entityId, entityType, reason: mappedReason, detail });
             toast.success('Report submitted. Thank you for keeping Travelpod safe.');
             onClose();
         } catch {
