@@ -59,69 +59,82 @@ export default function FollowListModal({ isOpen, onClose, username, type, title
 
     if (!isOpen) return null;
 
+    const modalContent = (
+        <div className={asDropdown ? "follow-dropdown" : "follow-modal"} onClick={e => e.stopPropagation()}>
+            <div className="follow-modal-header">
+                <h2>{title}</h2>
+                <button className="icon-btn" onClick={onClose}><HiOutlineXMark /></button>
+            </div>
+
+            <div className="follow-modal-body">
+                {loading ? (
+                    <div className="follow-loading">
+                        <div className="spinner" />
+                    </div>
+                ) : users.length === 0 ? (
+                    <div className="follow-empty">
+                        <p>No {type} found.</p>
+                    </div>
+                ) : (
+                    <div className="follow-list">
+                        {users.map((u, index) => (
+                            <div key={u.id} className="follow-user-item-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+                                <Link
+                                    to={`/profile/${u.profile.handle}`}
+                                    className="follow-user-item"
+                                    onClick={onClose}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', color: 'inherit', flex: 1 }}
+                                >
+                                    <div className="follow-avatar">
+                                        {u.profile.avatarUrl ? (
+                                            <img src={u.profile.avatarUrl} alt={u.profile.displayName} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                                        ) : (
+                                            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <HiOutlineUser />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="follow-info">
+                                        <div className="follow-name" style={{ fontWeight: 600, fontSize: '0.9rem' }}>{u.profile.displayName}</div>
+                                        <div className="follow-handle" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>@{u.profile.handle}</div>
+                                    </div>
+                                </Link>
+
+                                <button
+                                    onClick={(e) => handleFollowToggle(e, u.id, index)}
+                                    style={{
+                                        padding: '6px 12px',
+                                        borderRadius: 'var(--radius-pill)',
+                                        fontSize: 'var(--text-xs)',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        border: u.isFollowingLocally ? '1px solid var(--border-primary)' : 'none',
+                                        background: u.isFollowingLocally ? 'transparent' : 'var(--color-primary-light)',
+                                        color: u.isFollowingLocally ? 'var(--text-primary)' : 'white'
+                                    }}
+                                >
+                                    {u.isFollowingLocally ? 'Unfollow' : 'Follow Back'}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    if (asDropdown) {
+        return (
+            <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={onClose} />
+                {modalContent}
+            </>
+        );
+    }
+
     return (
         <div className="modal-backdrop" onClick={onClose}>
-            <div className="follow-modal" onClick={e => e.stopPropagation()}>
-                <div className="follow-modal-header">
-                    <h2>{title}</h2>
-                    <button className="icon-btn" onClick={onClose}><HiOutlineXMark /></button>
-                </div>
-
-                <div className="follow-modal-body">
-                    {loading ? (
-                        <div className="follow-loading">
-                            <div className="spinner" />
-                        </div>
-                    ) : users.length === 0 ? (
-                        <div className="follow-empty">
-                            <p>No {type} found.</p>
-                        </div>
-                    ) : (
-                        <div className="follow-list">
-                            {users.map((u, index) => (
-                                <div key={u.id} className="follow-user-item-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-                                    <Link
-                                        to={`/profile/${u.profile.handle}`}
-                                        className="follow-user-item"
-                                        onClick={onClose}
-                                        style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', color: 'inherit', flex: 1 }}
-                                    >
-                                        <div className="follow-avatar">
-                                            {u.profile.avatarUrl ? (
-                                                <img src={u.profile.avatarUrl} alt={u.profile.displayName} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
-                                            ) : (
-                                                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                    <HiOutlineUser />
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="follow-info">
-                                            <div className="follow-name" style={{ fontWeight: 600, fontSize: '0.9rem' }}>{u.profile.displayName}</div>
-                                            <div className="follow-handle" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>@{u.profile.handle}</div>
-                                        </div>
-                                    </Link>
-
-                                    <button
-                                        onClick={(e) => handleFollowToggle(e, u.id, index)}
-                                        style={{
-                                            padding: '6px 12px',
-                                            borderRadius: 'var(--radius-pill)',
-                                            fontSize: 'var(--text-xs)',
-                                            fontWeight: 600,
-                                            cursor: 'pointer',
-                                            border: u.isFollowingLocally ? '1px solid var(--border-primary)' : 'none',
-                                            background: u.isFollowingLocally ? 'transparent' : 'var(--color-primary-light)',
-                                            color: u.isFollowingLocally ? 'var(--text-primary)' : 'white'
-                                        }}
-                                    >
-                                        {u.isFollowingLocally ? 'Unfollow' : 'Follow Back'}
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
+            {modalContent}
         </div>
     );
 }

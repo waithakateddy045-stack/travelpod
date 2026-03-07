@@ -179,7 +179,7 @@ export default function ProfilePage() {
                         </h1>
                         <p className="profile-handle">@{profile.handle}</p>
 
-                        <div className="profile-stats">
+                        <div className="profile-stats" style={{ position: 'relative' }}>
                             <div className="stat-item">
                                 <span className="stat-value">{profile.postCount || 0}</span>
                                 <span className="stat-label">Posts</span>
@@ -204,6 +204,16 @@ export default function ProfilePage() {
                                     <span className="stat-label">Reviews</span>
                                 </div>
                             )}
+
+                            {/* Dropdown rendered relative to profile-stats */}
+                            <FollowListModal
+                                isOpen={!!followModalType}
+                                onClose={() => setFollowModalType(null)}
+                                username={profile.handle}
+                                type={followModalType}
+                                title={followModalType === 'followers' ? 'Followers' : 'Following'}
+                                asDropdown={true}
+                            />
                         </div>
 
                         {/* Tags */}
@@ -458,14 +468,6 @@ export default function ProfilePage() {
                 businessName={profile.displayName}
                 isOpen={isEnquiryModalOpen}
                 onClose={() => setIsEnquiryModalOpen(false)}
-            />
-
-            <FollowListModal
-                isOpen={!!followModalType}
-                onClose={() => setFollowModalType(null)}
-                username={profile.handle}
-                type={followModalType}
-                title={followModalType === 'followers' ? 'Followers' : 'Following'}
             />
 
             <VerificationApplicationModal
