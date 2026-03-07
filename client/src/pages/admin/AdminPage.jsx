@@ -683,10 +683,81 @@ const VerificationTab = () => {
     );
 };
 
+const CreatePromotionModal = ({ onClose, onSuccess }) => {
+    const [postId, setPostId] = useState('');
+    const [dailyReach, setDailyReach] = useState(1000);
+    const [days, setDays] = useState(7);
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const startAt = new Date();
+            const endAt = new Date();
+            endAt.setDate(endAt.getDate() + parseInt(days));
+
+            await apiCall('/admin/promotions', {
+                method: 'POST',
+                body: JSON.stringify({
+                    postId,
+                    startAt,
+                    endAt,
+                    dailyReachTarget: parseInt(dailyReach),
+                    targetingCriteria: {}
+                }),
+            });
+            onSuccess();
+            onClose();
+        } catch (err) {
+            alert('Failed to create promotion: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="admin-modal-overlay" onClick={onClose}>
+            <div className="admin-modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2>Feature Content (Promotion)</h2>
+                    <button className="close-btn" onClick={onClose}>✕</button>
+                </div>
+                <form onSubmit={handleSubmit} className="admin-form">
+                    <div className="form-group">
+                        <label>Post ID to Promote</label>
+                        <input value={postId} onChange={e => setPostId(e.target.value)} placeholder="Paste the UUID of the post..." required />
+                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                            Tip: Copy the ID from the "Content" moderation tab.
+                        </p>
+                    </div>
+                    <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div className="form-group">
+                            <label>Daily Reach Target</label>
+                            <input type="number" value={dailyReach} onChange={e => setDailyReach(e.target.value)} required min="100" />
+                        </div>
+                        <div className="form-group">
+                            <label>Duration (Days)</label>
+                            <input type="number" value={days} onChange={e => setDays(e.target.value)} required min="1" max="90" />
+                        </div>
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn-outline" onClick={onClose}>Cancel</button>
+                        <button type="submit" className="btn-primary" disabled={loading}>
+                            {loading ? 'Creating...' : '🚀 Launch Promotion'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 // ─── Promoted Posts ─────────────────────────────────────────────────────────────
 const PromotedPostsTab = () => {
     const [promotions, setPromotions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showCreate, setShowCreate] = useState(false);
 
     const loadPromotions = useCallback(async () => {
         try {
@@ -712,10 +783,11 @@ const PromotedPostsTab = () => {
 
     return (
         <div className="tab-pane">
+            {showCreate && <CreatePromotionModal onClose={() => setShowCreate(false)} onSuccess={loadPromotions} />}
             <div className="tab-header">
                 <h2>Featured Placements</h2>
                 <div className="tab-actions">
-                    <button className="btn-primary" onClick={() => alert('Add promotion flow via Post selection')}>+ New Promotion</button>
+                    <button className="btn-primary" onClick={() => setShowCreate(true)}>+ New Promotion</button>
                 </div>
             </div>
             {loading ? <div className="loading-state">Loading promotions...</div> : (
@@ -753,10 +825,89 @@ const PromotedPostsTab = () => {
     );
 };
 
+const CreateBroadcastModal = ({ onClose, onSuccess }) => {
+    const [title, setTitle] = useState('');
+    const [message, setMessage] = useState('');
+    const [sectorTargeting, setSectorTargeting] = useState([]);
+    const [region, setRegion] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const sectors = ['TRAVELER', 'TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            await apiCall('/admin/broadcasts', {
+                method: 'POST',
+                body: JSON.stringify({ title, message, sectorTargeting, region }),
+            });
+            onSuccess();
+            onClose();
+        } catch (err) {
+            alert('Failed to send broadcast: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleSector = (s) => {
+        if (sectorTargeting.includes(s)) setSectorTargeting(sectorTargeting.filter(x => x !== s));
+        else setSectorTargeting([...sectorTargeting, s]);
+    };
+
+    return (
+        <div className="admin-modal-overlay" onClick={onClose}>
+            <div className="admin-modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2>Compose Network Broadcast</h2>
+                    <button className="close-btn" onClick={onClose}>✕</button>
+                </div>
+                <form onSubmit={handleSubmit} className="admin-form">
+                    <div className="form-group">
+                        <label>Broadcast Title</label>
+                        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Platform Update: New Features" required />
+                    </div>
+                    <div className="form-group">
+                        <label>Announcement Message</label>
+                        <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Write your announcement here..." required rows={6} />
+                    </div>
+                    <div className="form-group">
+                        <label>Sector Targeting (Empty for all)</label>
+                        <div className="targeting-chips">
+                            {sectors.map(s => (
+                                <button
+                                    key={s}
+                                    type="button"
+                                    className={`target-chip ${sectorTargeting.includes(s) ? 'active' : ''}`}
+                                    onClick={() => toggleSector(s)}
+                                >
+                                    {s.replace('_', ' ')}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="form-group">
+                        <label>Region/Country Targeting (Optional)</label>
+                        <input value={region} onChange={e => setRegion(e.target.value)} placeholder="e.g. Kenya" />
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn-outline" onClick={onClose}>Cancel</button>
+                        <button type="submit" className="btn-primary" disabled={loading}>
+                            {loading ? 'Sending...' : '🚀 Send Broadcast Now'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 // ─── Broadcasts ─────────────────────────────────────────────────────────────
 const BroadcastsTab = () => {
     const [broadcasts, setBroadcasts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showCreate, setShowCreate] = useState(false);
 
     const loadBroadcasts = useCallback(async () => {
         try {
@@ -782,10 +933,11 @@ const BroadcastsTab = () => {
 
     return (
         <div className="tab-pane">
+            {showCreate && <CreateBroadcastModal onClose={() => setShowCreate(false)} onSuccess={loadBroadcasts} />}
             <div className="tab-header">
                 <h2>Network Broadcasts</h2>
                 <div className="tab-actions">
-                    <button className="btn-primary" onClick={() => alert('New Broadcast Flow')}>+ New Broadcast</button>
+                    <button className="btn-primary" onClick={() => setShowCreate(true)}>+ New Broadcast</button>
                 </div>
             </div>
             {loading ? <div className="loading-state">Loading broadcasts...</div> : (
@@ -886,8 +1038,23 @@ const ReportsTab = () => {
                                     <td>{r.reporter?.email}</td>
                                     <td><Badge type={r.reason} small /></td>
                                     <td>
-                                        <div className="post-title">{r.entityType}</div>
-                                        <div className="meta-text" style={{ fontSize: '0.7rem', fontFamily: 'monospace' }}>{r.entityId}</div>
+                                        <div className="entity-summary">
+                                            <div className="post-title">{r.entityType}</div>
+                                            {r.entityType === 'POST' && r.post && (
+                                                <div className="meta-text">Video: {r.post.title}</div>
+                                            )}
+                                            {r.entityType === 'COMMENT' && r.comment && (
+                                                <div className="meta-text" style={{ fontStyle: 'italic', background: 'var(--bg-elevated)', padding: '4px 8px', borderRadius: 4, marginTop: 4 }}>
+                                                    "{r.comment.content}" — @{r.comment.user?.profile?.handle}
+                                                </div>
+                                            )}
+                                            {r.entityType === 'USER' && r.reportedUser && (
+                                                <div className="meta-text">User: {r.reportedUser.profile?.displayName} (@{r.reportedUser.profile?.handle})</div>
+                                            )}
+                                            {!r.post && !r.comment && !r.reportedUser && (
+                                                <div className="meta-text" style={{ fontSize: '0.7rem', fontFamily: 'monospace' }}>{r.entityId}</div>
+                                            )}
+                                        </div>
                                     </td>
                                     <td>{new Date(r.createdAt).toLocaleDateString()}</td>
                                     <td>
@@ -900,6 +1067,85 @@ const ReportsTab = () => {
                     {reports.length === 0 && <div className="empty-state">No pending reports</div>}
                 </div>
             )}
+        </div>
+    );
+};
+
+// ─── Publish Tab ─────────────────────────────────────────────────────────────
+const PublishTab = () => {
+    const [title, setTitle] = useState('');
+    const [content, setContent] = useState('');
+    const [videoUrl, setVideoUrl] = useState('');
+    const [postType, setPostType] = useState('STANDARD');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            if (postType === 'BROADCAST') {
+                await apiCall('/admin/broadcasts', {
+                    method: 'POST',
+                    body: JSON.stringify({ title, message: content, sectorTargeting: [], region: '' }),
+                });
+            } else {
+                // Publish as standard post
+                await apiCall('/posts', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        title,
+                        description: content,
+                        videoUrl: videoUrl || '',
+                        duration: 0,
+                        postType: 'STANDARD'
+                    }),
+                });
+            }
+            setTitle(''); setContent(''); setVideoUrl('');
+            alert('Published successfully!');
+        } catch (err) { alert('Failed: ' + err.message); }
+        finally { setLoading(false); }
+    };
+
+    return (
+        <div className="tab-content">
+            <div className="section-header">
+                <h2>Official Publishing</h2>
+                <p>Publish news, updates, or announcements as the official Travelpod account.</p>
+            </div>
+
+            <div className="publish-form-container">
+                <form onSubmit={handleSubmit} className="admin-form full-width">
+                    <div className="form-grid">
+                        <div className="form-main">
+                            <div className="form-group">
+                                <label>Post Title</label>
+                                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Main headline..." required />
+                            </div>
+                            <div className="form-group">
+                                <label>Content</label>
+                                <textarea value={content} onChange={e => setContent(e.target.value)} placeholder="What's happening?" required rows={10} />
+                            </div>
+                        </div>
+                        <div className="form-sidebar-box">
+                            <div className="form-group">
+                                <label>Post Type</label>
+                                <select value={postType} onChange={e => setPostType(e.target.value)} className="admin-select">
+                                    <option value="STANDARD">Standard Post (Feed)</option>
+                                    <option value="BROADCAST">Network Broadcast (Inbox)</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Video URL (Optional)</label>
+                                <input value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="https://..." />
+                            </div>
+                            <button type="submit" className="login-btn" style={{ marginTop: 20, width: '100%' }} disabled={loading}>
+                                {loading ? 'Publishing...' : '🚀 Publish Now'}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 };
@@ -926,6 +1172,7 @@ export default function AdminPage() {
 
     const tabs = [
         { id: 'dashboard', icon: '📊', label: 'Dashboard' },
+        { id: 'publish', icon: '✍️', label: 'Publish' },
         { id: 'moderation', icon: '🛡️', label: 'Content' },
         { id: 'promotions', icon: '🚀', label: 'Promoted Posts' },
         { id: 'broadcasts', icon: '📢', label: 'Broadcasts' },
@@ -985,6 +1232,7 @@ export default function AdminPage() {
 
                 <div className="admin-content">
                     {activeTab === 'dashboard' && <DashboardTab />}
+                    {activeTab === 'publish' && <PublishTab />}
                     {activeTab === 'moderation' && <ContentManagementTab />}
                     {activeTab === 'promotions' && <PromotedPostsTab />}
                     {activeTab === 'broadcasts' && <BroadcastsTab />}

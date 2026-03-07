@@ -33,7 +33,8 @@ const getReports = async (req, res, next) => {
         const [reports, total] = await Promise.all([
             prisma.report.findMany({
                 orderBy: { createdAt: 'desc' },
-                skip: (page - 1) * limit, take: limit,
+                skip: (page - 1) * limit,
+                take: limit,
                 include: {
                     reporter: { select: { profile: { select: { displayName: true, handle: true } } } },
                     post: { select: { id: true, title: true, videoUrl: true, thumbnailUrl: true } },
@@ -41,7 +42,27 @@ const getReports = async (req, res, next) => {
             }),
             prisma.report.count(),
         ]);
-        res.json({ success: true, reports, total, page });
+
+        // Manually enrich for Comments and Users if needed
+        const enriched = await Promise.all(reports.map(async (r) => {
+            if (r.entityType === 'COMMENT') {
+                const comment = await prisma.comment.findUnique({
+                    where: { id: r.entityId },
+                    select: { content: true, user: { select: { profile: { select: { handle: true } } } } }
+                });
+                return { ...r, comment };
+            }
+            if (r.entityType === 'USER') {
+                const user = await prisma.user.findUnique({
+                    where: { id: r.entityId },
+                    select: { profile: { select: { handle: true, displayName: true } } }
+                });
+                return { ...r, reportedUser: user };
+            }
+            return r;
+        }));
+
+        res.json({ success: true, reports: enriched, total, page });
     } catch (err) { next(err); }
 };
 
