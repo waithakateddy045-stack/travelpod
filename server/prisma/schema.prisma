@@ -64,6 +64,9 @@ enum AdminActionType {
   POSTING_RESTRICTION
   SUSPENSION
   PERMANENT_REMOVAL
+  CONTENT_REMOVAL
+  CONTENT_RESTORE
+  REPORT_RESOLVE
 }
 
 enum ReportReason {
@@ -72,6 +75,12 @@ enum ReportReason {
   SPAM
   FAKE_REVIEW
   HARASSMENT
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  ACTION_TAKEN
 }
 
 enum BadgeType {
@@ -647,6 +656,7 @@ model Report {
   entityType String       @map("entity_type") @db.VarChar(50)
   reason     ReportReason
   detail     String?      @db.Text
+  status     ReportStatus @default(PENDING)
   postId     String?      @map("post_id")
   createdAt  DateTime     @default(now()) @map("created_at")
 
@@ -693,6 +703,8 @@ model AdminActionLog {
   adminId         String          @map("admin_id")
   actionType      AdminActionType @map("action_type")
   targetAccountId String          @map("target_account_id")
+  targetEntityId  String?         @map("target_entity_id")
+  targetEntityType String?        @map("target_entity_type")
   reason          String          @db.Text
   durationDays    Int?            @map("duration_days")
   createdAt       DateTime        @default(now()) @map("created_at")

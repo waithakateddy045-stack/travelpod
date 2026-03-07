@@ -991,70 +991,99 @@ const BroadcastsTab = () => {
 // ─── Reports ─────────────────────────────────────────────────────────────
 const ReportsTab = () => {
     const [reports, setReports] = useState([]);
+    const [total, setTotal] = useState(0);
+    const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
+    const [statusFilter, setStatusFilter] = useState('PENDING');
+    const [entityFilter, setEntityFilter] = useState('');
+    const [actionLoading, setActionLoading] = useState(null);
 
     const loadReports = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await apiCall('/admin/reports');
+            const q = new URLSearchParams({ page, limit: 15, status: statusFilter });
+            if (entityFilter) q.set('entityType', entityFilter);
+            const data = await apiCall(`/admin/reports?${q}`);
             setReports(data.reports || []);
+            setTotal(data.total || 0);
         } catch (err) {
             console.error('Failed to load reports', err);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [page, statusFilter, entityFilter]);
 
     useEffect(() => { loadReports(); }, [loadReports]);
 
-    const handleResolve = async (id) => {
-        if (!window.confirm('Resolve this report (mark as OK)?')) return;
+    const handleAction = async (reportId, action, reason) => {
+        if (!window.confirm(`Perform "${action}" on this ${reports.find(r => r.id === reportId)?.entityType}?`)) return;
+        setActionLoading(reportId + action);
         try {
-            await apiCall(`/admin/reports/${id}/resolve`, { method: 'PUT' });
-            loadReports();
-        } catch (err) { alert('Resolve failed'); }
-    };
-
-    const handleTakeDown = async (report) => {
-        const { entityType, entityId, id: reportId } = report;
-        let endpoint = '';
-        let method = 'PUT';
-        let body = null;
-
-        if (entityType === 'POST') {
-            if (!window.confirm('Take down this post?')) return;
-            endpoint = `/admin/moderation/${entityId}`;
-            body = { action: 'REMOVED' };
-        } else if (entityType === 'COMMENT') {
-            if (!window.confirm('Delete this comment permanently?')) return;
-            endpoint = `/admin/comments/${entityId}`;
-            method = 'DELETE';
-        } else if (entityType === 'USER') {
-            if (!window.confirm('Suspend this user profile?')) return;
-            endpoint = `/admin/users/${entityId}/suspend`;
-        }
-
-        if (!endpoint) return;
-
-        try {
-            setLoading(true);
-            await apiCall(endpoint, { method, body: body ? JSON.stringify(body) : undefined });
-            // Also resolve the report
-            await apiCall(`/admin/reports/${reportId}/resolve`, { method: 'PUT' });
-            loadReports();
-            alert('Action completed and report resolved.');
+            if (action === 'RESOLVE') {
+                await apiCall(`/admin/reports/${reportId}/resolve`, { method: 'PUT' });
+            } else {
+                await apiCall('/admin/moderation/action', {
+                    method: 'POST',
+                    body: JSON.stringify({ reportId, action, reason })
+                });
+            }
+            // Move item out of current list if it's pending
+            if (statusFilter === 'PENDING') {
+                setReports(prev => prev.filter(r => r.id !== reportId));
+                setTotal(prev => prev - 1);
+            } else {
+                loadReports();
+            }
+            alert('Action completed successfully.');
         } catch (err) {
             alert('Action failed: ' + err.message);
         } finally {
-            setLoading(false);
+            setActionLoading(null);
         }
     };
 
     return (
         <div className="tab-pane">
-            <div className="tab-header">
-                <h2>User Reports</h2>
+            <div className="tab-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h2>Moderation Center</h2>
+                    <p>{total} {statusFilter.toLowerCase()} reports requiring attention</p>
+                </div>
+                <div style={{ display: 'flex', gap: 12 }}>
+                    <select
+                        value={entityFilter}
+                        onChange={e => { setEntityFilter(e.target.value); setPage(1); }}
+                        className="admin-select"
+                    >
+                        <option value="">All Types</option>
+                        <option value="POST">Videos</option>
+                        <option value="COMMENT">Comments</option>
+                        <option value="USER">Profiles</option>
+                    </select>
+                    <div className="status-toggle" style={{ display: 'flex', background: 'var(--bg-elevated)', borderRadius: 20, padding: 4, border: '1px solid var(--border-primary)' }}>
+                        {['PENDING', 'RESOLVED', 'ACTION_TAKEN'].map(s => (
+                            <button
+                                key={s}
+                                className={`pill-btn ${statusFilter === s ? 'active' : ''}`}
+                                onClick={() => { setStatusFilter(s); setPage(1); }}
+                                style={{
+                                    padding: '4px 12px',
+                                    borderRadius: 16,
+                                    border: 'none',
+                                    background: statusFilter === s ? 'var(--accent-primary)' : 'transparent',
+                                    color: statusFilter === s ? 'white' : 'var(--text-secondary)',
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {s.replace('_', ' ')}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
+
             {loading ? <div className="loading-state">Loading reports...</div> : (
                 <div className="data-table-wrapper">
                     <table className="data-table">
@@ -1062,47 +1091,100 @@ const ReportsTab = () => {
                             <tr>
                                 <th>Reporter</th>
                                 <th>Reason</th>
-                                <th>Entity</th>
-                                <th>Date</th>
-                                <th>Actions</th>
+                                <th>Reported Content</th>
+                                <th>Created</th>
+                                {statusFilter === 'PENDING' && <th>Quick Actions</th>}
                             </tr>
                         </thead>
                         <tbody>
                             {reports.map(r => (
                                 <tr key={r.id}>
-                                    <td>{r.reporter?.email}</td>
+                                    <td>
+                                        <div style={{ fontWeight: 500 }}>{r.reporter?.profile?.displayName || 'Traveler'}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{r.reporter?.profile?.handle}</div>
+                                    </td>
                                     <td><Badge type={r.reason} small /></td>
                                     <td>
                                         <div className="entity-summary">
-                                            <div className="post-title">{r.entityType}</div>
-                                            {r.entityType === 'POST' && r.post && (
-                                                <div className="meta-text">Video: {r.post.title}</div>
+                                            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-primary)', textTransform: 'uppercase', marginBottom: 4 }}>{r.entityType}</div>
+                                            {r.entityType === 'POST' && (
+                                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                                    {r.post?.thumbnailUrl && <img src={r.post.thumbnailUrl} alt="" style={{ width: 40, height: 40, borderRadius: 4, objectFit: 'cover' }} />}
+                                                    <div>
+                                                        <div className="post-title">{r.post?.title || 'Video Title'}</div>
+                                                        <a href={`/post/${r.entityId}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--accent-primary)' }}>View Video ↗</a>
+                                                    </div>
+                                                </div>
                                             )}
                                             {r.entityType === 'COMMENT' && r.comment && (
-                                                <div className="meta-text" style={{ fontStyle: 'italic', background: 'var(--bg-elevated)', padding: '4px 8px', borderRadius: 4, marginTop: 4 }}>
-                                                    "{r.comment.content}" — @{r.comment.user?.profile?.handle}
+                                                <div style={{ background: 'var(--bg-elevated)', padding: '8px 12px', borderRadius: 8, borderLeft: '3px solid var(--border-primary)' }}>
+                                                    <div style={{ fontStyle: 'italic', fontSize: 13 }}>"{r.comment.content}"</div>
+                                                    <div style={{ fontSize: 11, marginTop: 4, color: 'var(--text-secondary)' }}>by @{r.comment.user?.profile?.handle}</div>
                                                 </div>
                                             )}
                                             {r.entityType === 'USER' && r.reportedUser && (
-                                                <div className="meta-text">User: {r.reportedUser.profile?.displayName} (@{r.reportedUser.profile?.handle})</div>
+                                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                                    <div className="admin-avatar" style={{ width: 32, height: 32, fontSize: 14 }}>👤</div>
+                                                    <div>
+                                                        <div style={{ fontWeight: 600 }}>{r.reportedUser.profile?.displayName}</div>
+                                                        <a href={`/profile/${r.reportedUser.profile?.handle}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--accent-primary)' }}>View Profile ↗</a>
+                                                    </div>
+                                                </div>
                                             )}
-                                            {!r.post && !r.comment && !r.reportedUser && (
-                                                <div className="meta-text" style={{ fontSize: '0.7rem', fontFamily: 'monospace' }}>{r.entityId}</div>
+                                            {r.detail && (
+                                                <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-secondary)', padding: 8, background: 'rgba(255,255,255,0.03)', borderRadius: 4 }}>
+                                                    <strong>Reporter's Detail:</strong> {r.detail}
+                                                </div>
                                             )}
                                         </div>
                                     </td>
-                                    <td>{new Date(r.createdAt).toLocaleDateString()}</td>
-                                    <td style={{ display: 'flex', gap: 8 }}>
-                                        <button className="btn-outline success" onClick={() => handleResolve(r.id)}>Mark OK</button>
-                                        <button className="btn-reject" style={{ padding: '4px 12px', fontSize: 12 }} onClick={() => handleTakeDown(r)}>Take Down</button>
-                                    </td>
+                                    <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{new Date(r.createdAt).toLocaleString()}</td>
+                                    {statusFilter === 'PENDING' && (
+                                        <td>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <button
+                                                    className="btn-outline success"
+                                                    style={{ padding: '6px 12px', fontSize: 11 }}
+                                                    onClick={() => handleAction(r.id, 'RESOLVE')}
+                                                    disabled={!!actionLoading}
+                                                >
+                                                    Mark OK
+                                                </button>
+                                                <button
+                                                    className="btn-reject"
+                                                    style={{ padding: '6px 12px', fontSize: 11 }}
+                                                    onClick={() => handleAction(r.id, 'TAKE_DOWN')}
+                                                    disabled={!!actionLoading}
+                                                >
+                                                    {r.entityType === 'USER' ? 'Block (User)' : 'Take Down'}
+                                                </button>
+                                                {r.entityType !== 'USER' && (
+                                                    <button
+                                                        className="btn-reject"
+                                                        style={{ padding: '6px 12px', fontSize: 11, background: '#7c3aed' }}
+                                                        onClick={() => handleAction(r.id, 'SUSPEND_USER')}
+                                                        disabled={!!actionLoading}
+                                                    >
+                                                        Suspend Author
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    )}
                                 </tr>
                             ))}
                         </tbody>
                     </table>
-                    {reports.length === 0 && <div className="empty-state">No pending reports</div>}
+                    {reports.length === 0 && (
+                        <div className="empty-state">
+                            <div style={{ fontSize: 40, marginBottom: 16 }}>🛡️</div>
+                            <h3>All Clear!</h3>
+                            <p>No {statusFilter.toLowerCase()} reports at the moment.</p>
+                        </div>
+                    )}
                 </div>
             )}
+            <Pagination page={page} totalPages={Math.ceil(total / 15)} onChange={setPage} />
         </div>
     );
 };
@@ -1186,15 +1268,90 @@ const PublishTab = () => {
     );
 };
 
+const HistoryTab = () => {
+    const [logs, setLogs] = useState([]);
+    const [total, setTotal] = useState(0);
+    const [page, setPage] = useState(1);
+    const [loading, setLoading] = useState(true);
+
+    const loadLogs = useCallback(async () => {
+        try {
+            setLoading(true);
+            const data = await apiCall(`/admin/logs?page=${page}&limit=20`);
+            setLogs(data.logs || []);
+            setTotal(data.total || 0);
+        } catch (err) {
+            console.error('Failed to load logs', err);
+        } finally {
+            setLoading(false);
+        }
+    }, [page]);
+
+    useEffect(() => { loadLogs(); }, [loadLogs]);
+
+    return (
+        <div className="tab-pane">
+            <div className="tab-header">
+                <h2>Administrative Audit Logs</h2>
+                <p>History of all actions taken by administrators on the platform</p>
+            </div>
+
+            {loading ? <div className="loading-state">Loading history...</div> : (
+                <div className="data-table-wrapper">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>Admin</th>
+                                <th>Action</th>
+                                <th>Target</th>
+                                <th>Detail/Reason</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {logs.map(log => (
+                                <tr key={log.id}>
+                                    <td>
+                                        <div style={{ fontWeight: 600 }}>{log.admin?.profile?.displayName || 'Admin'}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{log.admin?.email}</div>
+                                    </td>
+                                    <td>
+                                        <span className={`badge badge-${log.actionType.toLowerCase().includes('removal') ? 'rejected' : 'verified'}`} style={{ fontSize: 10 }}>
+                                            {log.actionType.replace('_', ' ')}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div style={{ fontSize: 12, fontWeight: 500 }}>{log.targetEntityType || 'ACCOUNT'}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{log.targetEntityId || log.targetAccountId}</div>
+                                    </td>
+                                    <td style={{ maxWidth: 240 }}>
+                                        <div style={{ fontSize: 13 }}>{log.reason}</div>
+                                        {log.durationDays && <div style={{ fontSize: 11, color: 'var(--orange)' }}>Duration: {log.durationDays} days</div>}
+                                    </td>
+                                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(log.createdAt).toLocaleString()}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {logs.length === 0 && <div className="empty-state">No history recorded yet.</div>}
+                </div>
+            )}
+            <Pagination page={page} totalPages={Math.ceil(total / 20)} onChange={setPage} />
+        </div>
+    );
+};
+
 // ─── Main Admin App ───────────────────────────────────────────────────────────
 export default function AdminPage() {
     const [user, setUser] = useState(() => {
         const stored = localStorage.getItem('admin_user');
         if (!stored) return null;
-        const parsed = JSON.parse(stored);
-        if (parsed.accountType !== 'ADMIN') return null;
-        if (!localStorage.getItem('admin_token')) return null;
-        return parsed;
+        try {
+            const parsed = JSON.parse(stored);
+            if (parsed.accountType !== 'ADMIN') return null;
+            if (!localStorage.getItem('admin_token')) return null;
+            return parsed;
+        } catch (e) { return null; }
     });
     const [activeTab, setActiveTab] = useState('dashboard');
 
@@ -1205,17 +1362,17 @@ export default function AdminPage() {
     };
 
     if (!user) return <LoginScreen onLogin={setUser} />;
-
     const tabs = [
         { id: 'dashboard', icon: '📊', label: 'Dashboard' },
         { id: 'publish', icon: '✍️', label: 'Publish' },
         { id: 'moderation', icon: '🛡️', label: 'Content' },
-        { id: 'promotions', icon: '🚀', label: 'Promoted Posts' },
+        { id: 'reports', icon: '🚩', label: 'Reports / Hub' },
+        { id: 'history', icon: '📜', label: 'Audit Trail' },
+        { id: 'promotions', icon: '🚀', label: 'Promotions' },
         { id: 'broadcasts', icon: '📢', label: 'Broadcasts' },
         { id: 'boards', icon: '📁', label: 'Trip Boards' },
         { id: 'users', icon: '👥', label: 'Users' },
         { id: 'verifications', icon: '✓', label: 'Verifications' },
-        { id: 'reports', icon: '🚩', label: 'Reports' },
     ];
 
     return (
@@ -1276,6 +1433,7 @@ export default function AdminPage() {
                     {activeTab === 'users' && <UsersTab />}
                     {activeTab === 'verifications' && <VerificationTab />}
                     {activeTab === 'reports' && <ReportsTab />}
+                    {activeTab === 'history' && <HistoryTab />}
                 </div>
             </main>
         </div>

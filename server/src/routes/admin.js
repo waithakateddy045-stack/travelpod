@@ -20,10 +20,12 @@ router.put('/users/:id/unsuspend', authenticate, adminOnly, unsuspendUser);
 router.get('/moderation', authenticate, adminOnly, getModerationQueue);
 router.put('/moderation/:id', authenticate, adminOnly, moderatePost);
 
-// ── Reports ────────────────────────────────────────────────────
-router.post('/reports', authenticate, reportEntity);
+// ── Reports & Moderation Center ──────────────────────────────
+router.post('/reports', authenticate, reportEntity); // This line was moved from its original section
 router.get('/reports', authenticate, adminOnly, getReports);
 router.put('/reports/:id/resolve', authenticate, adminOnly, resolveReport);
+router.post('/moderation/action', authenticate, adminOnly, performModerationAction);
+router.get('/logs', authenticate, adminOnly, getAdminLogs);
 
 // ── Promoted Posts / Featured Placements ───────────────────────
 router.post('/promotions', authenticate, adminOnly, createPromotion);

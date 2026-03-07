@@ -338,7 +338,7 @@ export default function SettingsPage() {
                                         Experience immersive travel videos, faster load times, and native push notifications.
                                     </div>
                                     <a
-                                        href="https://github.com/waithakateddy045-stack/travelpod/releases/download/v1.0.4/Travelpod.apk"
+                                        href="https://github.com/waithakateddy045-stack/travelpod/releases/download/v1.0.5/Travelpod.apk"
                                         download
                                         style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 28px', borderRadius: 'var(--radius-pill)', border: 'none', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#fff', textDecoration: 'none', fontSize: 'var(--text-md)', fontWeight: 600, transition: 'transform 0.2s', boxShadow: '0 4px 16px rgba(16,185,129,0.3)' }}
                                     >

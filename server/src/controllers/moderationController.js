@@ -17,6 +17,7 @@ const reportEntity = async (req, res, next) => {
                 entityType, // 'POST', 'USER', 'COMMENT', 'REVIEW'
                 entityId,
                 reason, // ReportReason enum
+                detail,
                 postId: postId || (entityType === 'POST' ? entityId : null),
             },
         });
@@ -29,9 +30,15 @@ const getReports = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
+        const status = req.query.status || 'PENDING';
+        const entityType = req.query.entityType;
+
+        const where = { status };
+        if (entityType) where.entityType = entityType;
 
         const [reports, total] = await Promise.all([
             prisma.report.findMany({
+                where,
                 orderBy: { createdAt: 'desc' },
                 skip: (page - 1) * limit,
                 take: limit,
@@ -40,7 +47,7 @@ const getReports = async (req, res, next) => {
                     post: { select: { id: true, title: true, videoUrl: true, thumbnailUrl: true } },
                 },
             }),
-            prisma.report.count(),
+            prisma.report.count({ where }),
         ]);
 
         // Manually enrich for Comments and Users if needed
@@ -66,16 +73,84 @@ const getReports = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-// PUT /api/admin/reports/:id/resolve — Admin: delete the report (reports have no status field)
+// PUT /api/admin/reports/:id/resolve — Admin: Mark report as resolved (no action)
 const resolveReport = async (req, res, next) => {
     try {
-        // The Report model has no status/resolve fields — we simply delete or take action
-        // Here we delete the report (action taken externally on the content)
         const report = await prisma.report.findUnique({ where: { id: req.params.id } });
         if (!report) throw new AppError('Report not found', 404);
 
-        await prisma.report.delete({ where: { id: req.params.id } });
-        res.json({ success: true, message: 'Report resolved and removed' });
+        await prisma.$transaction([
+            prisma.report.update({
+                where: { id: req.params.id },
+                data: { status: 'RESOLVED' }
+            }),
+            prisma.adminActionLog.create({
+                data: {
+                    adminId: req.user.id,
+                    actionType: 'REPORT_RESOLVE',
+                    targetAccountId: report.reporterId, // Use reporter as a placeholder or target user if known
+                    targetEntityId: report.id,
+                    targetEntityType: 'REPORT',
+                    reason: 'Manually marked as OK/Resolved'
+                }
+            })
+        ]);
+
+        res.json({ success: true, message: 'Report resolved' });
+    } catch (err) { next(err); }
+};
+
+// POST /api/admin/moderation/action — Unified action handler
+const performModerationAction = async (req, res, next) => {
+    try {
+        const { reportId, action, reason, durationDays } = req.body;
+        if (!reportId || !action) throw new AppError('reportId and action required', 400);
+
+        const report = await prisma.report.findUnique({ where: { id: reportId } });
+        if (!report) throw new AppError('Report not found', 404);
+
+        await prisma.$transaction(async (tx) => {
+            // 1. Take the actual action
+            if (action === 'TAKE_DOWN') {
+                if (report.entityType === 'POST') {
+                    await tx.post.update({
+                        where: { id: report.entityId },
+                        data: { moderationStatus: 'REMOVED' }
+                    });
+                } else if (report.entityType === 'COMMENT') {
+                    await tx.comment.delete({ where: { id: report.entityId } });
+                }
+            } else if (action === 'SUSPEND_USER') {
+                const targetUserId = report.entityType === 'USER' ? report.entityId : (await tx.post.findUnique({ where: { id: report.entityId } }))?.userId;
+                if (targetUserId) {
+                    await tx.user.update({
+                        where: { id: targetUserId },
+                        data: { isSuspended: true }
+                    });
+                }
+            }
+
+            // 2. Mark report(s) as actioned
+            await tx.report.update({
+                where: { id: reportId },
+                data: { status: 'ACTION_TAKEN' }
+            });
+
+            // 3. Log the action
+            await tx.adminActionLog.create({
+                data: {
+                    adminId: req.user.id,
+                    actionType: action === 'SUSPEND_USER' ? 'SUSPENSION' : 'CONTENT_REMOVAL',
+                    targetAccountId: report.entityType === 'USER' ? report.entityId : 'SYSTEM',
+                    targetEntityId: report.entityId,
+                    targetEntityType: report.entityType,
+                    reason: reason || 'Moderation action taken',
+                    durationDays: durationDays || null
+                }
+            });
+        });
+
+        res.json({ success: true, message: `Action ${action} performed successfully` });
     } catch (err) { next(err); }
 };
 
@@ -95,4 +170,26 @@ const unsuspendUser = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-module.exports = { reportEntity, getReports, resolveReport, suspendUser, unsuspendUser };
+// GET /api/admin/logs — Admin: view audit trail
+const getAdminLogs = async (req, res, next) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+
+        const [logs, total] = await Promise.all([
+            prisma.adminActionLog.findMany({
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    admin: { select: { email: true, profile: { select: { displayName: true } } } }
+                }
+            }),
+            prisma.adminActionLog.count()
+        ]);
+
+        res.json({ success: true, logs, total, page });
+    } catch (err) { next(err); }
+};
+
+module.exports = { reportEntity, getReports, resolveReport, suspendUser, unsuspendUser, performModerationAction, getAdminLogs };
