@@ -1,6 +1,14 @@
 const errorHandler = (err, req, res, next) => {
-    console.error('Error:', err.message);
-    console.error('Stack:', err.stack);
+    // Log relevant error details
+    console.error(`[${new Date().toISOString()}] Error ${err.statusCode || 500}: ${err.message}`);
+
+    if (err.code) {
+        console.error('Prisma/DB Error Code:', err.code);
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+        console.error('Stack:', err.stack);
+    }
 
     const statusCode = err.statusCode || 500;
     // Only expose error messages for operational errors (AppError instances)
