@@ -13,7 +13,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import VideoPlayer from '../../components/video/VideoPlayer';
-import ReportModal from '../../components/common/ReportModal';
+import ReportDrawer from '../../components/common/ReportDrawer';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import './FeedPage.css';
@@ -389,14 +389,17 @@ export default function FeedPage() {
                 )}
             </div>
 
-            {/* Report Modal */}
-            {reportPostId && (
-                <ReportModal
-                    entityId={reportPostId}
-                    entityType="POST"
-                    onClose={() => setReportPostId(null)}
-                />
-            )}
+            {/* Report Drawer */}
+            <ReportDrawer
+                isOpen={!!reportPostId}
+                entityId={reportPostId || ''}
+                entityType="POST"
+                onClose={() => setReportPostId(null)}
+                preview={reportPostId ? (() => {
+                    const p = posts.find(item => item.id === reportPostId);
+                    return p ? { type: 'video', url: p.thumbnailUrl } : null;
+                })() : null}
+            />
 
             {/* Enquiry Modal */}
             {enquiryTarget && (

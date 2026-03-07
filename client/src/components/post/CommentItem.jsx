@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { HiOutlineUser, HiOutlineTrash, HiOutlineChatBubbleOvalLeft, HiOutlineFlag } from 'react-icons/hi2';
-import ReportModal from '../common/ReportModal';
+import ReportDrawer from '../common/ReportDrawer';
 import api from '../../services/api';
 import { toast } from 'react-hot-toast';
 
@@ -189,14 +189,18 @@ export default function CommentItem({
                     ))}
                 </div>
             )}
-            {isReporting && (
-                <ReportModal
-                    entityId={comment.id}
-                    entityType="COMMENT"
-                    title="Comment"
-                    onClose={() => setIsReporting(false)}
-                />
-            )}
+            <ReportDrawer
+                isOpen={isReporting}
+                entityId={comment.id}
+                entityType="COMMENT"
+                title="Comment"
+                onClose={() => setIsReporting(false)}
+                preview={{
+                    type: 'user',
+                    url: comment.user?.profile?.avatarUrl,
+                    handle: comment.user?.profile?.handle
+                }}
+            />
         </div>
     );
 }

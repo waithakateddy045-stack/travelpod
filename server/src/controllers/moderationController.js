@@ -17,7 +17,7 @@ const reportEntity = async (req, res, next) => {
                 entityType, // 'POST', 'USER', 'COMMENT', 'REVIEW'
                 entityId,
                 reason, // ReportReason enum
-                // detail, // Temporarily disabled to avoid DB mismatch error until migration is confirmed
+                detail,
                 postId: postId || (entityType === 'POST' ? entityId : null),
             },
         });
