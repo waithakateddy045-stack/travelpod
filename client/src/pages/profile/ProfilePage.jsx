@@ -17,7 +17,7 @@ import VerificationDetailsModal from '../../components/verification/Verification
 import VerificationApplicationModal from '../../components/verification/VerificationApplicationModal';
 import FollowListModal from '../../components/profile/FollowListModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
-import ReportDrawer from '../../components/common/ReportDrawer';
+import ReportModal from '../../components/common/ReportModal';
 import './ProfilePage.css';
 
 const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
@@ -510,17 +510,11 @@ export default function ProfilePage() {
             />
 
             {isReporting && (
-                <ReportDrawer
-                    isOpen={isReporting}
+                <ReportModal
                     entityId={profile.userId}
                     entityType="USER"
                     title="Profile"
                     onClose={() => setIsReporting(false)}
-                    preview={{
-                        type: 'user',
-                        url: profile.avatarUrl,
-                        handle: profile.handle
-                    }}
                 />
             )}
         </div>

@@ -49,4 +49,12 @@ router.patch('/business-verifications/:id/reject', authenticate, adminOnly, reje
 router.get('/boards', authenticate, adminOnly, getBoards);
 router.delete('/boards/:id', authenticate, adminOnly, deleteBoard);
 
+// ── Comments
+router.delete('/comments/:id', authenticate, adminOnly, async (req, res, next) => {
+    try {
+        await prisma.comment.delete({ where: { id: req.params.id } });
+        res.json({ success: true, message: 'Comment removed by admin' });
+    } catch (err) { next(err); }
+});
+
 module.exports = router;

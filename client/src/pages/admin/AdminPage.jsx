@@ -1008,11 +1008,46 @@ const ReportsTab = () => {
     useEffect(() => { loadReports(); }, [loadReports]);
 
     const handleResolve = async (id) => {
-        if (!window.confirm('Resolve this report?')) return;
+        if (!window.confirm('Resolve this report (mark as OK)?')) return;
         try {
             await apiCall(`/admin/reports/${id}/resolve`, { method: 'PUT' });
             loadReports();
         } catch (err) { alert('Resolve failed'); }
+    };
+
+    const handleTakeDown = async (report) => {
+        const { entityType, entityId, id: reportId } = report;
+        let endpoint = '';
+        let method = 'PUT';
+        let body = null;
+
+        if (entityType === 'POST') {
+            if (!window.confirm('Take down this post?')) return;
+            endpoint = `/admin/moderation/${entityId}`;
+            body = { action: 'REMOVED' };
+        } else if (entityType === 'COMMENT') {
+            if (!window.confirm('Delete this comment permanently?')) return;
+            endpoint = `/admin/comments/${entityId}`;
+            method = 'DELETE';
+        } else if (entityType === 'USER') {
+            if (!window.confirm('Suspend this user profile?')) return;
+            endpoint = `/admin/users/${entityId}/suspend`;
+        }
+
+        if (!endpoint) return;
+
+        try {
+            setLoading(true);
+            await apiCall(endpoint, { method, body: body ? JSON.stringify(body) : undefined });
+            // Also resolve the report
+            await apiCall(`/admin/reports/${reportId}/resolve`, { method: 'PUT' });
+            loadReports();
+            alert('Action completed and report resolved.');
+        } catch (err) {
+            alert('Action failed: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -1057,8 +1092,9 @@ const ReportsTab = () => {
                                         </div>
                                     </td>
                                     <td>{new Date(r.createdAt).toLocaleDateString()}</td>
-                                    <td>
-                                        <button className="btn-outline success" onClick={() => handleResolve(r.id)}>Resolve</button>
+                                    <td style={{ display: 'flex', gap: 8 }}>
+                                        <button className="btn-outline success" onClick={() => handleResolve(r.id)}>Mark OK</button>
+                                        <button className="btn-reject" style={{ padding: '4px 12px', fontSize: 12 }} onClick={() => handleTakeDown(r)}>Take Down</button>
                                     </td>
                                 </tr>
                             ))}
