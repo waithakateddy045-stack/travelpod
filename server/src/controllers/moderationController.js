@@ -11,38 +11,16 @@ const reportEntity = async (req, res, next) => {
         const validReasons = ['MISLEADING', 'INAPPROPRIATE', 'SPAM', 'FAKE_REVIEW', 'HARASSMENT'];
         if (!validReasons.includes(reason)) throw new AppError('Invalid reason. Must be one of: ' + validReasons.join(', '), 400);
 
-        try {
-            const report = await prisma.report.create({
-                data: {
-                    reporterId: req.user.id,
-                    entityType, // 'POST', 'USER', 'COMMENT', 'REVIEW'
-                    entityId,
-                    reason, // ReportReason enum
-                    detail,
-                    postId: postId || (entityType === 'POST' ? entityId : null),
-                },
-            });
-            return res.status(201).json({ success: true, report });
-        } catch (dbErr) {
-            // Fail-safe: If the 'detail' column is missing in the DB (schema sync issue),
-            // retry the creation without it so the report still goes through.
-            // Prisma code P2021 is "The table `...` does not exist", 
-            // but column mismatches often show as general Prisma errors or specific field errors.
-            if (dbErr.code === 'P2002' || dbErr.message.includes('Unknown arg `detail`')) {
-                console.warn('Falling back to report creation without detail field due to schema mismatch');
-                const report = await prisma.report.create({
-                    data: {
-                        reporterId: req.user.id,
-                        entityType,
-                        entityId,
-                        reason,
-                        postId: postId || (entityType === 'POST' ? entityId : null),
-                    },
-                });
-                return res.status(201).json({ success: true, report, warning: 'detail_omitted' });
-            }
-            throw dbErr; // Re-throw if it's a different error
-        }
+        const report = await prisma.report.create({
+            data: {
+                reporterId: req.user.id,
+                entityType, // 'POST', 'USER', 'COMMENT', 'REVIEW'
+                entityId,
+                reason, // ReportReason enum
+                postId: postId || (entityType === 'POST' ? entityId : null),
+            },
+        });
+        res.status(201).json({ success: true, report });
     } catch (err) { next(err); }
 };
 
