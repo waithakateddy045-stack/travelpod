@@ -38,11 +38,13 @@ router.get('/broadcasts', authenticate, adminOnly, getBroadcasts);
 router.post('/broadcasts', authenticate, adminOnly, createBroadcast);
 router.delete('/broadcasts/:id', authenticate, adminOnly, deleteBroadcast);
 
-// ── Business Verifications (legacy)
-router.get('/verifications', authenticate, adminOnly, getVerifications);
-router.put('/verifications/:id', authenticate, adminOnly, reviewVerification);
+// ── Business Verifications (Legacy routes now point to enhanced functions for stability)
+router.get('/verifications', authenticate, adminOnly, getAdminVerifications);
+router.put('/verifications/:id', authenticate, adminOnly, approveVerification);
+router.patch('/verifications/:id/approve', authenticate, adminOnly, approveVerification);
+router.patch('/verifications/:id/reject', authenticate, adminOnly, rejectVerification);
 
-// ── Enhanced Business Verifications
+// ── Enhanced Business Verifications (Alias for consistency)
 router.get('/business-verifications', authenticate, adminOnly, getAdminVerifications);
 router.patch('/business-verifications/:id/approve', authenticate, adminOnly, approveVerification);
 router.patch('/business-verifications/:id/reject', authenticate, adminOnly, rejectVerification);

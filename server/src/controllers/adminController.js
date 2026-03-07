@@ -18,7 +18,7 @@ const getDashboardStats = async (req, res, next) => {
             prisma.user.count({ where: { accountType: { not: 'ADMIN' } } }),
             prisma.post.count(),
             prisma.post.count({ where: { moderationStatus: 'PENDING' } }),
-            prisma.verificationApplication.count({ where: { status: 'PENDING' } }),
+            prisma.businessVerification.count({ where: { status: 'PENDING' } }), // Unified to BusinessVerification
             prisma.report.count(),
             prisma.user.count({ where: { isSuspended: true } }),
             prisma.post.count({ where: { moderationStatus: 'APPROVED' } }),
@@ -45,7 +45,6 @@ const getDashboardStats = async (req, res, next) => {
                 totalUsers,
                 totalPosts,
                 pendingPosts,
-                totalVerifications: pendingVerifications, // Keep backwards compatible
                 pendingVerifications,
                 totalReports,
                 suspendedUsers,
@@ -130,73 +129,8 @@ const getUsers = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-// GET /api/admin/verifications — Pending verification applications
-const getVerifications = async (req, res, next) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
-        const status = req.query.status || 'PENDING';
-
-        const [apps, total] = await Promise.all([
-            prisma.verificationApplication.findMany({
-                where: { status },
-                skip: (page - 1) * limit,
-                take: limit,
-                orderBy: { createdAt: 'desc' },
-                include: {
-                    businessProfile: {
-                        include: {
-                            profile: {
-                                select: {
-                                    displayName: true,
-                                    handle: true,
-                                    avatarUrl: true,
-                                    user: { select: { accountType: true, email: true } },
-                                },
-                            },
-                        },
-                    },
-                },
-            }),
-            prisma.verificationApplication.count({ where: { status } }),
-        ]);
-
-        res.json({ success: true, applications: apps, total, page, totalPages: Math.ceil(total / limit) });
-    } catch (err) { next(err); }
-};
-
-// PUT /api/admin/verifications/:id — Approve or reject verification
-const reviewVerification = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const { decision, reason } = req.body;
-
-        if (!['APPROVED', 'REJECTED'].includes(decision)) {
-            throw new AppError('Decision must be APPROVED or REJECTED', 400);
-        }
-
-        const app = await prisma.verificationApplication.update({
-            where: { id },
-            data: {
-                status: decision,
-                reviewedBy: req.user.id,
-                reviewReason: reason || null,
-                reviewedAt: new Date(),
-            },
-            include: { businessProfile: true },
-        });
-
-        await prisma.businessProfile.update({
-            where: { id: app.businessProfileId },
-            data: {
-                verificationStatus: decision,
-                verifiedAt: decision === 'APPROVED' ? new Date() : null,
-            },
-        });
-
-        res.json({ success: true, application: app });
-    } catch (err) { next(err); }
-};
+// Legacy Verification handlers removed. 
+// Unified flow is now in verificationController.js
 
 // GET /api/admin/boards — List all trip boards
 const getBoards = async (req, res, next) => {
@@ -248,4 +182,4 @@ const deleteBoard = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-module.exports = { getDashboardStats, getUsers, getVerifications, reviewVerification, getBoards, deleteBoard };
+module.exports = { getDashboardStats, getUsers, getBoards, deleteBoard };

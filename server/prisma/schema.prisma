@@ -827,6 +827,8 @@ model AnalyticsEvent {
   @@index([userId])
   @@index([createdAt])
   @@index([sessionId])
+  @@index([userId, eventType, entityId])
+  @@index([sessionId, eventType, entityId])
   @@map("analytics_events")
 }
 

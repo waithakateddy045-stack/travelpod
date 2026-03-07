@@ -210,10 +210,15 @@ const getFeed = async (req, res, next) => {
             if (cat) where.categoryId = cat.id;
         }
 
-        // 1. Fetch Fresh Content Candidate Pool
-        const poolSize = Math.max(limit * 5, 50);
+        // 1. Fetch Fresh Content Candidate Pool (Greedy Unseen Discovery)
+        // We strictly filter out viewed posts at the database level to ensure "Never-Seen-Twice"
+        const poolSize = Math.max(limit * 30, 500); // Larger pool for better ranking
         let posts = await prisma.post.findMany({
-            where,
+            where: {
+                moderationStatus: 'APPROVED',
+                id: { notIn: viewedIds },
+                ...(where.categoryId ? { categoryId: where.categoryId } : {})
+            },
             orderBy: [{ createdAt: 'desc' }],
             take: poolSize,
             include: {

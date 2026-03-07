@@ -121,7 +121,20 @@ const performModerationAction = async (req, res, next) => {
                     await tx.comment.delete({ where: { id: report.entityId } });
                 }
             } else if (action === 'SUSPEND_USER') {
-                const targetUserId = report.entityType === 'USER' ? report.entityId : (await tx.post.findUnique({ where: { id: report.entityId } }))?.userId;
+                let targetUserId = null;
+                if (report.entityType === 'USER') {
+                    targetUserId = report.entityId;
+                } else if (report.entityType === 'POST') {
+                    const post = await tx.post.findUnique({ where: { id: report.entityId } });
+                    targetUserId = post?.userId;
+                } else if (report.entityType === 'COMMENT') {
+                    const comment = await tx.comment.findUnique({ where: { id: report.entityId } });
+                    targetUserId = comment?.userId;
+                } else if (report.entityType === 'REVIEW') {
+                    const review = await tx.videoReview.findUnique({ where: { id: report.entityId } });
+                    targetUserId = review?.userId;
+                }
+
                 if (targetUserId) {
                     await tx.user.update({
                         where: { id: targetUserId },

@@ -20,7 +20,18 @@ const authenticate = (req, res, next) => {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
+
+        // Real-time suspension check
+        const user = await require('../utils/prisma').user.findUnique({
+            where: { id: decoded.id },
+            select: { isSuspended: true }
+        });
+
+        if (!user || user.isSuspended) {
+            throw new AppError('Account is suspended or does not exist', 403);
+        }
+
+        req.user = { ...decoded, isSuspended: user.isSuspended };
         next();
     } catch (error) {
         if (error.name === 'JsonWebTokenError') {
