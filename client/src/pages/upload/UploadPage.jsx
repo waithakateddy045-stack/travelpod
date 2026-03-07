@@ -8,6 +8,7 @@ import {
     HiOutlinePhoto,
 } from 'react-icons/hi2';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import './UploadPage.css';
 import '../auth/AuthPage.css';
 
@@ -17,8 +18,20 @@ const CATEGORIES = [
     'Safari', 'Beach', 'City Life', 'Culture & History', 'Nightlife', 'Wellness',
 ];
 
+const SECTORS = [
+    { id: 'TRAVELER', label: 'Travelers' },
+    { id: 'TRAVEL_AGENCY', label: 'Travel Agencies' },
+    { id: 'HOTEL_RESORT', label: 'Hotels & Resorts' },
+    { id: 'DESTINATION', label: 'Destinations' },
+    { id: 'AIRLINE', label: 'Airlines' },
+    { id: 'ASSOCIATION', label: 'Associations' },
+];
+
+const REGIONS = ['East Africa', 'West Africa', 'Southern Africa', 'Northern Africa', 'Europe', 'North America', 'Asia', 'Middle East', 'Global'];
+
 export default function UploadPage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const fileInputRef = useRef(null);
     const videoRef = useRef(null);
 
@@ -41,6 +54,13 @@ export default function UploadPage() {
     // Thumbnail state (frame selection)
     const [thumbnailTime, setThumbnailTime] = useState(0);
     const [thumbnailPreview, setThumbnailPreview] = useState(null);
+
+    // Broadcast mode state
+    const [postMode, setPostMode] = useState('VIDEO'); // 'VIDEO' or 'BROADCAST'
+    const [targetSectors, setTargetSectors] = useState([]);
+    const [targetRegion, setTargetRegion] = useState('Global');
+
+    const canBroadcast = user?.accountType === 'ASSOCIATION' || user?.accountType === 'ADMIN';
 
     const [form, setForm] = useState({
         title: '',
@@ -103,7 +123,14 @@ export default function UploadPage() {
     // ─── Submit ───────────────────────────────────────────────
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!videoFile) { toast.error('Please select a video'); return; }
+        const isBroadcast = postMode === 'BROADCAST';
+
+        if (isBroadcast && !canBroadcast) {
+            toast.error('Only associations can send broadcasts');
+            return;
+        }
+
+        if (!videoFile && !isBroadcast) { toast.error('Please select a video'); return; }
         if (!form.title.trim()) { toast.error('Title is required'); return; }
         if (isReview && !selectedBusiness) { toast.error('Please select the business you are reviewing'); return; }
         if (isReview && !starRating) { toast.error('Please give a star rating'); return; }
@@ -112,13 +139,18 @@ export default function UploadPage() {
         setUploadProgress(0);
 
         const fd = new FormData();
-        fd.append('video', videoFile);
+        if (videoFile) fd.append('video', videoFile);
         fd.append('title', form.title.trim());
         if (form.description) fd.append('description', form.description.trim());
         if (form.category) fd.append('category', form.category);
         if (form.location) fd.append('locationTag', form.location.trim());
         if (form.tags) fd.append('tags', form.tags.trim());
-        if (isReview && selectedBusiness) {
+
+        if (isBroadcast) {
+            fd.append('postType', 'BROADCAST');
+            fd.append('sectorTargeting', JSON.stringify(targetSectors));
+            fd.append('region', targetRegion);
+        } else if (isReview && selectedBusiness) {
             fd.append('isReview', 'true');
             fd.append('businessId', selectedBusiness.userId);
             fd.append('starRating', String(starRating));
@@ -133,7 +165,12 @@ export default function UploadPage() {
                     setUploadProgress(pct);
                 },
             });
-            toast.success('Video uploaded! It will appear once reviewed.');
+
+            if (isBroadcast) {
+                toast.success('Broadcast published! Targeted members will see it in their feed.');
+            } else {
+                toast.success('Video uploaded! It will appear once reviewed.');
+            }
             navigate('/feed', { replace: true });
         } catch (err) {
             toast.error(err.response?.data?.error || 'Upload failed');
@@ -149,24 +186,55 @@ export default function UploadPage() {
                     <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '1.2rem' }}>
                         <HiOutlineArrowLeft />
                     </button>
-                    <h1>Upload Video</h1>
+                    <h1>{postMode === 'BROADCAST' ? 'Compose Broadcast' : 'Upload Video'}</h1>
                 </div>
 
-                {/* Dropzone / Preview */}
-                {!videoPreview ? (
+                {/* Mode Selector */}
+                {canBroadcast && (
+                    <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-6)', background: 'var(--bg-secondary)', padding: 4, borderRadius: 'var(--radius-lg)' }}>
+                        <button
+                            type="button"
+                            onClick={() => setPostMode('VIDEO')}
+                            style={{
+                                flex: 1, padding: '8px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer',
+                                background: postMode === 'VIDEO' ? 'var(--color-primary)' : 'transparent',
+                                color: postMode === 'VIDEO' ? 'white' : 'var(--text-secondary)',
+                                fontWeight: 600, fontSize: 'var(--text-sm)', transition: 'all 0.2s'
+                            }}
+                        >
+                            Video Post
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setPostMode('BROADCAST')}
+                            style={{
+                                flex: 1, padding: '8px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer',
+                                background: postMode === 'BROADCAST' ? 'var(--color-primary)' : 'transparent',
+                                color: postMode === 'BROADCAST' ? 'white' : 'var(--text-secondary)',
+                                fontWeight: 600, fontSize: 'var(--text-sm)', transition: 'all 0.2s'
+                            }}
+                        >
+                            Broadcast Post
+                        </button>
+                    </div>
+                )}
+
+                {/* Dropzone / Preview (Optional for Broadcast) */}
+                {(!videoPreview && (postMode === 'VIDEO' || (postMode === 'BROADCAST' && !videoFile))) ? (
                     <div
                         className={`upload-dropzone${dragOver ? ' drag-over' : ''}`}
                         onClick={() => fileInputRef.current?.click()}
                         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                         onDragLeave={() => setDragOver(false)}
                         onDrop={handleFileDrop}
+                        style={{ opacity: postMode === 'BROADCAST' ? 0.7 : 1 }}
                     >
                         <HiOutlineCloudArrowUp />
-                        <p>Drag & drop your video here, or <strong>click to browse</strong></p>
-                        <p className="hint">MP4, MOV, AVI, WebM — max 200MB</p>
+                        <p>{postMode === 'BROADCAST' ? 'Click to add video (Optional)' : 'Drag & drop your video here'}</p>
+                        <p className="hint">MP4, MOV, AVI — max 200MB</p>
                         <input ref={fileInputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={handleFileDrop} />
                     </div>
-                ) : (
+                ) : videoPreview ? (
                     <div className="upload-preview">
                         <video
                             ref={videoRef}
@@ -179,7 +247,7 @@ export default function UploadPage() {
                             Change
                         </button>
                     </div>
-                )}
+                ) : null}
 
                 {/* Thumbnail Selector (only if video loaded) */}
                 {videoPreview && videoDuration > 0 && (
@@ -227,16 +295,55 @@ export default function UploadPage() {
                     </div>
 
                     <div className="form-field">
-                        <label className="form-label">Description</label>
+                        <label className="form-label">{postMode === 'BROADCAST' ? 'Message Body' : 'Description'}</label>
                         <textarea
                             className="form-input"
-                            placeholder="Tell viewers about this video..."
-                            rows={3}
+                            placeholder={postMode === 'BROADCAST' ? "Share your thoughts, news, or updates here..." : "Tell viewers about this video..."}
+                            rows={6}
                             value={form.description}
                             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                             style={{ resize: 'vertical' }}
                         />
                     </div>
+
+                    {postMode === 'BROADCAST' && (
+                        <div style={{ padding: 'var(--space-4)', background: 'rgba(108,99,255,0.05)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-primary)', marginBottom: 'var(--space-4)' }}>
+                            <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, marginBottom: 'var(--space-3)', color: 'var(--color-primary)' }}>Target Audience</h3>
+
+                            <div className="form-field">
+                                <label className="form-label" style={{ fontSize: 'var(--text-xs)' }}>Account Types</label>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                    {SECTORS.map(s => (
+                                        <button
+                                            key={s.id}
+                                            type="button"
+                                            onClick={() => setTargetSectors(prev => prev.includes(s.id) ? prev.filter(x => x !== s.id) : [...prev, s.id])}
+                                            style={{
+                                                padding: '4px 10px', borderRadius: 'var(--radius-full)', fontSize: 'var(--text-xs)', cursor: 'pointer',
+                                                background: targetSectors.includes(s.id) ? 'var(--color-primary)' : 'var(--bg-elevated)',
+                                                color: targetSectors.includes(s.id) ? 'white' : 'var(--text-secondary)',
+                                                border: '1px solid var(--border-primary)'
+                                            }}
+                                        >
+                                            {s.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="form-field" style={{ marginTop: 'var(--space-3)' }}>
+                                <label className="form-label" style={{ fontSize: 'var(--text-xs)' }}>Region</label>
+                                <select
+                                    className="form-input"
+                                    value={targetRegion}
+                                    onChange={e => setTargetRegion(e.target.value)}
+                                    style={{ fontSize: 'var(--text-sm)', height: 36 }}
+                                >
+                                    {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="form-field">
                         <label className="form-label"><HiOutlineFilm style={{ marginRight: 4, verticalAlign: 'middle' }} /> Category</label>
@@ -393,9 +500,9 @@ export default function UploadPage() {
                         id="upload-submit"
                         type="submit"
                         className="auth-submit"
-                        disabled={uploading || !videoFile}
+                        disabled={uploading || (!videoFile && postMode === 'VIDEO')}
                     >
-                        {uploading ? 'Uploading...' : isReview ? 'Publish Review' : 'Publish Video'}
+                        {uploading ? 'Publishing...' : postMode === 'BROADCAST' ? 'Send Broadcast' : isReview ? 'Publish Review' : 'Publish Video'}
                     </button>
                 </form>
             </div>

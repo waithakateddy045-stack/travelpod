@@ -100,7 +100,7 @@ const getBroadcasts = async (req, res, next) => {
                 take: limit,
                 include: {
                     post: {
-                        select: { id: true, title: true, description: true, thumbnailUrl: true },
+                        select: { id: true, title: true, description: true, videoUrl: true, thumbnailUrl: true, duration: true, postType: true },
                     },
                     association: {
                         select: {
@@ -145,7 +145,7 @@ const getBroadcastsForUser = async (req, res, next) => {
                 broadcast: {
                     include: {
                         post: {
-                            select: { id: true, title: true, description: true, thumbnailUrl: true },
+                            select: { id: true, title: true, description: true, videoUrl: true, thumbnailUrl: true, duration: true, postType: true },
                         },
                         association: {
                             select: {

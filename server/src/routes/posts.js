@@ -7,7 +7,7 @@ const fs = require('fs');
 const { authenticate, optionalAuth, adminOnly } = require('../middleware/auth');
 const {
     createPost, getPost, deletePost,
-    getModerationQueue, moderatePost, reportPost,
+    getModerationQueue, moderatePost, reportEntity,
 } = require('../controllers/postController');
 
 // Multer config for video uploads — use OS temp directory for serverless compatibility
@@ -42,7 +42,7 @@ router.delete('/:id', authenticate, deletePost);
 router.get('/moderation/queue', authenticate, adminOnly, getModerationQueue);
 router.put('/moderation/:id', authenticate, adminOnly, moderatePost);
 
-// Reporting — allow anyone (optionalAuth for tracking logged-in reporters)
-router.post('/:id/report', optionalAuth, reportPost);
+// Reporting — generic endpoint
+router.post('/reports', optionalAuth, reportEntity);
 
 module.exports = router;

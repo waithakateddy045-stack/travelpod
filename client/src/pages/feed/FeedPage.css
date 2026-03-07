@@ -54,6 +54,48 @@
     color: var(--text-primary);
 }
 
+
+/* Feed Tabs */
+.feed-tabs {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-4);
+    padding: var(--space-2) 0;
+    margin-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.feed-tab {
+    background: none;
+    border: none;
+    padding: var(--space-2) var(--space-4);
+    font-weight: 600;
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s;
+}
+
+.feed-tab:hover {
+    color: var(--text-secondary);
+}
+
+.feed-tab.active {
+    color: var(--color-primary-light);
+}
+
+.feed-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--color-primary-light);
+    border-radius: 2px;
+}
+
 /* Feed card */
 .feed-card {
     margin-bottom: var(--space-6);
@@ -109,6 +151,17 @@
     color: var(--text-tertiary);
 }
 
+.feed-card-badge {
+    background: rgba(108, 99, 255, 0.1);
+    color: var(--color-primary-light);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 .feed-card-actions {
     display: flex;
     gap: var(--space-4);
@@ -152,6 +205,28 @@
 .feed-card-title strong {
     font-weight: 600;
     margin-right: 4px;
+}
+
+/* Broadcast content variant */
+.feed-broadcast-content {
+    padding: var(--space-4);
+    background: linear-gradient(135deg, rgba(108, 99, 255, 0.03), rgba(67, 198, 172, 0.03));
+}
+
+.feed-broadcast-content h3 {
+    font-size: var(--text-base);
+    font-weight: 700;
+    margin-bottom: var(--space-3);
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+
+.feed-broadcast-content p {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+    white-space: pre-wrap;
 }
 
 /* Empty state */

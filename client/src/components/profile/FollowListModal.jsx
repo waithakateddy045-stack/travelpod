@@ -80,14 +80,17 @@ export default function FollowListModal({ isOpen, onClose, username, type, title
                         {users.map((u, index) => (
                             <div key={u.id} className="follow-user-item-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
                                 <Link
-                                    to={`/profile/${u.profile.handle}`}
+                                    to={u.profile?.handle ? `/profile/${u.profile.handle}` : '#'}
                                     className="follow-user-item"
-                                    onClick={onClose}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', color: 'inherit', flex: 1 }}
+                                    onClick={(e) => {
+                                        if (!u.profile?.handle) e.preventDefault();
+                                        onClose();
+                                    }}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', color: 'inherit', flex: 1, cursor: u.profile?.handle ? 'pointer' : 'default' }}
                                 >
                                     <div className="follow-avatar">
-                                        {u.profile.avatarUrl ? (
-                                            <img src={u.profile.avatarUrl} alt={u.profile.displayName} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                                        {u.profile?.avatarUrl ? (
+                                            <img src={u.profile.avatarUrl} alt={u.profile?.displayName || 'Traveler'} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
                                         ) : (
                                             <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                 <HiOutlineUser />
@@ -95,8 +98,10 @@ export default function FollowListModal({ isOpen, onClose, username, type, title
                                         )}
                                     </div>
                                     <div className="follow-info">
-                                        <div className="follow-name" style={{ fontWeight: 600, fontSize: '0.9rem' }}>{u.profile.displayName}</div>
-                                        <div className="follow-handle" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>@{u.profile.handle}</div>
+                                        <div className="follow-name" style={{ fontWeight: 600, fontSize: '0.9rem' }}>{u.profile?.displayName || 'Onboarding User'}</div>
+                                        {u.profile?.handle && (
+                                            <div className="follow-handle" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>@{u.profile.handle}</div>
+                                        )}
                                     </div>
                                 </Link>
 

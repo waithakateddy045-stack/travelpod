@@ -245,11 +245,11 @@ model Tag {
 model Post {
   id                String           @id @default(uuid())
   userId            String           @map("user_id")
-  videoUrl          String           @map("video_url")
+  videoUrl          String?          @map("video_url")
   thumbnailUrl      String?          @map("thumbnail_url")
   title             String           @db.VarChar(100)
-  description       String?          @db.VarChar(500)
-  duration          Int
+  description       String?          @db.Text
+  duration          Int?
   categoryId        String?          @map("category_id")
   locationTag       String?          @map("location_tag") @db.VarChar(200)
   postType          PostType         @default(STANDARD) @map("post_type")

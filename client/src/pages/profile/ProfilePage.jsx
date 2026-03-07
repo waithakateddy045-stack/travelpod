@@ -7,7 +7,7 @@ import {
     HiOutlinePlayCircle, HiOutlineHeart, HiOutlineUser,
     HiOutlineArrowLeft, HiOutlineCog6Tooth,
     HiOutlineChartBar, HiOutlineEnvelope,
-    HiOutlineRectangleStack
+    HiOutlineRectangleStack, HiOutlineFlag
 } from 'react-icons/hi2';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -17,6 +17,7 @@ import VerificationDetailsModal from '../../components/verification/Verification
 import VerificationApplicationModal from '../../components/verification/VerificationApplicationModal';
 import FollowListModal from '../../components/profile/FollowListModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
+import ReportModal from '../../components/common/ReportModal';
 import './ProfilePage.css';
 
 const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
@@ -39,6 +40,7 @@ export default function ProfilePage() {
     const [boards, setBoards] = useState([]);
     const [followModalType, setFollowModalType] = useState(null); // 'followers' | 'following' | null
     const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
+    const [isReporting, setIsReporting] = useState(false);
 
     const isOwn = user && profile && user.id === profile.userId;
     const isBusiness = profile && BUSINESS_TYPES.includes(profile.accountType);
@@ -300,6 +302,9 @@ export default function ProfilePage() {
                                 <button className="profile-btn message" onClick={handleStartMessage}>
                                     <HiOutlineEnvelope style={{ marginRight: 4 }} /> Message
                                 </button>
+                                <button className="profile-btn message" onClick={() => setIsReporting(true)} style={{ color: 'var(--text-tertiary)' }}>
+                                    <HiOutlineFlag /> Report
+                                </button>
                             </div>
                         )}
                     </div>
@@ -475,6 +480,15 @@ export default function ProfilePage() {
                 onClose={() => setIsVerificationAppModalOpen(false)}
                 onApplySuccess={loadProfile}
             />
+
+            {isReporting && (
+                <ReportModal
+                    entityId={profile.userId}
+                    entityType="USER"
+                    title="Profile"
+                    onClose={() => setIsReporting(false)}
+                />
+            )}
         </div>
     );
 }

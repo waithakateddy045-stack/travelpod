@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import VideoPlayer from '../../components/video/VideoPlayer';
+import CommentItem from '../../components/post/CommentItem';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import './PostPage.css';
@@ -218,37 +219,14 @@ export default function PostPage() {
                                 <div className="comments-empty">No comments yet. Be the first to say something!</div>
                             ) : (
                                 comments.map(comment => (
-                                    <div key={comment.id} className="comment-item">
-                                        <Link
-                                            to={`/profile/${comment.user?.profile?.handle}`}
-                                            className="comment-avatar"
-                                            style={{ textDecoration: 'none', color: 'inherit' }}
-                                        >
-                                            {comment.user?.profile?.avatarUrl ? (
-                                                <img src={comment.user.profile.avatarUrl} alt="" />
-                                            ) : (
-                                                <HiOutlineUser />
-                                            )}
-                                        </Link>
-                                        <div className="comment-content">
-                                            <div className="comment-header">
-                                                <Link
-                                                    to={`/profile/${comment.user?.profile?.handle}`}
-                                                    className="comment-author"
-                                                    style={{ textDecoration: 'none' }}
-                                                >
-                                                    {comment.user?.profile?.displayName}
-                                                </Link>
-                                                <span className="comment-time">{new Date(comment.createdAt).toLocaleDateString()}</span>
-                                            </div>
-                                            <p className="comment-text">{comment.content}</p>
-                                        </div>
-                                        {(user?.id === comment.userId || user?.accountType === 'ADMIN') && (
-                                            <button className="comment-delete" onClick={() => handleDeleteComment(comment.id)}>
-                                                <HiOutlineTrash />
-                                            </button>
-                                        )}
-                                    </div>
+                                    <CommentItem
+                                        key={comment.id}
+                                        comment={comment}
+                                        user={user}
+                                        postAuthorId={post.author?.id}
+                                        onDelete={handleDeleteComment}
+                                        postId={id}
+                                    />
                                 ))
                             )}
                         </div>

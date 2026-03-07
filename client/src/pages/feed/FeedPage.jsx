@@ -31,6 +31,7 @@ export default function FeedPage() {
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
+    const [feedMode, setFeedMode] = useState('FOR_YOU'); // 'FOR_YOU', 'FOLLOWING', 'BROADCASTS'
     const [hasMore, setHasMore] = useState(true);
     const [activeChip, setActiveChip] = useState(
         () => localStorage.getItem('feedChip') || 'All'
@@ -53,20 +54,34 @@ export default function FeedPage() {
 
     const loadFeed = useCallback(async () => {
         try {
-            const category = activeChip !== 'All' ? `&category=${encodeURIComponent(activeChip)}` : '';
-            const { data } = await api.get(`/feed?page=${page}&limit=10${category}`);
-            if (data.posts) {
-                if (data.posts.length < 10) setHasMore(false); else setHasMore(true);
-                setPosts(prev => page === 1 ? data.posts : [...prev, ...data.posts]);
+            let endpoint = `/feed?page=${page}&limit=10`;
+            if (feedMode === 'FOLLOWING') endpoint = `/feed/following?page=${page}&limit=10`;
+            if (feedMode === 'BROADCASTS') endpoint = `/broadcasts/inbox?page=${page}&limit=10`;
+
+            const category = activeChip !== 'All' && feedMode === 'FOR_YOU' ? `&category=${encodeURIComponent(activeChip)}` : '';
+            const { data } = await api.get(`${endpoint}${category}`);
+
+            if (data.posts || data.broadcasts) {
+                const newItems = data.posts || data.broadcasts.map(b => ({
+                    ...b.broadcast.post,
+                    author: b.broadcast.association,
+                    isBroadcast: true,
+                    broadcastId: b.broadcast.id
+                }));
+
+                if (newItems.length < 10) setHasMore(false); else setHasMore(true);
+                setPosts(prev => page === 1 ? newItems : [...prev, ...newItems]);
+            } else {
+                setHasMore(false);
             }
         } catch {
-            // Feed endpoint may not exist yet — show empty state
+            setHasMore(false);
         } finally {
             setLoading(false);
         }
-    }, [page, activeChip]);
+    }, [page, activeChip, feedMode]);
 
-    useEffect(() => { setPage(1); setHasMore(true); }, [activeChip]);
+    useEffect(() => { setPage(1); setHasMore(true); }, [activeChip, feedMode]);
     useEffect(() => { loadFeed(); }, [loadFeed]);
 
     // Load unread notifications count
@@ -195,6 +210,28 @@ export default function FeedPage() {
                     </div>
                 </nav>
 
+                {/* Feed Tabs */}
+                <div className="feed-tabs">
+                    <button
+                        className={`feed-tab${feedMode === 'FOR_YOU' ? ' active' : ''}`}
+                        onClick={() => setFeedMode('FOR_YOU')}
+                    >
+                        For You
+                    </button>
+                    <button
+                        className={`feed-tab${feedMode === 'FOLLOWING' ? ' active' : ''}`}
+                        onClick={() => setFeedMode('FOLLOWING')}
+                    >
+                        Following
+                    </button>
+                    <button
+                        className={`feed-tab${feedMode === 'BROADCASTS' ? ' active' : ''}`}
+                        onClick={() => setFeedMode('BROADCASTS')}
+                    >
+                        Broadcasts
+                    </button>
+                </div>
+
                 {/* Filter Chip Row */}
                 <div className="feed-filter-chips">
                     {FILTER_CHIPS.map(chip => (
@@ -217,7 +254,7 @@ export default function FeedPage() {
                     <div className="feed-empty">
                         <HiOutlinePlayCircle />
                         <h3 className="feed-empty-title">Your feed is empty</h3>
-                        <p>Follow travelers and businesses, or upload your first video!</p>
+                        <p>{feedMode === 'BROADCASTS' ? 'No broadcasts targeted at you yet.' : 'Follow travelers and businesses, or upload your first video!'}</p>
                         <div className="feed-empty-actions">
                             <button className="feed-empty-cta-primary" onClick={() => navigate('/upload')}>Upload Video</button>
                             <button className="feed-empty-cta-secondary" onClick={() => navigate('/explore')}>Explore</button>
@@ -228,22 +265,35 @@ export default function FeedPage() {
                         {posts.map(post => (
                             <div key={post.id} className="feed-card">
                                 {/* Header */}
-                                <Link to={`/profile/${post.user?.profile?.handle || ''}`} className="feed-card-header">
+                                <Link to={`/profile/${post.user?.profile?.handle || post.author?.profile?.handle || ''}`} className="feed-card-header">
                                     <div className="feed-card-avatar">
-                                        {post.user?.profile?.avatarUrl ? (
-                                            <img src={post.user.profile.avatarUrl} alt="" />
+                                        {(post.user?.profile?.avatarUrl || post.author?.profile?.avatarUrl) ? (
+                                            <img src={post.user?.profile?.avatarUrl || post.author?.profile?.avatarUrl} alt="" />
                                         ) : (
                                             <HiOutlineUser />
                                         )}
                                     </div>
                                     <div className="feed-card-user">
-                                        <div className="feed-card-name">{post.user?.profile?.displayName || 'User'}</div>
-                                        <div className="feed-card-handle">@{post.user?.profile?.handle || '...'}</div>
+                                        <div className="feed-card-name">{post.user?.profile?.displayName || post.author?.profile?.displayName || 'User'}</div>
+                                        <div className="feed-card-handle">@{post.user?.profile?.handle || post.author?.profile?.handle || '...'}</div>
                                     </div>
+                                    {post.isBroadcast && <span className="feed-card-badge">Broadcast</span>}
                                 </Link>
 
-                                {/* Video */}
-                                <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} />
+                                {/* Content */}
+                                {post.isBroadcast ? (
+                                    <div className="feed-broadcast-content">
+                                        <h3>{post.title}</h3>
+                                        <p>{post.description}</p>
+                                        {post.videoUrl && (
+                                            <div style={{ marginTop: 'var(--space-3)' }}>
+                                                <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} />
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} />
+                                )}
 
                                 {/* Actions */}
                                 <div className="feed-card-actions">
@@ -284,7 +334,7 @@ export default function FeedPage() {
                                 </div>
 
                                 {/* Business CTAs (Enquire / Review links) */}
-                                {BUSINESS_TYPES.includes(post.user?.accountType) && (
+                                {(BUSINESS_TYPES.includes(post.user?.accountType) || post.isBroadcast) && !post.isBroadcast && (
                                     <div className="feed-business-ctas">
                                         <button
                                             className="feed-biz-btn feed-biz-btn-primary"
@@ -309,10 +359,12 @@ export default function FeedPage() {
                                 )}
 
                                 {/* Title / description */}
-                                <div className="feed-card-title">
-                                    <strong>{post.user?.profile?.displayName}</strong>
-                                    {post.title}
-                                </div>
+                                {!post.isBroadcast && (
+                                    <div className="feed-card-title">
+                                        <strong>{post.user?.profile?.displayName}</strong>
+                                        {post.title}
+                                    </div>
+                                )}
                             </div>
                         ))}
 

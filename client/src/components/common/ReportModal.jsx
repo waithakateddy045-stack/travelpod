@@ -14,7 +14,7 @@ const REPORT_REASONS = [
     'Other',
 ];
 
-export default function ReportModal({ postId, onClose }) {
+export default function ReportModal({ entityId, entityType, title = 'Post', onClose }) {
     const [reason, setReason] = useState('');
     const [detail, setDetail] = useState('');
     const [loading, setLoading] = useState(false);
@@ -24,7 +24,8 @@ export default function ReportModal({ postId, onClose }) {
         if (!reason) { toast.error('Please select a reason'); return; }
         setLoading(true);
         try {
-            await api.post(`/posts/${postId}/report`, { reason, detail });
+            // Use a generic report endpoint or the existing post one (backend will be updated to handle entityType)
+            await api.post(`/reports`, { entityId, entityType, reason, detail });
             toast.success('Report submitted. Thank you for keeping Travelpod safe.');
             onClose();
         } catch {
@@ -48,7 +49,7 @@ export default function ReportModal({ postId, onClose }) {
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-                        <HiOutlineFlag style={{ color: 'var(--color-accent)' }} /> Report Post
+                        <HiOutlineFlag style={{ color: 'var(--color-accent)' }} /> Report {title}
                     </div>
                     <button onClick={onClose} style={{ color: 'var(--text-secondary)', fontSize: '1.25rem' }}>
                         <HiOutlineXMark />
@@ -57,7 +58,7 @@ export default function ReportModal({ postId, onClose }) {
 
                 <form onSubmit={handleSubmit}>
                     <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: '1rem' }}>
-                        Why are you reporting this post? We review all reports and take action on content that violates our community guidelines.
+                        Why are you reporting this {title.toLowerCase()}? We review all reports and take action on content that violates our community guidelines.
                     </p>
 
                     {/* Reason list */}

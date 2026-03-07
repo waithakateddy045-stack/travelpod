@@ -88,6 +88,13 @@ const addComment = async (req, res, next) => {
         });
 
         await prisma.post.update({ where: { id: postId }, data: { commentCount: { increment: 1 } } });
+        
+        if (parentId) {
+            await prisma.comment.update({
+                where: { id: parentId },
+                data: { replyCount: { increment: 1 } }
+            });
+        }
 
         res.status(201).json({ success: true, comment });
     } catch (err) { next(err); }
@@ -107,19 +114,36 @@ const getComments = async (req, res, next) => {
                 take: limit,
                 include: {
                     user: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } } },
-                    replies: {
-                        orderBy: { createdAt: 'asc' },
-                        take: 5,
-                        include: {
-                            user: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } } },
-                        },
-                    },
+                    _count: { select: { replies: true } },
                 },
             }),
             prisma.comment.count({ where: { postId, parentId: null } }),
         ]);
 
         res.json({ success: true, comments, total, page, totalPages: Math.ceil(total / limit) });
+    } catch (err) { next(err); }
+};
+
+const getReplies = async (req, res, next) => {
+    try {
+        const { commentId } = req.params;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+
+        const [replies, total] = await Promise.all([
+            prisma.comment.findMany({
+                where: { parentId: commentId },
+                orderBy: { createdAt: 'asc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    user: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } } },
+                },
+            }),
+            prisma.comment.count({ where: { parentId: commentId } }),
+        ]);
+
+        res.json({ success: true, replies, total, page, totalPages: Math.ceil(total / limit) });
     } catch (err) { next(err); }
 };
 
@@ -133,11 +157,22 @@ const deleteComment = async (req, res, next) => {
             throw new AppError('Not authorized', 403);
         }
 
+        const postId = comment.postId;
+        const parentId = comment.parentId;
+
         await prisma.comment.delete({ where: { id: commentId } });
-        await prisma.post.update({ where: { id: comment.postId }, data: { commentCount: { decrement: 1 } } }).catch(() => { });
+        
+        // Update counts
+        await prisma.post.update({ where: { id: postId }, data: { commentCount: { decrement: 1 } } }).catch(() => { });
+        if (parentId) {
+            await prisma.comment.update({
+                where: { id: parentId },
+                data: { replyCount: { decrement: 1 } }
+            }).catch(() => { });
+        }
 
         res.json({ success: true, message: 'Comment deleted' });
     } catch (err) { next(err); }
 };
 
-module.exports = { likePost, unlikePost, savePost, unsavePost, addComment, getComments, deleteComment };
+module.exports = { likePost, unlikePost, savePost, unsavePost, addComment, getComments, getReplies, deleteComment };
