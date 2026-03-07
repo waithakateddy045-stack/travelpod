@@ -4,7 +4,7 @@ const { AppError } = require('../middleware/errorHandler');
 // POST /api/reports — Report content or account
 const reportEntity = async (req, res, next) => {
     try {
-        const { entityType, entityId, reason, postId } = req.body;
+        const { entityType, entityId, reason, detail, postId } = req.body;
         if (!entityType || !entityId || !reason) throw new AppError('entityType, entityId, and reason required', 400);
 
         // Validate reason is a valid ReportReason enum
@@ -17,7 +17,8 @@ const reportEntity = async (req, res, next) => {
                 entityType, // 'POST', 'USER', 'COMMENT', 'REVIEW'
                 entityId,
                 reason, // ReportReason enum
-                postId: postId || null,
+                detail,
+                postId: postId || (entityType === 'POST' ? entityId : null),
             },
         });
         res.status(201).json({ success: true, report });

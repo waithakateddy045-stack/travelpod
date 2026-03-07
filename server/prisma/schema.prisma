@@ -646,6 +646,7 @@ model Report {
   entityId   String       @map("entity_id")
   entityType String       @map("entity_type") @db.VarChar(50)
   reason     ReportReason
+  detail     String?      @db.Text
   postId     String?      @map("post_id")
   createdAt  DateTime     @default(now()) @map("created_at")
 

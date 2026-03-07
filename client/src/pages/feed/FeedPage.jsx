@@ -385,7 +385,11 @@ export default function FeedPage() {
 
             {/* Report Modal */}
             {reportPostId && (
-                <ReportModal postId={reportPostId} onClose={() => setReportPostId(null)} />
+                <ReportModal
+                    entityId={reportPostId}
+                    entityType="POST"
+                    onClose={() => setReportPostId(null)}
+                />
             )}
 
             {/* Enquiry Modal */}
