@@ -328,7 +328,13 @@ export default function FeedPage() {
                                     >
                                         {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
                                     </button>
-                                    <button className="feed-action-btn" onClick={() => setReportPostId(post.id)} title="Report">
+                                    <button className="feed-action-btn" onClick={() => {
+                                        if (!user) {
+                                            setAuthModal({ isOpen: true, message: 'Log in to report content and help keep Travelpod safe' });
+                                            return;
+                                        }
+                                        setReportPostId(post.id);
+                                    }} title="Report">
                                         <HiOutlineEllipsisHorizontal />
                                     </button>
                                 </div>

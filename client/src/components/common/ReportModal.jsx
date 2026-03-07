@@ -33,8 +33,12 @@ export default function ReportModal({ entityId, entityType, title = 'Post', onCl
             await api.post('/reports', { entityId, entityType, reason: mappedReason, detail });
             toast.success('Report submitted. Thank you for keeping Travelpod safe.');
             onClose();
-        } catch {
-            toast.error('Failed to submit report. Please try again.');
+        } catch (err) {
+            if (err.response?.status === 401 || err.response?.status === 403) {
+                toast.error('Please log in to report content');
+            } else {
+                toast.error('Failed to submit report. Please try again.');
+            }
         } finally {
             setLoading(false);
         }
