@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { secureStorage } from '../utils/secureStorage';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://travelpod-production.up.railway.app/api';
 
@@ -12,8 +13,8 @@ const api = axios.create({
 
 // Request interceptor — attach JWT token
 api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('travelpod_token');
+    async (config) => {
+        const token = await secureStorage.getItem('travelpod_token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -25,9 +26,9 @@ api.interceptors.request.use(
 // Response interceptor — handle auth errors
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
         if (error.response?.status === 401) {
-            localStorage.removeItem('travelpod_token');
+            await secureStorage.removeItem('travelpod_token');
             // Optionally redirect to login
             if (window.location.pathname !== '/' && !window.location.pathname.startsWith('/auth')) {
                 window.location.href = '/';

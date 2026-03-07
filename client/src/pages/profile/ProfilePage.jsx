@@ -463,7 +463,7 @@ export default function ProfilePage() {
             <FollowListModal
                 isOpen={!!followModalType}
                 onClose={() => setFollowModalType(null)}
-                userId={profile.userId}
+                username={profile.handle}
                 type={followModalType}
                 title={followModalType === 'followers' ? 'Followers' : 'Following'}
             />

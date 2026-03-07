@@ -4,21 +4,27 @@ import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import './FollowListModal.css';
 
-export default function FollowListModal({ isOpen, onClose, userId, type, title }) {
+export default function FollowListModal({ isOpen, onClose, username, type, title }) {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!isOpen || !userId) return;
+        if (!isOpen || !username) return;
 
         const fetchUsers = async () => {
             setLoading(true);
             try {
                 const endpoint = type === 'followers'
-                    ? `/follow/${userId}/followers`
-                    : `/follow/${userId}/following`;
+                    ? `/users/${username}/followers`
+                    : `/users/${username}/following`;
                 const { data } = await api.get(endpoint);
-                setUsers(type === 'followers' ? data.followers : data.following);
+
+                // Keep track of local following state for toggling without refetching
+                const processedUsers = (type === 'followers' ? data.followers : data.following).map(u => ({
+                    ...u,
+                    isFollowingLocally: type === 'following' ? true : false // simplified assumption
+                }));
+                setUsers(processedUsers);
             } catch (error) {
                 console.error('Failed to fetch users', error);
             } finally {
@@ -27,7 +33,29 @@ export default function FollowListModal({ isOpen, onClose, userId, type, title }
         };
 
         fetchUsers();
-    }, [isOpen, userId, type]);
+    }, [isOpen, username, type]);
+
+    const handleFollowToggle = async (e, targetUserId, index) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const user = users[index];
+        const isFollowing = user.isFollowingLocally;
+
+        try {
+            if (isFollowing) {
+                await api.delete(`/follow/${targetUserId}`);
+            } else {
+                await api.post(`/follow/${targetUserId}`);
+            }
+            // Optimistic update
+            const newUsers = [...users];
+            newUsers[index].isFollowingLocally = !isFollowing;
+            setUsers(newUsers);
+        } catch (err) {
+            console.error('Follow toggle failed', err);
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -50,25 +78,45 @@ export default function FollowListModal({ isOpen, onClose, userId, type, title }
                         </div>
                     ) : (
                         <div className="follow-list">
-                            {users.map(u => (
-                                <Link
-                                    key={u.id}
-                                    to={`/profile/${u.profile.handle}`}
-                                    className="follow-user-item"
-                                    onClick={onClose}
-                                >
-                                    <div className="follow-avatar">
-                                        {u.profile.avatarUrl ? (
-                                            <img src={u.profile.avatarUrl} alt={u.profile.displayName} />
-                                        ) : (
-                                            <HiOutlineUser />
-                                        )}
-                                    </div>
-                                    <div className="follow-info">
-                                        <div className="follow-name">{u.profile.displayName}</div>
-                                        <div className="follow-handle">@{u.profile.handle}</div>
-                                    </div>
-                                </Link>
+                            {users.map((u, index) => (
+                                <div key={u.id} className="follow-user-item-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+                                    <Link
+                                        to={`/profile/${u.profile.handle}`}
+                                        className="follow-user-item"
+                                        onClick={onClose}
+                                        style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', color: 'inherit', flex: 1 }}
+                                    >
+                                        <div className="follow-avatar">
+                                            {u.profile.avatarUrl ? (
+                                                <img src={u.profile.avatarUrl} alt={u.profile.displayName} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                                            ) : (
+                                                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <HiOutlineUser />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="follow-info">
+                                            <div className="follow-name" style={{ fontWeight: 600, fontSize: '0.9rem' }}>{u.profile.displayName}</div>
+                                            <div className="follow-handle" style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>@{u.profile.handle}</div>
+                                        </div>
+                                    </Link>
+
+                                    <button
+                                        onClick={(e) => handleFollowToggle(e, u.id, index)}
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: 'var(--radius-pill)',
+                                            fontSize: 'var(--text-xs)',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            border: u.isFollowingLocally ? '1px solid var(--border-primary)' : 'none',
+                                            background: u.isFollowingLocally ? 'transparent' : 'var(--color-primary-light)',
+                                            color: u.isFollowingLocally ? 'var(--text-primary)' : 'white'
+                                        }}
+                                    >
+                                        {u.isFollowingLocally ? 'Unfollow' : 'Follow Back'}
+                                    </button>
+                                </div>
                             ))}
                         </div>
                     )}

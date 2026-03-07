@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
+import { secureStorage } from '../utils/secureStorage';
 
 const AuthContext = createContext(null);
 
@@ -14,15 +15,15 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     const loadUser = useCallback(async () => {
-        const token = localStorage.getItem('travelpod_token');
+        const token = await secureStorage.getItem('travelpod_token');
         if (!token) { setLoading(false); return; }
         try {
             const { data } = await api.get('/auth/me');
             setUser(data.user);
         } catch (error) {
             if (error.response?.status === 401) {
-                localStorage.removeItem('travelpod_token');
-                localStorage.removeItem('travelpod_refresh');
+                await secureStorage.removeItem('travelpod_token');
+                await secureStorage.removeItem('travelpod_refresh');
             }
         } finally {
             setLoading(false);
@@ -33,25 +34,25 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         const { data } = await api.post('/auth/login', { email, password });
-        localStorage.setItem('travelpod_token', data.accessToken);
-        localStorage.setItem('travelpod_refresh', data.refreshToken);
+        await secureStorage.setItem('travelpod_token', data.accessToken);
+        await secureStorage.setItem('travelpod_refresh', data.refreshToken);
         setUser(data.user);
         return data.user;
     };
 
     const register = async (email, password, accountType) => {
         const { data } = await api.post('/auth/register', { email, password, accountType });
-        localStorage.setItem('travelpod_token', data.accessToken);
-        localStorage.setItem('travelpod_refresh', data.refreshToken);
+        await secureStorage.setItem('travelpod_token', data.accessToken);
+        await secureStorage.setItem('travelpod_refresh', data.refreshToken);
         setUser(data.user);
         return data.user;
     };
 
     const logout = async () => {
-        const refreshToken = localStorage.getItem('travelpod_refresh');
+        const refreshToken = await secureStorage.getItem('travelpod_refresh');
         try { await api.post('/auth/logout', { refreshToken }); } catch { }
-        localStorage.removeItem('travelpod_token');
-        localStorage.removeItem('travelpod_refresh');
+        await secureStorage.removeItem('travelpod_token');
+        await secureStorage.removeItem('travelpod_refresh');
         setUser(null);
     };
 

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { secureStorage } from '../../utils/secureStorage';
 
 export default function OAuthCallbackPage() {
     const [params] = useSearchParams();
@@ -8,23 +9,28 @@ export default function OAuthCallbackPage() {
     const { loadUser } = useAuth();
 
     useEffect(() => {
-        const accessToken = params.get('accessToken');
-        const refreshToken = params.get('refreshToken');
-        const onboarding = params.get('onboarding');
+        const processToken = async () => {
+            const accessToken = params.get('accessToken');
+            const refreshToken = params.get('refreshToken');
+            const onboarding = params.get('onboarding');
 
-        if (accessToken) {
-            localStorage.setItem('travelpod_token', accessToken);
-            if (refreshToken) localStorage.setItem('travelpod_refresh', refreshToken);
-            loadUser().then(() => {
-                // onboarding param is 'true' when onboarding IS complete (comes from backend)
-                const returnUrl = sessionStorage.getItem('returnUrl') || '/feed';
-                sessionStorage.removeItem('returnUrl');
-                navigate(onboarding === 'true' ? returnUrl : '/onboarding', { replace: true });
-            });
-        } else {
-            // No token was returned — oauth failed
-            navigate('/auth/login?error=oauth_failed', { replace: true });
-        }
+            if (accessToken) {
+                await secureStorage.setItem('travelpod_token', accessToken);
+                if (refreshToken) await secureStorage.setItem('travelpod_refresh', refreshToken);
+
+                loadUser().then(() => {
+                    // onboarding param is 'true' when onboarding IS complete (comes from backend)
+                    const returnUrl = sessionStorage.getItem('returnUrl') || '/feed';
+                    sessionStorage.removeItem('returnUrl');
+                    navigate(onboarding === 'true' ? returnUrl : '/onboarding', { replace: true });
+                });
+            } else {
+                // No token was returned — oauth failed
+                navigate('/auth/login?error=oauth_failed', { replace: true });
+            }
+        };
+
+        processToken();
     }, [params, navigate, loadUser]);
 
     return (
