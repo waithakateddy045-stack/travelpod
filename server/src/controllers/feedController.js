@@ -121,29 +121,23 @@ async function buildCategoryAffinity(userId) {
     return affinityMap;
 }
 
-// Get recently viewed post IDs (last 48hrs)
-async function getRecentlyViewed(userId) {
-    const viewedSet = new Set();
-    if (!userId) return viewedSet;
+// Get ALL viewed post IDs for user or session (no time limit for hard exclusion)
+async function getViewedIds(userId, sessionId) {
+    const viewedIds = [];
+    if (!userId && !sessionId) return viewedIds;
 
-    try {
-        const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
-        const events = await prisma.analyticsEvent.findMany({
-            where: {
-                userId,
-                eventType: 'POST_VIEW',
-                createdAt: { gte: cutoff },
-            },
-            select: { entityId: true },
-            take: 200,
-        });
-        for (const e of events) {
-            if (e.entityId) viewedSet.add(e.entityId);
-        }
-    } catch {
-        // AnalyticsEvent table may not exist yet — graceful fallback
-    }
-    return viewedSet;
+    const where = {};
+    if (userId) where.userId = userId;
+    else where.sessionId = sessionId;
+    where.eventType = 'POST_VIEW';
+
+    const events = await prisma.analyticsEvent.findMany({
+        where,
+        select: { entityId: true },
+        distinct: ['entityId']
+    });
+
+    return events.map(e => e.entityId).filter(Boolean);
 }
 
 // Get active promoted posts (FeaturedPlacement)
@@ -192,17 +186,23 @@ const getFeed = async (req, res, next) => {
         const limit = parseInt(req.query.limit) || 10;
         const category = req.query.category || null;
         const userId = req.user?.id;
+        const sessionId = req.query.sessionId || null;
 
-        // Build user context in parallel
-        const [followsList, categoryAffinityMap, viewedSet] = await Promise.all([
+        // Build user context
+        const [followsList, categoryAffinityMap, viewedIds] = await Promise.all([
             userId ? prisma.follow.findMany({ where: { followerId: userId }, select: { followingId: true } }) : [],
             buildCategoryAffinity(userId),
-            getRecentlyViewed(userId),
+            getViewedIds(userId, sessionId),
         ]);
         const followingSet = new Set(followsList.map(f => f.followingId));
+        const viewedSet = new Set(viewedIds);
 
-        // Build where clause
-        const where = {};
+        // Build where clause for fresh content
+        const where = {
+            id: { notIn: viewedIds },
+            moderationStatus: 'APPROVED'
+        };
+
         if (category && category !== 'All') {
             const cat = await prisma.category.findFirst({
                 where: { name: { contains: category, mode: 'insensitive' } },
@@ -210,44 +210,9 @@ const getFeed = async (req, res, next) => {
             if (cat) where.categoryId = cat.id;
         }
 
-        // Prefer APPROVED posts, but fallback to all for early-stage
-        const approvedCount = await prisma.post.count({ where: { ...where, moderationStatus: 'APPROVED' } });
-        if (approvedCount > 0) {
-            where.moderationStatus = 'APPROVED';
-        }
-
-        // Total available for pagination
-        const totalPosts = await prisma.post.count({ where });
-
-        // Sparse content handling: if very few posts, just return them all
-        if (totalPosts <= limit) {
-            const posts = await prisma.post.findMany({
-                where,
-                orderBy: [{ createdAt: 'desc' }],
-                include: {
-                    author: {
-                        select: {
-                            id: true, accountType: true,
-                            profile: {
-                                select: {
-                                    displayName: true, handle: true, avatarUrl: true,
-                                    businessProfile: { select: { verificationStatus: true } },
-                                },
-                            },
-                        },
-                    },
-                    category: true,
-                    postTags: { include: { tag: true } },
-                },
-            });
-
-            const enriched = enrichPosts(posts, userId, followingSet);
-            return res.json({ success: true, posts: enriched, total: totalPosts, page: 1, totalPages: 1 });
-        }
-
-        // Large pool for ranking (min 100, max 200)
-        const poolSize = Math.min(Math.max(limit * 10, 100), 200);
-        const posts = await prisma.post.findMany({
+        // 1. Fetch Fresh Content Candidate Pool
+        const poolSize = Math.max(limit * 5, 50);
+        let posts = await prisma.post.findMany({
             where,
             orderBy: [{ createdAt: 'desc' }],
             take: poolSize,
@@ -268,42 +233,91 @@ const getFeed = async (req, res, next) => {
             },
         });
 
-        // Score and sort
+        // 2. Fallback Logic: If feed is too small, backfill with high-engagement RECYCLED content
+        if (posts.length < limit) {
+            const needed = limit * 2; // fetch a bit more for ranking
+            const recycled = await prisma.post.findMany({
+                where: {
+                    id: { in: viewedIds, notIn: posts.map(p => p.id) }, // been seen, but not already in our current set
+                    moderationStatus: 'APPROVED',
+                    ...(where.categoryId ? { categoryId: where.categoryId } : {})
+                },
+                orderBy: [
+                    { likeCount: 'desc' },
+                    { saveCount: 'desc' },
+                    { viewCount: 'desc' }
+                ],
+                take: needed,
+                include: {
+                    author: {
+                        select: {
+                            id: true, accountType: true,
+                            profile: {
+                                select: {
+                                    displayName: true, handle: true, avatarUrl: true,
+                                    businessProfile: { select: { verificationStatus: true } },
+                                },
+                            },
+                        },
+                    },
+                    category: true,
+                    postTags: { include: { tag: true } },
+                },
+            });
+            posts = [...posts, ...recycled];
+        }
+
+        // If STILL empty (no content in database at all), return empty gracefully
+        if (posts.length === 0) {
+            return res.json({ success: true, posts: [], total: 0, page, totalPages: 0 });
+        }
+
+        // 3. Score and Sort for Personalization
         const now = Date.now();
         const context = { followingSet, categoryAffinityMap, now, userId, viewedSet };
         const scored = posts.map(p => ({ ...p, _score: computeScore(p, context) }));
         scored.sort((a, b) => b._score - a._score);
 
-        // Paginate
+        // 4. Paginate
         const start = (page - 1) * limit;
         const paged = scored.slice(start, start + limit);
 
-        // Inject promoted posts (1 per 5 organic, positions 2, 7, 12...)
+        // 5. Inject promoted posts (1 per 5 organic)
         let finalPosts = [...paged];
         if (page === 1) {
             const promotions = await getActivePromotions();
             if (promotions.length > 0) {
-                const promoSlots = [2, 7]; // inject at positions 3 and 8 (0-indexed: 2, 7)
+                const promoSlots = [2, 7];
                 let promoIdx = 0;
                 for (const slot of promoSlots) {
                     if (promoIdx < promotions.length && slot <= finalPosts.length) {
                         const promo = promotions[promoIdx];
-                        finalPosts.splice(slot, 0, {
-                            ...promo.post,
-                            isPromoted: true,
-                            promotionId: promo.id,
-                            _score: 999,
-                        });
-                        // Increment impressions
-                        prisma.featuredPlacement.update({
-                            where: { id: promo.id },
-                            data: { impressions: { increment: 1 } },
-                        }).catch(() => { }); // fire-and-forget
+                        // Only inject if not already in the feed
+                        if (!finalPosts.find(p => p.id === promo.post.id)) {
+                            finalPosts.splice(slot, 0, {
+                                ...promo.post,
+                                isPromoted: true,
+                                promotionId: promo.id,
+                                _score: 999,
+                            });
+                            prisma.featuredPlacement.update({
+                                where: { id: promo.id },
+                                data: { impressions: { increment: 1 } },
+                            }).catch(() => { });
+                        }
                         promoIdx++;
                     }
                 }
             }
         }
+
+        // Enforce uniqueness (final safety check)
+        const seenInPage = new Set();
+        finalPosts = finalPosts.filter(p => {
+            if (seenInPage.has(p.id)) return false;
+            seenInPage.add(p.id);
+            return true;
+        });
 
         // Enrich with engagement status
         const enriched = await enrichPostsAsync(finalPosts, userId, followingSet);
@@ -311,7 +325,7 @@ const getFeed = async (req, res, next) => {
         // Strip internal scores
         enriched.forEach(p => { delete p._score; });
 
-        res.json({ success: true, posts: enriched, total: totalPosts, page, totalPages: Math.ceil(totalPosts / limit) });
+        res.json({ success: true, posts: enriched, total: posts.length, page, totalPages: Math.ceil(posts.length / limit) });
     } catch (err) { next(err); }
 };
 

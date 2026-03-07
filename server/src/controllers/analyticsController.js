@@ -3,16 +3,17 @@ const prisma = require('../utils/prisma');
 // POST /api/analytics/event — Track an analytics event
 const trackEvent = async (req, res, next) => {
     try {
-        const { eventType, postId, metadata } = req.body;
+        const { eventType, postId, metadata, sessionId } = req.body;
         await prisma.analyticsEvent.create({
             data: {
                 userId: req.user?.id || null,
+                sessionId: sessionId || null,
                 eventType,
                 entityId: postId || null,
                 entityType: postId ? 'POST' : null,
                 metadataJson: metadata || {},
-                ipAddress: req.ip,
-                userAgent: req.headers['user-agent'],
+                // ipAddress: req.ip, // (Prisma model doesn't have it, omitting to avoid error)
+                // userAgent: req.headers['user-agent'],
             },
         });
         res.json({ success: true });

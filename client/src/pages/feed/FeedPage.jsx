@@ -40,6 +40,14 @@ export default function FeedPage() {
     const [reportPostId, setReportPostId] = useState(null);
     const [enquiryTarget, setEnquiryTarget] = useState(null); // { userId, displayName }
     const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
+    const [sessionId] = useState(() => {
+        let sid = localStorage.getItem('travelpod_session_id');
+        if (!sid) {
+            sid = 'sid_' + Math.random().toString(36).substring(2, 15) + Date.now();
+            localStorage.setItem('travelpod_session_id', sid);
+        }
+        return sid;
+    });
 
     // Nudge State
     const [videosViewed, setVideosViewed] = useState(0);
@@ -54,7 +62,7 @@ export default function FeedPage() {
 
     const loadFeed = useCallback(async () => {
         try {
-            let endpoint = `/feed?page=${page}&limit=10`;
+            let endpoint = `/feed?page=${page}&limit=10&sessionId=${sessionId}`;
             if (feedMode === 'FOLLOWING') endpoint = `/feed/following?page=${page}&limit=10`;
             if (feedMode === 'BROADCASTS') endpoint = `/broadcasts/inbox?page=${page}&limit=10`;
 
@@ -131,10 +139,12 @@ export default function FeedPage() {
     };
 
     const observer = useRef();
+    const viewedPostsRef = useRef(new Set());
+
     const lastPostElementRef = useCallback(node => {
         if (loading) return;
 
-        // Track unique video views for nudge
+        // Track unique video views (Client-side trigger for Server-side tracking)
         if (node && !user && !sessionStorage.getItem('travelpod_nudged')) {
             setVideosViewed(prev => {
                 const next = prev + 1;
@@ -147,6 +157,29 @@ export default function FeedPage() {
             });
         }
 
+        // --- IntersectionObserver for "Seen" Tracking ---
+        if (node) {
+            const postId = node.getAttribute('data-post-id');
+            if (postId && !viewedPostsRef.current.has(postId)) {
+                const seenObserver = new IntersectionObserver(
+                    (entries) => {
+                        if (entries[0].isIntersecting) {
+                            // Report only once per session per post
+                            viewedPostsRef.current.add(postId);
+                            api.post('/analytics/event', {
+                                eventType: 'POST_VIEW',
+                                postId,
+                                sessionId
+                            }).catch(() => { }); // Fire and forget
+                            seenObserver.disconnect();
+                        }
+                    },
+                    { threshold: 0.6 } // 60% visibility counts as "seen"
+                );
+                seenObserver.observe(node);
+            }
+        }
+
         if (!hasMore) return;
         if (observer.current) observer.current.disconnect();
         observer.current = new IntersectionObserver(entries => {
@@ -155,7 +188,7 @@ export default function FeedPage() {
             }
         });
         if (node) observer.current.observe(node);
-    }, [loading, hasMore, user]);
+    }, [loading, hasMore, user, sessionId]);
 
     return (
         <div className="feed-page">
@@ -262,8 +295,13 @@ export default function FeedPage() {
                     </div>
                 ) : (
                     <>
-                        {posts.map(post => (
-                            <div key={post.id} className="feed-card">
+                        {posts.map((post, index) => (
+                            <div
+                                key={post.id}
+                                className="feed-card"
+                                data-post-id={post.id}
+                                ref={index === posts.length - 1 ? lastPostElementRef : (node) => lastPostElementRef(node)}
+                            >
                                 {/* Header */}
                                 <Link to={`/profile/${post.user?.profile?.handle || post.author?.profile?.handle || ''}`} className="feed-card-header">
                                     <div className="feed-card-avatar">
