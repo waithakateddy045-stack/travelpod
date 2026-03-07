@@ -7,8 +7,9 @@ const fs = require('fs');
 const { authenticate, optionalAuth, adminOnly } = require('../middleware/auth');
 const {
     createPost, getPost, deletePost,
-    getModerationQueue, moderatePost, reportEntity,
+    getModerationQueue, moderatePost
 } = require('../controllers/postController');
+const { reportEntity } = require('../controllers/moderationController');
 
 // Multer config for video uploads — use OS temp directory for serverless compatibility
 const uploadDir = path.join(os.tmpdir(), 'travelpod-uploads');

@@ -2,7 +2,7 @@ const prisma = require('../utils/prisma');
 const { AppError } = require('../middleware/errorHandler');
 
 // POST /api/reports — Report content or account
-const submitReport = async (req, res, next) => {
+const reportEntity = async (req, res, next) => {
     try {
         const { entityType, entityId, reason, postId } = req.body;
         if (!entityType || !entityId || !reason) throw new AppError('entityType, entityId, and reason required', 400);
@@ -95,4 +95,4 @@ const unsuspendUser = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-module.exports = { submitReport, getReports, resolveReport, suspendUser, unsuspendUser };
+module.exports = { reportEntity, getReports, resolveReport, suspendUser, unsuspendUser };
