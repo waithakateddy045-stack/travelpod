@@ -8,7 +8,8 @@ import {
     HiOutlineBell, HiOutlineUser, HiOutlinePlayCircle,
     HiOutlineArrowPath, HiOutlineStar, HiOutlineEnvelope,
     HiOutlineChartBar, HiOutlineShare, HiOutlineEllipsisHorizontal,
-    HiOutlineRectangleStack
+    HiOutlineRectangleStack, HiOutlineSpeakerWave, HiOutlineSpeakerXMark,
+    HiCheckBadge
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -18,431 +19,283 @@ import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import './FeedPage.css';
 
-const FILTER_CHIPS = [
-    'All', 'Destinations', 'Hotels & Resorts', 'Restaurants & Food',
-    'Adventures & Activities', 'Travel Tips', 'Safari', 'Beach', 'City Life',
-];
-
+const FILTER_CHIPS = ['All', 'Destinations', 'Hotels & Resorts', 'Safari', 'Beach', 'Adventures'];
 const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
 
 export default function FeedPage() {
     const navigate = useNavigate();
-    const { user, logout } = useAuth();
+    const { user, loadUser } = useAuth();
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [feedMode, setFeedMode] = useState('FOR_YOU'); // 'FOR_YOU', 'FOLLOWING', 'BROADCASTS'
+    const [activeChip, setActiveChip] = useState('All');
     const [hasMore, setHasMore] = useState(true);
-    const [activeChip, setActiveChip] = useState(
-        () => localStorage.getItem('feedChip') || 'All'
-    );
     const [unreadNotifications, setUnreadNotifications] = useState(0);
     const [reportPostId, setReportPostId] = useState(null);
-    const [enquiryTarget, setEnquiryTarget] = useState(null); // { userId, displayName }
+    const [enquiryTarget, setEnquiryTarget] = useState(null);
     const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
-    const [sessionId] = useState(() => {
-        let sid = localStorage.getItem('travelpod_session_id');
-        if (!sid) {
-            sid = 'sid_' + Math.random().toString(36).substring(2, 15) + Date.now();
-            localStorage.setItem('travelpod_session_id', sid);
+
+    // Global UI State
+    const [isMuted, setIsMuted] = useState(true); // Browsers block sound by default, user must unmute
+    const [activeVideoId, setActiveVideoId] = useState(null);
+    const feedRef = useRef(null);
+    const [sessionId] = useState(() => localStorage.getItem('travelpod_session_id') || `sid_${Math.random().toString(36).substring(7)}`);
+
+    useEffect(() => {
+        if (!localStorage.getItem('travelpod_session_id')) {
+            localStorage.setItem('travelpod_session_id', sessionId);
         }
-        return sid;
-    });
+    }, [sessionId]);
 
-    // Nudge State
-    const [videosViewed, setVideosViewed] = useState(0);
-    const [showNudge, setShowNudge] = useState(false);
-
-    const handleShare = (id) => {
-        const link = `${window.location.origin}/post/${id}`;
-        navigator.clipboard.writeText(link)
-            .then(() => toast.success('Link copied to clipboard!'))
-            .catch(() => toast.error('Copy failed'));
-    };
-
-    const loadFeed = useCallback(async () => {
+    const loadFeed = useCallback(async (isRefresh = false) => {
+        const currentPage = isRefresh ? 1 : page;
         try {
-            let endpoint = `/feed?page=${page}&limit=10&sessionId=${sessionId}`;
-            if (feedMode === 'FOLLOWING') endpoint = `/feed/following?page=${page}&limit=10`;
-            if (feedMode === 'BROADCASTS') endpoint = `/broadcasts/inbox?page=${page}&limit=10`;
+            let endpoint = `/feed?page=${currentPage}&limit=10&sessionId=${sessionId}`;
+            if (feedMode === 'FOLLOWING') endpoint = `/feed/following?page=${currentPage}&limit=10`;
+            if (feedMode === 'BROADCASTS') endpoint = `/broadcasts/inbox?page=${currentPage}&limit=10`;
 
             const category = activeChip !== 'All' && feedMode === 'FOR_YOU' ? `&category=${encodeURIComponent(activeChip)}` : '';
             const { data } = await api.get(`${endpoint}${category}`);
 
-            if (data.posts || data.broadcasts) {
-                const newItems = data.posts || data.broadcasts.map(b => ({
-                    ...b.broadcast.post,
-                    author: b.broadcast.association,
-                    isBroadcast: true,
-                    broadcastId: b.broadcast.id
-                }));
+            const items = data.posts || data.broadcasts?.map(b => ({
+                ...b.broadcast.post,
+                author: b.broadcast.association,
+                isBroadcast: true,
+                broadcastId: b.broadcast.id,
+                mediaUrls: b.broadcast.mediaUrls,
+                mediaType: b.broadcast.mediaType,
+                viewed: b.viewed
+            })) || [];
 
-                if (newItems.length < 10) setHasMore(false); else setHasMore(true);
-                setPosts(prev => page === 1 ? newItems : [...prev, ...newItems]);
-            } else {
-                setHasMore(false);
-            }
+            if (items.length < 10) setHasMore(false);
+            setPosts(prev => isRefresh ? items : [...prev, ...items]);
         } catch {
             setHasMore(false);
         } finally {
             setLoading(false);
         }
-    }, [page, activeChip, feedMode]);
+    }, [page, activeChip, feedMode, sessionId]);
 
-    useEffect(() => { setPage(1); setHasMore(true); }, [activeChip, feedMode]);
-    useEffect(() => { loadFeed(); }, [loadFeed]);
+    useEffect(() => { loadFeed(true); }, [activeChip, feedMode]);
+    useEffect(() => { if (page > 1) loadFeed(); }, [page]);
 
-    // Load unread notifications count
+    // Intersection Observer for active video (Snap Scroll)
     useEffect(() => {
-        if (!user) return;
-        api.get('/notifications').then(res => {
-            if (res.data?.unreadCount) setUnreadNotifications(res.data.unreadCount);
-        }).catch(() => { });
-    }, [user]);
+        const obsOptions = { threshold: 0.7 };
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const postId = entry.target.getAttribute('data-id');
+                    setActiveVideoId(postId);
 
-    const handleLike = async (postId, isLiked) => {
-        if (!user) {
-            setAuthModal({ isOpen: true, message: 'Like videos and save your favourites' });
-            return;
-        }
-        try {
-            if (isLiked) {
-                await api.delete(`/engagement/like/${postId}`);
-            } else {
-                await api.post(`/engagement/like/${postId}`);
-            }
-            setPosts(prev => prev.map(p =>
-                p.id === postId ? { ...p, isLiked: !isLiked, likeCount: p.likeCount + (isLiked ? -1 : 1) } : p
-            ));
-        } catch (err) {
-            toast.error('Failed to update like');
-        }
-    };
+                    // Analytics: Record view if guest or logged in
+                    api.post('/analytics/event', {
+                        eventType: 'POST_VIEW',
+                        postId,
+                        sessionId
+                    }).catch(() => { });
 
-    const handleSave = async (postId, isSaved) => {
-        if (!user) {
-            setAuthModal({ isOpen: true, message: 'Save videos to your trip boards' });
-            return;
-        }
-        try {
-            if (isSaved) {
-                await api.delete(`/engagement/save/${postId}`);
-            } else {
-                await api.post(`/engagement/save/${postId}`);
-            }
-            setPosts(prev => prev.map(p =>
-                p.id === postId ? { ...p, isSaved: !isSaved } : p
-            ));
-        } catch {
-            toast.error('Failed to update save');
-        }
-    };
-
-    const observer = useRef();
-    const viewedPostsRef = useRef(new Set());
-
-    const lastPostElementRef = useCallback(node => {
-        if (loading) return;
-
-        // Track unique video views (Client-side trigger for Server-side tracking)
-        if (node && !user && !sessionStorage.getItem('travelpod_nudged')) {
-            setVideosViewed(prev => {
-                const next = prev + 1;
-                if (next === 5) {
-                    setShowNudge(true);
-                    sessionStorage.setItem('travelpod_nudged', 'true');
-                    setTimeout(() => setShowNudge(false), 8000);
+                    // Broadcast: Mark as viewed
+                    const post = posts.find(p => p.id === postId);
+                    if (post?.isBroadcast && !post.viewed) {
+                        api.put(`/broadcasts/${post.broadcastId}/viewed`).catch(() => { });
+                    }
                 }
-                return next;
             });
+        }, obsOptions);
+
+        const cards = document.querySelectorAll('.feed-card');
+        cards.forEach(c => observer.observe(c));
+        return () => observer.disconnect();
+    }, [posts, sessionId]);
+
+    const handleAction = async (type, post) => {
+        if (!user) {
+            const msgs = {
+                like: 'Log in to like videos and save your favourites',
+                save: 'Save this spot to your trip boards',
+                follow: 'Follow creators to see more of their content',
+                comment: 'Join the conversation on Travelpod'
+            };
+            setAuthModal({ isOpen: true, message: msgs[type] || 'Join Travelpod to interact' });
+            return;
         }
 
-        // --- IntersectionObserver for "Seen" Tracking ---
-        if (node) {
-            const postId = node.getAttribute('data-post-id');
-            if (postId && !viewedPostsRef.current.has(postId)) {
-                const seenObserver = new IntersectionObserver(
-                    (entries) => {
-                        if (entries[0].isIntersecting) {
-                            // Report only once per session per post
-                            viewedPostsRef.current.add(postId);
-                            api.post('/analytics/event', {
-                                eventType: 'POST_VIEW',
-                                postId,
-                                sessionId
-                            }).catch(() => { }); // Fire and forget
-                            seenObserver.disconnect();
-                        }
-                    },
-                    { threshold: 0.6 } // 60% visibility counts as "seen"
-                );
-                seenObserver.observe(node);
+        try {
+            if (type === 'like') {
+                if (post.isLiked) await api.delete(`/engagement/like/${post.id}`);
+                else await api.post(`/engagement/like/${post.id}`);
+                setPosts(prev => prev.map(p => p.id === post.id ? { ...p, isLiked: !p.isLiked, likeCount: p.likeCount + (p.isLiked ? -1 : 1) } : p));
+            } else if (type === 'save') {
+                if (post.isSaved) await api.delete(`/engagement/save/${post.id}`);
+                else await api.post(`/engagement/save/${post.id}`);
+                setPosts(prev => prev.map(p => p.id === post.id ? { ...p, isSaved: !p.isSaved } : p));
             }
+        } catch (err) {
+            toast.error('Action failed');
+        }
+    };
+
+    const toggleMute = (e) => {
+        e?.stopPropagation();
+        setIsMuted(prev => !prev);
+    };
+
+    const renderMedia = (post) => {
+        const isActive = activeVideoId === post.id;
+
+        if (!post.isBroadcast) {
+            return (
+                <div className="feed-video-container" onClick={toggleMute}>
+                    <VideoPlayer
+                        src={post.videoUrl}
+                        poster={post.thumbnailUrl}
+                        autoPlay={isActive}
+                        muted={isMuted}
+                        loop
+                    />
+                </div>
+            );
         }
 
-        if (!hasMore) return;
-        if (observer.current) observer.current.disconnect();
-        observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting) {
-                setPage(prevPage => prevPage + 1);
-            }
-        });
-        if (node) observer.current.observe(node);
-    }, [loading, hasMore, user, sessionId]);
+        // Broadcast Rich Media Grid
+        const urls = post.mediaUrls || [];
+        const hasVideo = !!post.videoUrl;
+
+        return (
+            <div className="feed-broadcast-layer" onClick={toggleMute}>
+                {hasVideo && (
+                    <div className="broadcast-video-wrap" style={{ height: urls.length > 0 ? '55%' : '100%', width: '100%' }}>
+                        <VideoPlayer
+                            src={post.videoUrl}
+                            poster={post.thumbnailUrl}
+                            autoPlay={isActive}
+                            muted={isMuted}
+                        />
+                    </div>
+                )}
+                {urls.length > 0 && (
+                    <div className={`broadcast-rich-media media-grid-${Math.min(urls.length, 4)}`} style={{ height: hasVideo ? '40%' : '60%' }}>
+                        {urls.slice(0, 4).map((url, i) => (
+                            <img key={i} src={url} alt="" loading="lazy" />
+                        ))}
+                    </div>
+                )}
+                {!hasVideo && urls.length === 0 && (
+                    <div className="broadcast-text-only">
+                        {post.description}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     return (
-        <div className="feed-page">
-            <div className="feed-container">
-                {/* Top nav */}
-                <nav className="feed-nav">
-                    <span className="feed-nav-logo">Travelpod</span>
-                    <div className="feed-nav-actions">
-                        {user ? (
-                            <>
-                                <button className="feed-nav-btn" onClick={() => navigate('/upload')} title="Upload">
-                                    <HiOutlinePlusCircle />
-                                </button>
-                                {BUSINESS_TYPES.includes(user?.accountType) && (
-                                    <button className="feed-nav-btn" onClick={() => navigate('/analytics')} title="Analytics">
-                                        <HiOutlineChartBar />
-                                    </button>
-                                )}
-                                <button className="feed-nav-btn" onClick={() => navigate('/explore')} title="Explore">
-                                    <HiOutlineMagnifyingGlass />
-                                </button>
-                                <button className="feed-nav-btn" onClick={() => navigate('/messages')} title="Messages">
-                                    <HiOutlineEnvelope />
-                                </button>
-                                <button className="feed-nav-btn" onClick={() => navigate('/boards')} title="Trip Boards">
-                                    <HiOutlineRectangleStack />
-                                </button>
-                                {BUSINESS_TYPES.includes(user?.accountType) && (
-                                    <button className="feed-nav-btn" onClick={() => navigate('/enquiries')} title="Enquiries">
-                                        <span style={{ fontSize: '1.1rem' }}>✉️</span>
-                                    </button>
-                                )}
-                                <button className="feed-nav-btn" onClick={() => navigate('/notifications')} title="Notifications" style={{ position: 'relative' }}>
-                                    <HiOutlineBell />
-                                    {unreadNotifications > 0 && (
-                                        <span style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, background: 'var(--color-primary-light)', borderRadius: '50%' }} />
-                                    )}
-                                </button>
-                                <Link to={user?.profile?.handle ? `/profile/${user.profile.handle}` : '#'} className="feed-nav-btn" title="Profile">
-                                    <HiOutlineUser />
-                                </Link>
-                            </>
-                        ) : (
-                            <>
-                                <button className="feed-nav-btn" onClick={() => navigate('/explore')} title="Explore">
-                                    <HiOutlineMagnifyingGlass />
-                                </button>
-                                <button className="feed-guest-login-btn" onClick={() => navigate('/auth/login')}>Log In</button>
-                                <button className="feed-guest-signup-btn" onClick={() => navigate('/auth/register')}>Sign Up</button>
-                            </>
-                        )}
-                    </div>
-                </nav>
-
-                {/* Feed Tabs */}
-                <div className="feed-tabs">
-                    <button
-                        className={`feed-tab${feedMode === 'FOR_YOU' ? ' active' : ''}`}
-                        onClick={() => setFeedMode('FOR_YOU')}
-                    >
-                        For You
-                    </button>
-                    <button
-                        className={`feed-tab${feedMode === 'FOLLOWING' ? ' active' : ''}`}
-                        onClick={() => setFeedMode('FOLLOWING')}
-                    >
-                        Following
-                    </button>
-                    <button
-                        className={`feed-tab${feedMode === 'BROADCASTS' ? ' active' : ''}`}
-                        onClick={() => setFeedMode('BROADCASTS')}
-                    >
-                        Broadcasts
-                    </button>
-                </div>
-
-                {/* Filter Chip Row */}
-                <div className="feed-filter-chips">
-                    {FILTER_CHIPS.map(chip => (
-                        <button
-                            key={chip}
-                            className={`feed-chip${activeChip === chip ? ' active' : ''}`}
-                            onClick={() => { setActiveChip(chip); localStorage.setItem('feed_filter', chip); }}
-                        >
-                            {chip}
+        <div className="feed-page" ref={feedRef} onClick={() => { if (isMuted) setIsMuted(false); }}>
+            {/* Header Overlays */}
+            <nav className="feed-nav">
+                <span className="feed-nav-logo">travelpod</span>
+                <div className="feed-nav-actions">
+                    <button className="feed-nav-btn" onClick={(e) => { e.stopPropagation(); navigate('/explore'); }}><HiOutlineMagnifyingGlass /></button>
+                    {user ? (
+                        <button className="feed-nav-btn" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${user.profile.handle}`); }}>
+                            <img src={user.profile.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                         </button>
+                    ) : (
+                        <button className="feed-guest-login-btn" onClick={(e) => { e.stopPropagation(); navigate('/auth/login'); }}>Join</button>
+                    )}
+                </div>
+            </nav>
+
+            <div className="feed-header-wrap">
+                <div className="feed-tabs">
+                    <button className={feedMode === 'FOR_YOU' ? 'feed-tab active' : 'feed-tab'} onClick={(e) => { e.stopPropagation(); setFeedMode('FOR_YOU'); }}>For You</button>
+                    <button className={feedMode === 'FOLLOWING' ? 'feed-tab active' : 'feed-tab'} onClick={(e) => { e.stopPropagation(); setFeedMode('FOLLOWING'); }}>Following</button>
+                    <button className={feedMode === 'BROADCASTS' ? 'feed-tab active' : 'feed-tab'} onClick={(e) => { e.stopPropagation(); setFeedMode('BROADCASTS'); }}>Broadcasts</button>
+                </div>
+                <div className="feed-filter-chips">
+                    {FILTER_CHIPS.map(c => (
+                        <button key={c} className={activeChip === c ? 'feed-chip active' : 'feed-chip'} onClick={(e) => { e.stopPropagation(); setActiveChip(c); }}>{c}</button>
                     ))}
                 </div>
+            </div>
 
-                {/* Feed content */}
-                {loading ? (
-                    <div className="feed-empty">
-                        <div className="feed-spinner" />
-                    </div>
-                ) : posts.length === 0 ? (
-                    <div className="feed-empty">
-                        <HiOutlinePlayCircle />
-                        <h3 className="feed-empty-title">Your feed is empty</h3>
-                        <p>{feedMode === 'BROADCASTS' ? 'No broadcasts targeted at you yet.' : 'Follow travelers and businesses, or upload your first video!'}</p>
-                        <div className="feed-empty-actions">
-                            <button className="feed-empty-cta-primary" onClick={() => navigate('/upload')}>Upload Video</button>
-                            <button className="feed-empty-cta-secondary" onClick={() => navigate('/explore')}>Explore</button>
-                        </div>
-                    </div>
-                ) : (
-                    <>
-                        {posts.map((post, index) => (
-                            <div
-                                key={post.id}
-                                className="feed-card"
-                                data-post-id={post.id}
-                                ref={index === posts.length - 1 ? lastPostElementRef : (node) => lastPostElementRef(node)}
-                            >
-                                {/* Header */}
-                                <Link to={`/profile/${post.user?.profile?.handle || post.author?.profile?.handle || ''}`} className="feed-card-header">
-                                    <div className="feed-card-avatar">
-                                        {(post.user?.profile?.avatarUrl || post.author?.profile?.avatarUrl) ? (
-                                            <img src={post.user?.profile?.avatarUrl || post.author?.profile?.avatarUrl} alt="" />
-                                        ) : (
-                                            <HiOutlineUser />
-                                        )}
-                                    </div>
-                                    <div className="feed-card-user">
-                                        <div className="feed-card-name">{post.user?.profile?.displayName || post.author?.profile?.displayName || 'User'}</div>
-                                        <div className="feed-card-handle">@{post.user?.profile?.handle || post.author?.profile?.handle || '...'}</div>
-                                    </div>
-                                    {post.isBroadcast && <span className="feed-card-badge">Broadcast</span>}
+            {/* Scrollable Container */}
+            <div className="feed-container">
+                {posts.map((post) => {
+                    const author = post.user || post.author;
+                    const isVerified = author?.profile?.businessProfile?.verificationStatus === 'APPROVED' || author?.profile?.verificationStatus === 'APPROVED';
+
+                    return (
+                        <div key={post.id} className="feed-card" data-id={post.id}>
+                            {renderMedia(post)}
+
+                            {/* Right Panel Interaction */}
+                            <div className="feed-side-panel">
+                                <Link to={`/profile/${author?.profile?.handle}`} className="feed-side-avatar" onClick={e => e.stopPropagation()}>
+                                    {author?.profile?.avatarUrl ? (
+                                        <img src={author.profile.avatarUrl} alt="" />
+                                    ) : (
+                                        <div className="avatar-placeholder">{author?.profile?.displayName?.[0]}</div>
+                                    )}
+                                    {!user && <div className="feed-follow-plus" onClick={() => handleAction('follow', post)}>+</div>}
                                 </Link>
 
-                                {/* Content */}
-                                {post.isBroadcast ? (
-                                    <div className="feed-broadcast-content">
-                                        <h3>{post.title}</h3>
-                                        <p>{post.description}</p>
-                                        {post.videoUrl && (
-                                            <div style={{ marginTop: 'var(--space-3)' }}>
-                                                <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} />
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} />
-                                )}
+                                <button className={`feed-side-btn ${post.isLiked ? 'liked' : ''}`} onClick={(e) => { e.stopPropagation(); handleAction('like', post); }}>
+                                    {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
+                                    <span className="feed-side-count">{post.likeCount || 0}</span>
+                                </button>
 
-                                {/* Actions */}
-                                <div className="feed-card-actions">
-                                    <button
-                                        className={`feed-action-btn${post.isLiked ? ' liked' : ''}`}
-                                        onClick={() => handleLike(post.id, post.isLiked)}
-                                    >
-                                        {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
-                                        {post.likeCount || 0}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="feed-action-btn"
-                                        onClick={() => {
-                                            if (!user) {
-                                                setAuthModal({ isOpen: true, message: 'Join the conversation' });
-                                                return;
-                                            }
-                                            navigate(`/post/${post.id}`)
-                                        }}
-                                    >
-                                        <HiOutlineChatBubbleOvalLeft />
-                                        {post.commentCount || 0}
-                                    </button>
-                                    <button className="feed-action-btn" onClick={() => handleShare(post.id)} title="Share">
-                                        <HiOutlineShare />
-                                    </button>
-                                    <button
-                                        className={`feed-action-btn${post.isSaved ? ' saved' : ''}`}
-                                        onClick={() => handleSave(post.id, post.isSaved)}
+                                <button className="feed-side-btn" onClick={(e) => { e.stopPropagation(); navigate(`/post/${post.id}`); }}>
+                                    <HiOutlineChatBubbleOvalLeft />
+                                    <span className="feed-side-count">{post.commentCount || 0}</span>
+                                </button>
 
-                                    >
-                                        {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
-                                    </button>
-                                    <button className="feed-action-btn" onClick={() => {
-                                        if (!user) {
-                                            setAuthModal({ isOpen: true, message: 'Log in to report content and help keep Travelpod safe' });
-                                            return;
-                                        }
-                                        setReportPostId(post.id);
-                                    }} title="Report">
-                                        <HiOutlineEllipsisHorizontal />
-                                    </button>
+                                <button className={`feed-side-btn ${post.isSaved ? 'saved' : ''}`} onClick={(e) => { e.stopPropagation(); handleAction('save', post); }}>
+                                    {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
+                                </button>
+
+                                <button className="feed-side-btn" onClick={toggleMute}>
+                                    {isMuted ? <HiOutlineSpeakerXMark /> : <HiOutlineSpeakerWave />}
+                                </button>
+
+                                <button className="feed-side-btn" onClick={(e) => { e.stopPropagation(); /* handleShare */ }}>
+                                    <HiOutlineShare />
+                                </button>
+                            </div>
+
+                            {/* Info Panel Overlay */}
+                            <div className="feed-info-panel">
+                                <div className="feed-info-user">
+                                    @{author?.profile?.handle}
+                                    {isVerified && (
+                                        <HiCheckBadge className="feed-verified-badge" title="Verified Business" />
+                                    )}
                                 </div>
-
-                                {/* Business CTAs (Enquire / Review links) */}
-                                {(BUSINESS_TYPES.includes(post.user?.accountType) || post.isBroadcast) && !post.isBroadcast && (
-                                    <div className="feed-business-ctas">
-                                        <button
-                                            className="feed-biz-btn feed-biz-btn-primary"
-                                            onClick={() => {
-                                                if (!user) {
-                                                    setAuthModal({ isOpen: true, message: 'Send booking enquiries to travel businesses' });
-                                                    return;
-                                                }
-                                                setEnquiryTarget({ userId: post.user?.id || post.userId, displayName: post.user?.profile?.displayName || 'Business' });
-                                            }}
-                                        >
-                                            <HiOutlineEnvelope /> Enquire
-                                        </button>
-                                        <span className="feed-biz-dot">·</span>
-                                        <button
-                                            className="feed-biz-btn"
-                                            onClick={() => navigate('/upload', { state: { reviewBusiness: post.user?.profile?.handle } })}
-                                        >
-                                            <HiOutlineStar /> Write Review
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* Title / description */}
-                                {!post.isBroadcast && (
-                                    <div className="feed-card-title">
-                                        <strong>{post.user?.profile?.displayName}</strong>
-                                        {post.title}
-                                    </div>
-                                )}
+                                <div className="feed-info-title">{post.title}</div>
+                                {post.isBroadcast && <div className="feed-info-desc">{post.description}</div>}
+                                <div className="feed-info-music">
+                                    🎵 <div className="music-scroller">Original sound - {author?.profile?.displayName}</div>
+                                </div>
                             </div>
-                        ))}
+                        </div>
+                    );
+                })}
 
-                        {/* Infinite scroll loader */}
-                        {hasMore && (
-                            <div ref={lastPostElementRef} className="feed-scroll-status">
-                                {loading && posts.length > 0 ? "Loading more..." : ""}
-                            </div>
-                        )}
-                        {!hasMore && posts.length > 0 && (
-                            <div className="feed-scroll-status">
-                                You've reached the end!
-                            </div>
-                        )}
-                    </>
+                {loading && (
+                    <div className="feed-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div className="feed-spinner" />
+                    </div>
                 )}
             </div>
 
-            {reportPostId && (
-                <ReportModal
-                    entityId={reportPostId}
-                    entityType="POST"
-                    onClose={() => setReportPostId(null)}
-                />
-            )}
-
-            {/* Enquiry Modal */}
-            {enquiryTarget && (
-                <EnquiryModal
-                    businessId={enquiryTarget.userId}
-                    businessName={enquiryTarget.displayName}
-                    isOpen={true}
-                    onClose={() => setEnquiryTarget(null)}
-                />
+            {/* Guest Nudge */}
+            {!user && posts.length > 5 && (
+                <div className="feed-signup-nudge">
+                    Enjoying Travelpod? Join to save your favorite spots
+                    <button className="feed-guest-login-btn" onClick={() => navigate('/auth/register')}>Sign Up</button>
+                </div>
             )}
 
             <AuthPromptModal
@@ -450,31 +303,6 @@ export default function FeedPage() {
                 onClose={() => setAuthModal({ isOpen: false, message: '' })}
                 message={authModal.message}
             />
-
-            {/* Subtle Signup Nudge */}
-            {showNudge && !user && (
-                <div className="feed-signup-nudge animate-slideUp">
-                    <div className="nudge-content">
-                        <span className="nudge-icon">✈️</span>
-                        <div className="nudge-text">
-                            <strong>Enjoying Travelpod?</strong>
-                            <p>Create a free account to save favourites.</p>
-                        </div>
-                    </div>
-                    <div className="nudge-actions">
-                        <button
-                            className="nudge-btn"
-                            onClick={() => {
-                                sessionStorage.setItem('returnUrl', window.location.pathname + window.location.search);
-                                navigate('/auth/register');
-                            }}
-                        >
-                            Sign Up
-                        </button>
-                        <button className="nudge-close" onClick={() => setShowNudge(false)}>×</button>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

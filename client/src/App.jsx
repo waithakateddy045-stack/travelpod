@@ -60,7 +60,8 @@ function App() {
           />
           <Routes>
             {/* Public */}
-            <Route path="/" element={<WelcomePage />} />
+            {/* Public Entry - Direct to Feed */}
+            <Route path="/" element={<FeedPage />} />
             <Route path="/auth/login" element={<LoginPage />} />
             <Route path="/auth/register" element={<RegisterPage />} />
             <Route path="/auth/callback" element={<OAuthCallbackPage />} />

@@ -832,16 +832,68 @@ const CreateBroadcastModal = ({ onClose, onSuccess }) => {
     const [region, setRegion] = useState('');
     const [loading, setLoading] = useState(false);
 
+    // Rich Media State
+    const [images, setImages] = useState([]); // File objects
+    const [video, setVideo] = useState(null); // File object
+    const [previews, setPreviews] = useState([]);
+    const [videoPreview, setVideoPreview] = useState(null);
+
+    // Verification check
+    const [verificationStatus, setVerificationStatus] = useState('LOADING');
+
+    useEffect(() => {
+        apiCall('/profile').then(data => {
+            setVerificationStatus(data.profile?.businessProfile?.verificationStatus || 'UNVERIFIED');
+        }).catch(() => setVerificationStatus('UNVERIFIED'));
+    }, []);
+
     const sectors = ['TRAVELER', 'TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
+
+    const handleImageChange = (e) => {
+        const files = Array.from(e.target.files).slice(0, 4 - images.length);
+        if (files.length === 0) return;
+
+        setImages(prev => [...prev, ...files]);
+        const newPreviews = files.map(f => URL.createObjectURL(f));
+        setPreviews(prev => [...prev, ...newPreviews]);
+    };
+
+    const handleVideoChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setVideo(file);
+        setVideoPreview(URL.createObjectURL(file));
+    };
+
+    const removeImage = (index) => {
+        setImages(prev => prev.filter((_, i) => i !== index));
+        setPreviews(prev => prev.filter((_, i) => i !== index));
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await apiCall('/admin/broadcasts', {
+            const fd = new FormData();
+            fd.append('title', title);
+            fd.append('message', message);
+            fd.append('sectorTargeting', JSON.stringify(sectorTargeting));
+            fd.append('region', region);
+
+            if (video) fd.append('video', video);
+            images.forEach(img => fd.append('images', img));
+
+            // Use fetch directly for FormData to avoid apiCall JSON stringify
+            const res = await fetch(`${API_BASE}/admin/broadcasts`, {
                 method: 'POST',
-                body: JSON.stringify({ title, message, sectorTargeting, region }),
+                headers: {
+                    Authorization: `Bearer ${getToken()}`,
+                },
+                body: fd
             });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Send failed');
+
             onSuccess();
             onClose();
         } catch (err) {
@@ -855,6 +907,26 @@ const CreateBroadcastModal = ({ onClose, onSuccess }) => {
         if (sectorTargeting.includes(s)) setSectorTargeting(sectorTargeting.filter(x => x !== s));
         else setSectorTargeting([...sectorTargeting, s]);
     };
+
+    if (verificationStatus === 'LOADING') return <div className="admin-modal-overlay"><div className="admin-modal">Loading account status...</div></div>;
+
+    if (verificationStatus !== 'APPROVED') {
+        return (
+            <div className="admin-modal-overlay" onClick={onClose}>
+                <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ textAlign: 'center', padding: '40px' }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+                    <h2>Verification Required</h2>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                        Only verified businesses can send network broadcasts.
+                        Please complete your verification in the "Verifications" tab or settings.
+                    </p>
+                    <div className="modal-footer" style={{ justifyContent: 'center' }}>
+                        <button className="btn-primary" onClick={onClose}>Understood</button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="admin-modal-overlay" onClick={onClose}>
@@ -870,8 +942,29 @@ const CreateBroadcastModal = ({ onClose, onSuccess }) => {
                     </div>
                     <div className="form-group">
                         <label>Announcement Message</label>
-                        <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Write your announcement here..." required rows={6} />
+                        <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Write your announcement here..." rows={4} />
                     </div>
+
+                    <div className="form-row" style={{ display: 'flex', gap: 16 }}>
+                        <div className="form-group" style={{ flex: 1 }}>
+                            <label>Images (Max 4)</label>
+                            <input type="file" accept="image/*" multiple onChange={handleImageChange} disabled={images.length >= 4} />
+                            <div className="media-previews" style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                                {previews.map((p, i) => (
+                                    <div key={i} className="preview-item" style={{ position: 'relative' }}>
+                                        <img src={p} alt="" style={{ width: 60, height: 60, borderRadius: 4, objectFit: 'cover' }} />
+                                        <button type="button" onClick={() => removeImage(i)} style={{ position: 'absolute', top: -5, right: -5, background: 'red', color: 'white', borderRadius: '50%', border: 'none', width: 18, height: 18, fontSize: 10, cursor: 'pointer' }}>✕</button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="form-group" style={{ flex: 1 }}>
+                            <label>Video (Optional)</label>
+                            <input type="file" accept="video/*" onChange={handleVideoChange} />
+                            {videoPreview && <video src={videoPreview} style={{ width: '100%', height: 60, marginTop: 8, borderRadius: 4, background: '#000' }} controls />}
+                        </div>
+                    </div>
+
                     <div className="form-group">
                         <label>Sector Targeting (Empty for all)</label>
                         <div className="targeting-chips">
@@ -1348,7 +1441,7 @@ export default function AdminPage() {
         if (!stored) return null;
         try {
             const parsed = JSON.parse(stored);
-            if (parsed.accountType !== 'ADMIN') return null;
+            if (!['ADMIN', 'ASSOCIATION'].includes(parsed.accountType)) return null;
             if (!localStorage.getItem('admin_token')) return null;
             return parsed;
         } catch (e) { return null; }
@@ -1362,18 +1455,21 @@ export default function AdminPage() {
     };
 
     if (!user) return <LoginScreen onLogin={setUser} />;
+
+    const isAdmin = user.accountType === 'ADMIN';
+
     const tabs = [
         { id: 'dashboard', icon: '📊', label: 'Dashboard' },
-        { id: 'publish', icon: '✍️', label: 'Publish' },
-        { id: 'moderation', icon: '🛡️', label: 'Content' },
-        { id: 'reports', icon: '🚩', label: 'Reports / Hub' },
-        { id: 'history', icon: '📜', label: 'Audit Trail' },
+        { id: 'publish', icon: '✍️', label: 'Publish', adminOnly: true },
+        { id: 'moderation', icon: '🛡️', label: 'Content', adminOnly: true },
+        { id: 'reports', icon: '🚩', label: 'Reports / Hub', adminOnly: true },
+        { id: 'history', icon: '📜', label: 'Audit Trail', adminOnly: true },
         { id: 'promotions', icon: '🚀', label: 'Promotions' },
         { id: 'broadcasts', icon: '📢', label: 'Broadcasts' },
-        { id: 'boards', icon: '📁', label: 'Trip Boards' },
-        { id: 'users', icon: '👥', label: 'Users' },
+        { id: 'boards', icon: '📁', label: 'Trip Boards', adminOnly: true },
+        { id: 'users', icon: '👥', label: 'Users', adminOnly: true },
         { id: 'verifications', icon: '✓', label: 'Verifications' },
-    ];
+    ].filter(t => isAdmin || !t.adminOnly);
 
     return (
         <div className="admin-app">

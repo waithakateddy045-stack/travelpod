@@ -1,5 +1,7 @@
 const prisma = require('../utils/prisma');
 const { AppError } = require('../middleware/errorHandler');
+const { uploadVideo, uploadImage, getVideoThumbnail } = require('../services/cloudinary');
+const fs = require('fs');
 
 // ============================================================
 // Broadcast System — Uses BroadcastPost + BroadcastTarget models
@@ -13,18 +15,75 @@ const createBroadcast = async (req, res, next) => {
             throw new AppError('Only associations and admins can create broadcasts', 403);
         }
 
-        const { postId, title, message, sectorTargeting, region } = req.body;
-        if (!title || !message) throw new AppError('Title and message are required', 400);
+        // Verified access control for businesses
+        if (senderType === 'ASSOCIATION') {
+            const profile = await prisma.profile.findUnique({
+                where: { userId: req.user.id },
+                include: { businessProfile: true }
+            });
+            if (!profile?.businessProfile || profile.businessProfile.verificationStatus !== 'APPROVED') {
+                throw new AppError('Your business must be verified to create broadcasts.', 403);
+            }
+        }
 
-        // If postId provided, link to existing post; otherwise create a broadcast-type post
+        const { postId, title, message, sectorTargeting, region } = req.body;
+        if (!title) throw new AppError('Broadcast title is required', 400);
+
+        // Files from multer
+        const videoFile = req.files?.video?.[0];
+        const imageFiles = req.files?.images || [];
+
+        let videoUrl = null;
+        let thumbnailUrl = null;
+        let mediaUrls = [];
+
+        try {
+            // 1. Upload video if present
+            if (videoFile) {
+                const bcVideo = await uploadVideo(videoFile.path, { folder: 'travelpod/broadcast/videos' });
+                videoUrl = bcVideo.secure_url;
+                thumbnailUrl = bcVideo.thumbnail_url || getVideoThumbnail(bcVideo.public_id);
+            }
+
+            // 2. Upload images if present
+            if (imageFiles.length > 0) {
+                for (const file of imageFiles) {
+                    const bcImg = await uploadImage(file.path, 'travelpod/broadcast/images');
+                    mediaUrls.push(bcImg.secure_url);
+                }
+            }
+        } catch (uploadErr) {
+            console.error('Cloudinary upload error:', uploadErr);
+            throw new AppError('Media upload failed. Please try again.', 500);
+        } finally {
+            // Cleanup local temp files
+            if (videoFile && fs.existsSync(videoFile.path)) fs.unlinkSync(videoFile.path);
+            imageFiles.forEach(f => {
+                if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
+            });
+        }
+
+        // Calculate media type
+        let mediaType = 'TEXT';
+        if (videoUrl && mediaUrls.length > 0) mediaType = 'MIXED';
+        else if (videoUrl) mediaType = 'VIDEO';
+        else if (mediaUrls.length > 0) mediaType = 'IMAGE';
+
+        // Creation must have at least SOME content
+        if (!message && !videoUrl && mediaUrls.length === 0) {
+            throw new AppError('Broadcast must contain at least text, image, or video.', 400);
+        }
+
+        // Create the backing post
         let targetPostId = postId;
         if (!targetPostId) {
             const post = await prisma.post.create({
                 data: {
                     userId: req.user.id,
                     title: title.trim(),
-                    description: message.trim(),
-                    videoUrl: '',
+                    description: message ? message.trim() : '',
+                    videoUrl: videoUrl || '',
+                    thumbnailUrl: thumbnailUrl || '',
                     duration: 0,
                     postType: 'BROADCAST',
                     moderationStatus: 'APPROVED',
@@ -33,14 +92,16 @@ const createBroadcast = async (req, res, next) => {
             targetPostId = post.id;
         }
 
-        const targeting = sectorTargeting || [];
+        const targeting = sectorTargeting ? (typeof sectorTargeting === 'string' ? JSON.parse(sectorTargeting) : sectorTargeting) : [];
 
-        // Create the broadcast post
+        // Create the broadcast post record
         const broadcast = await prisma.broadcastPost.create({
             data: {
                 postId: targetPostId,
                 associationId: req.user.id,
                 sectorTargeting: targeting,
+                mediaUrls: mediaUrls,
+                mediaType: mediaType,
             },
         });
 
@@ -104,7 +165,12 @@ const getBroadcasts = async (req, res, next) => {
                     },
                     association: {
                         select: {
-                            profile: { select: { displayName: true, handle: true, avatarUrl: true } },
+                            id: true,
+                            profile: {
+                                select: { displayName: true, handle: true, avatarUrl: true },
+                                include: { businessProfile: { select: { verificationStatus: true } } }
+                            },
+                            businessVerification: true
                         },
                     },
                     _count: { select: { targets: true } },
@@ -149,7 +215,16 @@ const getBroadcastsForUser = async (req, res, next) => {
                         },
                         association: {
                             select: {
-                                profile: { select: { displayName: true, handle: true, avatarUrl: true } },
+                                id: true,
+                                profile: {
+                                    select: { displayName: true, handle: true, avatarUrl: true },
+                                    include: {
+                                        businessProfile: {
+                                            select: { verificationStatus: true, logoUrl: true }
+                                        }
+                                    }
+                                },
+                                businessVerification: true
                             },
                         },
                     },

@@ -559,18 +559,27 @@ model CollaborationParticipant {
 // BROADCAST
 // ============================================================
 
-model BroadcastPost {
-  id              String            @id @default(uuid())
-  postId          String            @unique @map("post_id")
-  associationId   String            @map("association_id")
-  sectorTargeting Json              @map("sector_targeting")
-  reachCount      Int               @default(0) @map("reach_count")
-  viewCount       Int               @default(0) @map("view_count")
-  engagementRate  Decimal?          @db.Decimal(5, 2) @map("engagement_rate")
-  createdAt       DateTime          @default(now()) @map("created_at")
+enum BroadcastMediaType {
+  TEXT
+  IMAGE
+  VIDEO
+  MIXED
+}
 
-  post            Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
-  association     User              @relation(fields: [associationId], references: [id])
+model BroadcastPost {
+  id              String             @id @default(uuid())
+  postId          String             @unique @map("post_id")
+  associationId   String             @map("association_id")
+  sectorTargeting Json               @map("sector_targeting")
+  mediaUrls       Json?              @map("media_urls")
+  mediaType       BroadcastMediaType @default(TEXT) @map("media_type")
+  reachCount      Int                @default(0) @map("reach_count")
+  viewCount       Int                @default(0) @map("view_count")
+  engagementRate  Decimal?           @db.Decimal(5, 2) @map("engagement_rate")
+  createdAt       DateTime           @default(now()) @map("created_at")
+
+  post            Post               @relation(fields: [postId], references: [id], onDelete: Cascade)
+  association     User               @relation(fields: [associationId], references: [id])
   targets         BroadcastTarget[]
 
   @@map("broadcast_posts")
