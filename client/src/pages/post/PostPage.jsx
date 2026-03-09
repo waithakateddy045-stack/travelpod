@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import {
     HiOutlineHeart, HiHeart,
     HiOutlineChatBubbleOvalLeft, HiOutlineBookmark, HiBookmark,
-    HiOutlineUser, HiOutlineArrowLeft, HiOutlineTrash, HiOutlineShare
+    HiOutlineUser, HiOutlineArrowLeft, HiOutlineTrash, HiOutlineShare, HiOutlineArrowPath
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';

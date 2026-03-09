@@ -279,6 +279,7 @@ export default function FeedPage() {
                         className="enquire-action-btn animate-scaleIn"
                         onClick={(e) => { e.stopPropagation(); setEnquiryPost(post); }}
                     >
+                        <HiOutlineStar />
                         Enquire
                     </button>
                 )}
@@ -374,9 +375,18 @@ export default function FeedPage() {
                 <div className="feed-tabs-container">
                     <div className="feed-tabs">
                         <button className={feedMode === 'FOR_YOU' ? 'feed-tab active' : 'feed-tab'} onClick={() => setFeedMode('FOR_YOU')}>Discover</button>
-                        <button className={feedMode === 'FOLLOWING' ? 'feed-tab active' : 'feed-tab'} onClick={() => setFeedMode('FOLLOWING')}>Following</button>
-                        <button className={feedMode === 'BROADCASTS' ? 'feed-tab active' : 'feed-tab'} onClick={() => setFeedMode('BROADCASTS')}>Broadcasts</button>
-                        <button className={feedMode === 'BOARDS' ? 'feed-tab active' : 'feed-tab'} onClick={() => setFeedMode('BOARDS')}>Trip Boards</button>
+                        <button className={feedMode === 'FOLLOWING' ? 'feed-tab active' : 'feed-tab'} onClick={() => {
+                            if (!user) setAuthModal({ isOpen: true, message: 'Follow creators to see their latest posts here' });
+                            else setFeedMode('FOLLOWING');
+                        }}>Following</button>
+                        <button className={feedMode === 'BROADCASTS' ? 'feed-tab active' : 'feed-tab'} onClick={() => {
+                            if (!user) setAuthModal({ isOpen: true, message: 'Log in to see exclusive travel broadcasts' });
+                            else setFeedMode('BROADCASTS');
+                        }}>Broadcasts</button>
+                        <button className={feedMode === 'BOARDS' ? 'feed-tab active' : 'feed-tab'} onClick={() => {
+                            if (!user) setAuthModal({ isOpen: true, message: 'Save videos to your trip boards' });
+                            else setFeedMode('BOARDS');
+                        }}>Trip Boards</button>
                     </div>
                 </div>
 
