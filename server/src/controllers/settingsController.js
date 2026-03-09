@@ -136,6 +136,9 @@ const updateProfile = async (req, res, next) => {
 // POST /api/settings/avatar
 const updateAvatar = async (req, res, next) => {
     try {
+        if (!req.file) {
+            throw new AppError('No image file provided', 400);
+        }
         console.log('📸 Uploading avatar for user:', req.user.id, 'at path:', req.file.path);
         const upload = await uploadImage(req.file.path, 'travelpod/avatars');
         console.log('✅ Cloudinary upload success:', upload.secure_url);

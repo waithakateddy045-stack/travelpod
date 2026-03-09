@@ -1,6 +1,6 @@
 const prisma = require('../utils/prisma');
 const { AppError } = require('../middleware/errorHandler');
-const { uploadVideo, uploadImage, getVideoThumbnail } = require('../services/cloudinary');
+const { uploadVideo, uploadImage, generateSmartThumbnails, getVideoThumbnail } = require('../services/cloudinary');
 const fs = require('fs');
 
 // ============================================================
@@ -9,9 +9,22 @@ const fs = require('fs');
 const createPost = async (req, res, next) => {
     try {
         const userId = req.user.id;
-        const { title, description, postType, categoryId, category, locationTag, tags, isReview, businessId, starRating } = req.body;
+        const {
+            title, description, postType, categoryId, category, locationTag, tags, isReview, businessId, starRating,
+            startTime, endTime, thumbnailTime, chapters, perceptualHash
+        } = req.body;
 
         if (!title) throw new AppError('Title is required', 400);
+
+        // Duplicate check
+        if (perceptualHash) {
+            const duplicate = await prisma.post.findFirst({
+                where: { perceptualHash, moderationStatus: { not: 'REMOVED' } }
+            });
+            if (duplicate) {
+                return res.status(409).json({ success: false, error: 'Duplicate video detected', postId: duplicate.id });
+            }
+        }
 
         if (postType === 'BROADCAST' && !['ASSOCIATION', 'ADMIN'].includes(req.user.accountType)) {
             throw new AppError('Only associations and admins can create broadcast posts', 403);
@@ -23,10 +36,29 @@ const createPost = async (req, res, next) => {
 
         if (req.file) {
             try {
-                const cloudResult = await uploadVideo(req.file.path);
+                const originalSize = req.file.size;
+                const transformations = [];
+                if (startTime !== undefined || endTime !== undefined) {
+                    transformations.push({
+                        start_offset: startTime || 0,
+                        end_offset: endTime || undefined
+                    });
+                }
+
+                const cloudResult = await uploadVideo(req.file.path, { transformations });
                 videoUrl = cloudResult.secure_url;
-                thumbnailUrl = getVideoThumbnail(cloudResult.public_id);
                 duration = Math.round(cloudResult.duration || 0);
+
+                // Use selected thumbnail time or default to 0
+                thumbnailUrl = getVideoThumbnail(cloudResult.public_id, thumbnailTime || 0);
+
+                const stats = {
+                    originalSize,
+                    compressedSize: cloudResult.bytes,
+                    compressionRatio: ((1 - (cloudResult.bytes / originalSize)) * 100).toFixed(1) + '%'
+                };
+                req.uploadStats = stats;
+                req.smartThumbnails = generateSmartThumbnails(cloudResult.public_id, cloudResult.duration);
             } catch (uploadErr) {
                 console.error('Cloudinary upload failed:', uploadErr.message);
                 throw new AppError('Video upload failed. Please try again.', 500);
@@ -35,13 +67,7 @@ const createPost = async (req, res, next) => {
                     fs.unlinkSync(req.file.path);
                 }
             }
-        } else if (postType !== 'BROADCAST' && !req.body.videoUrl) {
-            // We might want to enforce video for STANDARD posts, but for now allow optional
-            // throw new AppError('Video file required for standard posts', 400);
         }
-
-        // Use videoUrl from body if provided and file is missing
-        if (!videoUrl && req.body.videoUrl) videoUrl = req.body.videoUrl;
 
         // Resolve category name to categoryId if needed
         let resolvedCategoryId = categoryId || null;
@@ -53,6 +79,15 @@ const createPost = async (req, res, next) => {
                 create: { name: category, slug },
             });
             resolvedCategoryId = cat.id;
+        }
+
+        // Auto Chapter Generation for long videos
+        let finalChapters = chapters ? (typeof chapters === 'string' ? JSON.parse(chapters) : chapters) : [];
+        if (finalChapters.length === 0 && duration > 60) {
+            // Generate simple chapters every 30 seconds
+            for (let t = 0; t < duration; t += 30) {
+                finalChapters.push({ time: t, title: t === 0 ? 'Introduction' : `Part ${Math.floor(t / 30) + 1}` });
+            }
         }
 
         const post = await prisma.post.create({
@@ -67,6 +102,10 @@ const createPost = async (req, res, next) => {
                 categoryId: resolvedCategoryId,
                 locationTag: locationTag || null,
                 moderationStatus: 'APPROVED',
+                perceptualHash: perceptualHash || null,
+                chapters: finalChapters.length > 0 ? finalChapters : null,
+                originalSize: req.uploadStats?.originalSize || null,
+                compressedSize: req.uploadStats?.compressedSize || null,
             },
         });
 
@@ -95,7 +134,29 @@ const createPost = async (req, res, next) => {
             });
         }
 
-        res.status(201).json({ success: true, post });
+        res.status(201).json({
+            success: true,
+            post,
+            compressionStats: req.uploadStats,
+            smartThumbnails: req.smartThumbnails
+        });
+    } catch (err) { next(err); }
+};
+
+// ============================================================
+// GET /api/posts/check-duplicate — Check if hash exists
+// ============================================================
+const checkDuplicate = async (req, res, next) => {
+    try {
+        const { hash } = req.query;
+        if (!hash) throw new AppError('Hash is required', 400);
+
+        const duplicate = await prisma.post.findFirst({
+            where: { perceptualHash: hash, moderationStatus: { not: 'REMOVED' } },
+            select: { id: true }
+        });
+
+        res.json({ success: true, isDuplicate: !!duplicate, postId: duplicate?.id });
     } catch (err) { next(err); }
 };
 
@@ -236,7 +297,6 @@ const repostPost = async (req, res, next) => {
         if (!original) throw new AppError('Post not found', 404);
 
         // Create a new post that references the original
-        // Note: For now we copy the content as our schema doesn't have repostOfId
         const post = await prisma.post.create({
             data: {
                 userId,
@@ -284,8 +344,6 @@ const recommendPost = async (req, res, next) => {
         });
         if (!post) throw new AppError('Post not found', 404);
 
-        // Implementation: Send a structured message to the target user
-        // First find or create conversation
         const p1 = senderId < targetUserId ? senderId : targetUserId;
         const p2 = senderId < targetUserId ? targetUserId : senderId;
 
@@ -320,5 +378,5 @@ const recommendPost = async (req, res, next) => {
 module.exports = {
     createPost, getPost, deletePost,
     getModerationQueue, moderatePost,
-    repostPost, recommendPost
+    repostPost, recommendPost, checkDuplicate
 };

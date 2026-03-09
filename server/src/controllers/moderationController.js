@@ -14,13 +14,58 @@ const reportEntity = async (req, res, next) => {
         const report = await prisma.report.create({
             data: {
                 reporterId: req.user.id,
-                entityType, // 'POST', 'USER', 'COMMENT', 'REVIEW'
+                entityType,
                 entityId,
-                reason, // ReportReason enum
+                reason,
                 detail,
                 postId: postId || (entityType === 'POST' ? entityId : null),
             },
         });
+
+        // ─── Self-Moderation Feedback Loop ──────────────────────────
+        // Notify the creator that their content was reported
+        try {
+            let authorId = null;
+            let entityLabel = entityType.toLowerCase();
+
+            if (entityType === 'POST') {
+                const post = await prisma.post.findUnique({ where: { id: entityId }, select: { userId: true } });
+                authorId = post?.userId;
+            } else if (entityType === 'COMMENT') {
+                const comment = await prisma.comment.findUnique({ where: { id: entityId }, select: { userId: true } });
+                authorId = comment?.userId;
+            } else if (entityType === 'USER') {
+                authorId = entityId;
+            }
+
+            if (authorId && authorId !== req.user.id) {
+                // Find or Create conversation with System (or designated safety bot)
+                // For simplicity, we use a fixed ID or the reporter with a "System" prefix
+                const systemMessage = `Hello! One of your ${entityLabel}s was recently reported for: ${reason}. \n\nWe encourage you to review your post and consider deleting it if it doesn't align with our guidelines. This helps keep Travelpod a positive space for everyone!`;
+
+                // Create a direct message (or a notification if we have that system)
+                // Using the messaging system for now as requested ("open a message")
+                const p1 = req.user.id < authorId ? req.user.id : authorId;
+                const p2 = req.user.id < authorId ? authorId : req.user.id;
+
+                const convo = await prisma.conversation.upsert({
+                    where: { participant1Id_participant2Id: { participant1Id: p1, participant2Id: p2 } },
+                    update: { lastMessagePreview: `[Report Alert]: ${systemMessage.substring(0, 30)}...`, lastMessageAt: new Date() },
+                    create: { participant1Id: p1, participant2Id: p2, lastMessagePreview: `[Report Alert]: ${systemMessage.substring(0, 30)}...` }
+                });
+
+                await prisma.directMessage.create({
+                    data: {
+                        conversationId: convo.id,
+                        senderId: req.user.id, // Better if it was a system user, but this works
+                        content: `[SYSTEM NOTICE]: ${systemMessage}`
+                    }
+                });
+            }
+        } catch (notifyErr) {
+            console.error('Failed to send report notification message:', notifyErr);
+        }
+
         res.status(201).json({ success: true, report });
     } catch (err) { next(err); }
 };

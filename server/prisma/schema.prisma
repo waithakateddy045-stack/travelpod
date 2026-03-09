@@ -270,6 +270,9 @@ model Post {
   commentCount      Int              @default(0) @map("comment_count")
   saveCount         Int              @default(0) @map("save_count")
   perceptualHash    String?          @map("perceptual_hash")
+  chapters          Json?            @map("chapters")
+  originalSize      Int?             @map("original_size")
+  compressedSize    Int?             @map("compressed_size")
   createdAt         DateTime         @default(now()) @map("created_at")
 
   author            User             @relation("PostAuthor", fields: [userId], references: [id], onDelete: Cascade)

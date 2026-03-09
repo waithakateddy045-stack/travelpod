@@ -253,7 +253,7 @@ export default function FeedPage() {
         if (now - lastTap.current < DOUBLE_TAP_DELAY) {
             // Double tap detected
             if (!post.isLiked) {
-                handleLike(post.id);
+                handleAction('like', post);
                 // Visual feedback (optional but good for "IG meets X")
                 const heart = document.createElement('div');
                 heart.className = 'double-tap-heart';
@@ -326,6 +326,7 @@ export default function FeedPage() {
                         autoPlay={isActive}
                         muted={isMuted}
                         loop
+                        onClick={(e) => handlePostClick(e, post)}
                     />
                 </div>
             );

@@ -7,7 +7,8 @@ import {
     HiOutlinePlayCircle, HiOutlineHeart, HiOutlineUser,
     HiOutlineArrowLeft, HiOutlineCog6Tooth,
     HiOutlineChartBar, HiOutlineEnvelope,
-    HiOutlineRectangleStack, HiOutlineFlag
+    HiOutlineRectangleStack, HiOutlineFlag, HiCheckBadge,
+    HiOutlineChartPie, HiOutlinePencilSquare, HiOutlineTrash
 } from 'react-icons/hi2';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -171,7 +172,7 @@ export default function ProfilePage() {
                     <div className="profile-info">
                         <h1 className="profile-name">
                             {profile.displayName}
-                            {profile.isVerified && <span className="verified-badge-stamp" style={{ marginLeft: 8, verticalAlign: 'middle' }}>Verified</span>}
+                            {profile.isVerified && <HiCheckBadge className="verified-badge-icon" />}
                         </h1>
                         <p className="profile-handle">@{profile.handle}</p>
 
@@ -234,45 +235,35 @@ export default function ProfilePage() {
                         {/* Action buttons */}
                         {isOwn ? (
                             <div className="profile-actions">
+                                <Link to="/settings" className="profile-action-btn primary">
+                                    <HiOutlinePencilSquare /> Edit Profile
+                                </Link>
+                                <Link to="/settings" className="profile-action-btn secondary">
+                                    <HiOutlineCog6Tooth /> Settings
+                                </Link>
                                 {isBusiness && (
-                                    <Link
-                                        to="/analytics"
-                                        className="profile-btn follow" style={{ background: 'var(--color-primary-light)', border: 'none', color: 'white', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '8px 16px', fontWeight: 600 }}
-                                    >
-                                        <HiOutlineChartBar style={{ marginRight: 6, fontSize: '1.2rem' }} /> Analytics
+                                    <Link to="/analytics" className="profile-action-btn secondary">
+                                        <HiOutlineChartBar /> Analytics
                                     </Link>
                                 )}
-                                <Link
-                                    to="/settings"
-                                    className="profile-btn follow" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                                >
-                                    <HiOutlineCog6Tooth style={{ marginRight: 6, fontSize: '1.2rem' }} /> Settings
-                                </Link>
-                                <Link
-                                    to="/settings"
-                                    className="profile-btn follow" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                                >
-                                    Edit Profile
-                                </Link>
                                 {isBusiness && profile.businessProfile?.verificationStatus === 'PENDING' && (
-                                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', padding: '6px 12px', border: '1px solid var(--border-primary)', borderRadius: 'var(--radius-pill)' }}>
+                                    <div className="verification-status-pill">
                                         ⏳ Verification Pending
-                                    </span>
+                                    </div>
                                 )}
                                 {isBusiness && !['APPROVED', 'PENDING'].includes(profile.businessProfile?.verificationStatus) && (
                                     <button
-                                        className="profile-btn primary"
-                                        style={{ background: 'var(--color-primary-light)', padding: '6px 16px', fontSize: 'var(--text-xs)' }}
+                                        className="profile-action-btn accent"
                                         onClick={() => setIsVerificationAppModalOpen(true)}
                                     >
-                                        Get Verified
+                                        <HiOutlineCheckBadge /> Get Verified
                                     </button>
                                 )}
                             </div>
                         ) : (
                             <div className="profile-actions">
                                 <button
-                                    className={`profile-btn ${profile.isFollowing ? 'following' : 'follow'}`}
+                                    className={`profile-action-btn ${profile.isFollowing ? 'secondary' : 'primary'}`}
                                     onClick={handleFollow}
                                     disabled={followLoading}
                                 >
@@ -280,18 +271,17 @@ export default function ProfilePage() {
                                 </button>
                                 {isBusiness && (
                                     <button
-                                        className="profile-btn message"
-                                        style={{ background: 'var(--color-primary)', color: 'white', borderColor: 'transparent' }}
+                                        className="profile-action-btn accent"
                                         onClick={() => setIsEnquiryModalOpen(true)}
                                     >
-                                        Enquire Now
+                                        <HiOutlineChatBubbleLeft /> Enquire Now
                                     </button>
                                 )}
-                                <button className="profile-btn message" onClick={handleStartMessage}>
-                                    <HiOutlineEnvelope style={{ marginRight: 4 }} /> Message
+                                <button className="profile-action-btn icon-only" onClick={handleStartMessage} title="Message">
+                                    <HiOutlineEnvelope />
                                 </button>
-                                <button className="profile-btn message" onClick={() => setIsReportingUser(true)} style={{ color: 'var(--text-tertiary)' }}>
-                                    <HiOutlineFlag /> Report
+                                <button className="profile-action-btn icon-only danger" onClick={() => setIsReportingUser(true)} title="Report">
+                                    <HiOutlineFlag />
                                 </button>
                             </div>
                         )}

@@ -61,6 +61,7 @@ const getProfileByHandle = async (req, res, next) => {
                 joinedAt: profile.user.createdAt,
                 postCount,
                 isFollowing,
+                isVerified: profile.businessProfile?.verificationStatus === 'APPROVED',
                 businessProfile: profile.businessProfile ? {
                     logoUrl: profile.businessProfile.logoUrl,
                     country: profile.businessProfile.country,

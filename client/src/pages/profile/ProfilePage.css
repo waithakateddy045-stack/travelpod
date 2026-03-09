@@ -12,13 +12,11 @@
 /* Header */
 .profile-header {
     display: flex;
-    gap: var(--space-6);
-    align-items: flex-start;
+    gap: var(--space-8);
+    align-items: center;
     padding: var(--space-8);
-    background: var(--bg-glass);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-xl);
+    background: #000;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     margin-bottom: var(--space-6);
 }
 
@@ -49,15 +47,24 @@
 
 .profile-name {
     font-family: var(--font-display);
-    font-size: var(--text-2xl);
-    font-weight: 700;
-    margin-bottom: 2px;
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #fff;
+}
+
+.verified-badge-icon {
+    color: #00d2ff;
+    font-size: 1.5rem;
 }
 
 .profile-handle {
-    font-size: var(--text-sm);
+    font-size: 1rem;
     color: var(--text-tertiary);
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-4);
 }
 
 .profile-badge {
@@ -170,49 +177,78 @@
 }
 
 /* Actions */
+/* Action Buttons Refined */
 .profile-actions {
     display: flex;
     gap: var(--space-2);
-    margin-top: var(--space-4);
+    margin-top: var(--space-6);
     flex-wrap: wrap;
     align-items: center;
 }
 
-.profile-btn {
-    padding: var(--space-2) var(--space-5);
+.profile-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 20px;
     border-radius: var(--radius-full);
-    font-size: var(--text-sm);
-    font-weight: 600;
-    border: none;
+    font-size: 0.9rem;
+    font-weight: 700;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: all 0.2s;
+    border: 1px solid transparent;
+    text-decoration: none;
+    white-space: nowrap;
+    min-height: 40px;
 }
 
-.profile-btn.follow {
-    background: var(--gradient-brand);
-    color: white;
-    box-shadow: var(--shadow-glow);
+.profile-action-btn.primary {
+    background: #fff;
+    color: #000;
 }
 
-.profile-btn.follow:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-glow-strong);
+.profile-action-btn.secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
-.profile-btn.following {
-    background: var(--bg-elevated);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-primary);
+.profile-action-btn.accent {
+    background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3);
 }
 
-.profile-btn.message {
-    background: var(--bg-elevated);
-    color: var(--text-primary);
-    border: 1px solid var(--border-primary);
+.profile-action-btn.icon-only {
+    width: 40px;
+    padding: 0;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 1.25rem;
 }
 
-.profile-btn.message:hover {
-    border-color: var(--border-active);
+.profile-action-btn.danger {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.profile-action-btn:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.profile-action-btn.primary:hover {
+    background: #eee;
+}
+
+.verification-status-pill {
+    padding: 8px 16px;
+    background: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+    border-radius: var(--radius-full);
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: 1px solid rgba(255, 193, 7, 0.2);
 }
 
 /* Business info */
@@ -437,23 +473,21 @@
     }
 
     .profile-actions {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
+        display: flex;
+        overflow-x: auto;
+        padding-bottom: 8px;
+        scrollbar-width: none;
         width: 100%;
-        margin-top: var(--space-4);
+        gap: 8px;
+        flex-wrap: nowrap;
     }
 
-    .profile-btn {
-        padding: 8px 4px;
-        font-size: 11px;
-        min-height: 36px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        text-align: center;
-        border-radius: var(--radius-md);
+    .profile-actions::-webkit-scrollbar {
+        display: none;
+    }
+
+    .profile-action-btn {
+        flex-shrink: 0;
     }
 
     .post-grid {

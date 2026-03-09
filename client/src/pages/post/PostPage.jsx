@@ -220,7 +220,7 @@ export default function PostPage() {
                     {/* Media Section */}
                     <div className="post-media-wrapper" onClick={handlePostClick}>
                         {post.videoUrl ? (
-                            <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} autoPlay={true} muted={isMuted} />
+                            <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} autoPlay={true} muted={isMuted} onClick={handlePostClick} />
                         ) : (post.mediaUrls && post.mediaUrls.length > 0) ? (
                             <div className={`post-image-grid grid-${Math.min(post.mediaUrls.length, 4)}`}>
                                 {post.mediaUrls.slice(0, 4).map((url, i) => (

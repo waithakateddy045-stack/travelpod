@@ -3,7 +3,7 @@ import { HiOutlinePlay, HiOutlinePause, HiOutlineSpeakerWave, HiOutlineSpeakerXM
 import { useAuth } from '../../context/AuthContext';
 import './VideoPlayer.css';
 
-export default function VideoPlayer({ src, poster, autoPlay = false, loop = true, onView }) {
+export default function VideoPlayer({ src, poster, autoPlay = false, loop = true, onView, onClick }) {
     const videoRef = useRef(null);
     const containerRef = useRef(null);
     const { isMuted, setIsMuted } = useAuth();
@@ -58,7 +58,11 @@ export default function VideoPlayer({ src, poster, autoPlay = false, loop = true
         }
     }, [viewCounted, onView]);
 
-    const togglePlay = () => {
+    const togglePlay = (e) => {
+        if (onClick) {
+            onClick(e);
+            return;
+        }
         if (hasError) return;
         const video = videoRef.current;
         if (!video) return;
