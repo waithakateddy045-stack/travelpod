@@ -107,9 +107,7 @@ export default function OnboardingPage() {
                 if (avatarFile) {
                     const fd = new FormData();
                     fd.append('avatar', avatarFile);
-                    await api.post('/onboarding/avatar', fd, {
-                        headers: { 'Content-Type': 'multipart/form-data' },
-                    });
+                    await api.post('/onboarding/avatar', fd);
                 }
                 setStep(3);
             } else if (step === 3 && isBusiness) {

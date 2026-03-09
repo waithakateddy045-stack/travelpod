@@ -150,8 +150,7 @@ export default function UploadPage() {
         try {
             const res = await axios.post(`${API}/api/posts`, formData, {
                 headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'multipart/form-data',
+                    Authorization: `Bearer ${token}`
                 },
                 onUploadProgress: (e) => {
                     const pct = Math.round((e.loaded / e.total) * 100);

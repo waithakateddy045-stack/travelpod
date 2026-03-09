@@ -169,9 +169,7 @@ export default function SettingsPage() {
             if (avatarFile) {
                 const formData = new FormData();
                 formData.append('avatar', avatarFile);
-                await api.post('/settings/avatar', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
+                await api.post('/settings/avatar', formData);
             }
 
             toast.success('Profile updated successfully');
