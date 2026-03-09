@@ -88,7 +88,7 @@ const resolveReport = async (req, res, next) => {
                 data: {
                     adminId: req.user.id,
                     actionType: 'REPORT_RESOLVE',
-                    targetAccountId: report.reporterId, // Use reporter as a placeholder or target user if known
+                    targetAccountId: report.reporterId,
                     targetEntityId: report.id,
                     targetEntityType: 'REPORT',
                     reason: 'Manually marked as OK/Resolved'
@@ -150,11 +150,22 @@ const performModerationAction = async (req, res, next) => {
             });
 
             // 3. Log the action
+            let logTargetAccountId = null;
+            if (report.entityType === 'USER') {
+                logTargetAccountId = report.entityId;
+            } else if (report.entityType === 'POST') {
+                const post = await tx.post.findUnique({ where: { id: report.entityId }, select: { userId: true } });
+                logTargetAccountId = post?.userId;
+            } else if (report.entityType === 'COMMENT') {
+                const comment = await tx.comment.findUnique({ where: { id: report.entityId }, select: { userId: true } });
+                logTargetAccountId = comment?.userId;
+            }
+
             await tx.adminActionLog.create({
                 data: {
                     adminId: req.user.id,
                     actionType: action === 'SUSPEND_USER' ? 'SUSPENSION' : 'CONTENT_REMOVAL',
-                    targetAccountId: report.entityType === 'USER' ? report.entityId : 'SYSTEM',
+                    targetAccountId: logTargetAccountId,
                     targetEntityId: report.entityId,
                     targetEntityType: report.entityType,
                     reason: reason || 'Moderation action taken',

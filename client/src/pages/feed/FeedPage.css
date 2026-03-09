@@ -7,6 +7,7 @@
     scrollbar-width: none;
     position: relative;
     user-select: none;
+    width: 100%;
 }
 
 .feed-page::-webkit-scrollbar {
@@ -453,7 +454,8 @@
 /* Responsive fixes */
 @media (min-width: 500px) {
     .feed-page {
-        max-width: 450px;
+        max-width: 500px;
+        /* Slightly wider for modern phones/monitors */
         margin: 0 auto;
         border-right: 1px solid #222;
         border-left: 1px solid #222;
@@ -461,8 +463,8 @@
 
     .feed-nav,
     .feed-header-wrap {
-        left: unset;
-        right: unset;
-        width: 450px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 500px;
     }
 }

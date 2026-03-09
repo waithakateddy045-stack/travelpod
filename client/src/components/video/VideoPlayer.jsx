@@ -99,12 +99,15 @@ export default function VideoPlayer({ src, poster, autoPlay = false, muted = tru
 
             {/* Error fallback */}
             {hasError && (
-                <div className="video-overlay video-error">
-                    <HiOutlineExclamationTriangle className="video-error-icon" />
-                    <p className="video-error-text">Video unavailable</p>
-                    <button className="video-retry-btn" onClick={handleRetry}>
-                        <HiOutlineArrowPath /> Retry
-                    </button>
+                <div className="video-error-container">
+                    <div className="video-error-content">
+                        <HiOutlineExclamationTriangle className="video-error-icon" />
+                        <p className="video-error-text">Video unavailable</p>
+                        <p className="video-error-sub">This content may have been removed or is restricted.</p>
+                        <button className="video-retry-btn" onClick={handleRetry}>
+                            <HiOutlineArrowPath /> Try Again
+                        </button>
+                    </div>
                 </div>
             )}
 

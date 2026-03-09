@@ -711,7 +711,7 @@ model AdminActionLog {
   id              String          @id @default(uuid())
   adminId         String          @map("admin_id")
   actionType      AdminActionType @map("action_type")
-  targetAccountId String          @map("target_account_id")
+  targetAccountId String?         @map("target_account_id")
   targetEntityId  String?         @map("target_entity_id")
   targetEntityType String?        @map("target_entity_type")
   reason          String          @db.Text
@@ -719,7 +719,7 @@ model AdminActionLog {
   createdAt       DateTime        @default(now()) @map("created_at")
 
   admin           User            @relation("AdminActor", fields: [adminId], references: [id])
-  targetAccount   User            @relation("AdminTarget", fields: [targetAccountId], references: [id])
+  targetAccount   User?           @relation("AdminTarget", fields: [targetAccountId], references: [id])
 
   @@index([actionType])
   @@index([adminId])

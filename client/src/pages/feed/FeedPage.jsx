@@ -197,6 +197,9 @@ export default function FeedPage() {
             <nav className="feed-nav">
                 <span className="feed-nav-logo">travelpod</span>
                 <div className="feed-nav-actions">
+                    <button className="feed-nav-btn" onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'}>
+                        {isMuted ? <HiOutlineSpeakerXMark /> : <HiOutlineSpeakerWave />}
+                    </button>
                     <button className="feed-nav-btn" onClick={(e) => { e.stopPropagation(); navigate('/explore'); }}><HiOutlineMagnifyingGlass /></button>
                     {user ? (
                         <button className="feed-nav-btn" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${user.profile.handle}`); }}>
@@ -254,10 +257,6 @@ export default function FeedPage() {
 
                                 <button className={`feed-side-btn ${post.isSaved ? 'saved' : ''}`} onClick={(e) => { e.stopPropagation(); handleAction('save', post); }}>
                                     {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
-                                </button>
-
-                                <button className="feed-side-btn" onClick={toggleMute}>
-                                    {isMuted ? <HiOutlineSpeakerXMark /> : <HiOutlineSpeakerWave />}
                                 </button>
 
                                 <button className="feed-side-btn" onClick={(e) => { e.stopPropagation(); /* handleShare */ }}>

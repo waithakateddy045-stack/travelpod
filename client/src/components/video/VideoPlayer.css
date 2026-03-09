@@ -56,22 +56,44 @@
 }
 
 /* Error state */
-.video-error {
+.video-error-container {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(20, 20, 30, 0.98), rgba(30, 25, 45, 0.98));
+    border-radius: var(--radius-lg);
+    z-index: 10;
+    text-align: center;
+    padding: var(--space-6);
+}
+
+.video-error-content {
+    max-width: 280px;
+    display: flex;
     flex-direction: column;
-    gap: 10px;
-    background: linear-gradient(135deg, rgba(20, 20, 30, 0.95), rgba(30, 25, 45, 0.95));
-    z-index: 4;
+    align-items: center;
+    gap: 12px;
 }
 
 .video-error-icon {
-    font-size: 2.5rem;
-    color: var(--text-tertiary);
-    opacity: 0.6;
+    font-size: 3.5rem;
+    color: var(--color-error);
+    opacity: 0.8;
 }
 
 .video-error-text {
-    font-size: var(--text-sm);
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.video-error-sub {
+    font-size: var(--text-xs);
     color: var(--text-secondary);
+    line-height: 1.5;
     margin: 0;
 }
 
