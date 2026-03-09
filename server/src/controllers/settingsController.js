@@ -16,7 +16,7 @@ const getSettings = async (req, res, next) => {
             where: { id: req.user.id },
             select: {
                 id: true, email: true, accountType: true, onboardingComplete: true, createdAt: true,
-                profile: { select: { displayName: true, handle: true, avatarUrl: true, personalityTags: true, preferredRegions: true, contentPreferences: true } },
+                profile: { select: { displayName: true, handle: true, bio: true, avatarUrl: true, personalityTags: true, preferredRegions: true, contentPreferences: true } },
             },
         });
         res.json({ success: true, user });

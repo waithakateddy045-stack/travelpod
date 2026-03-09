@@ -1,5 +1,7 @@
 const prisma = require('../utils/prisma');
 const { AppError } = require('../middleware/errorHandler');
+const { uploadImage } = require('../services/cloudinary');
+const fs = require('fs');
 
 // ============================================================
 // POST /api/onboarding/profile
@@ -64,8 +66,12 @@ const uploadAvatar = async (req, res, next) => {
             throw new AppError('No avatar file uploaded', 400);
         }
 
-        // For now, store the file path. Cloudinary integration happens in Phase 5.
-        const avatarUrl = req.file.path || req.file.location || `/uploads/avatars/${req.file.filename}`;
+        console.log('📸 Uploading onboarding avatar for user:', userId);
+        const upload = await uploadImage(req.file.path, 'travelpod/avatars');
+        
+        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+
+        const avatarUrl = upload.secure_url;
 
         await prisma.profile.update({
             where: { userId },

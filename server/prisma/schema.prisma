@@ -212,6 +212,7 @@ model Profile {
   displayName       String    @map("display_name")
   handle            String    @unique
   avatarUrl         String?   @map("avatar_url")
+  bio               String?   @db.Text
   personalityTags   Json      @default("[]") @map("personality_tags")
   preferredRegions  Json      @default("[]") @map("preferred_regions")
   contentPreferences Json     @default("[]") @map("content_preferences")
