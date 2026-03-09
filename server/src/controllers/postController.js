@@ -11,6 +11,7 @@ const createPost = async (req, res, next) => {
         const userId = req.user.id;
         const {
             title, description, postType, categoryId, category, locationTag, tags, isReview, businessId, starRating,
+            isTextPost, linkedBusinessId,
             startTime, endTime, thumbnailTime, chapters, perceptualHash, musicTitle
         } = req.body;
 
@@ -33,6 +34,7 @@ const createPost = async (req, res, next) => {
         let videoUrl = null;
         let thumbnailUrl = null;
         let duration = null;
+        const isActuallyText = isTextPost === 'true';
 
         if (req.file) {
             try {
@@ -98,7 +100,7 @@ const createPost = async (req, res, next) => {
                 videoUrl,
                 thumbnailUrl,
                 duration: duration || 0,
-                postType: postType || 'STANDARD',
+                postType: isActuallyText ? 'TEXT' : (postType || (linkedBusinessId ? 'REVIEW' : 'STANDARD')),
                 categoryId: resolvedCategoryId,
                 locationTag: locationTag || null,
                 moderationStatus: 'APPROVED',
@@ -107,6 +109,8 @@ const createPost = async (req, res, next) => {
                 originalSize: req.uploadStats?.originalSize || null,
                 compressedSize: req.uploadStats?.compressedSize || null,
                 musicTitle: musicTitle || null,
+                isReview: isActuallyText && linkedBusinessId ? true : (isReview === 'true'),
+                linkedBusinessId: linkedBusinessId || businessId || null,
             },
         });
 
@@ -123,16 +127,38 @@ const createPost = async (req, res, next) => {
             }
         }
 
-        if (isReview === 'true' && businessId && starRating) {
-            await prisma.videoReview.create({
-                data: {
+        if ((isReview === 'true' || (isActuallyText && linkedBusinessId)) && (linkedBusinessId || businessId)) {
+            const bId = linkedBusinessId || businessId;
+            await prisma.videoReview.upsert({
+                where: { postId: post.id },
+                update: {},
+                create: {
                     postId: post.id,
                     reviewerId: userId,
-                    businessId,
-                    starRating: parseInt(starRating, 10),
+                    businessId: bId,
+                    starRating: starRating ? parseInt(starRating, 10) : 5,
                     caption: title,
                 },
             });
+
+            // Update business review count and average rating
+            const reviews = await prisma.videoReview.findMany({ where: { businessId: bId }, select: { starRating: true } });
+            const avg = reviews.length > 0 
+                ? reviews.reduce((acc, r) => acc + r.starRating, 0) / reviews.length 
+                : 0;
+            
+            await prisma.businessProfile.update({
+                where: { profile: { userId: bId } },
+                data: {
+                    starRating: avg,
+                    verifiedReviewCount: { increment: 1 }
+                }
+            }).catch(() => {}); // Profile might not have business record
+            
+            await prisma.profile.update({
+                where: { userId: bId },
+                data: { verifiedReviewCount: { increment: 1 } }
+            }).catch(() => {});
         }
 
         res.status(201).json({

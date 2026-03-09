@@ -18,8 +18,8 @@ import VideoPlayer from '../../components/video/VideoPlayer';
 import ReportModal from '../../components/common/ReportModal';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import AddToBoardModal from '../../components/boards/AddToBoardModal';
-import RecommendModal from '../../components/feed/RecommendModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
+import EngagementBar from '../../components/post/EngagementBar';
 import PostMoreMenu from '../../components/post/PostMoreMenu';
 import './FeedPage.css';
 
@@ -359,52 +359,39 @@ export default function FeedPage() {
 
     const renderActions = (post) => {
         const author = post.user || post.author;
-        const isBusiness = author?.profile?.accountType === 'BUSINESS' || author?.profile?.businessProfile;
-
         return (
-            <div className="feed-actions-linear-integrated">
-                <div className="actions-left">
-                    <button
-                        className={`action-btn-main ${post.isLiked ? 'liked' : ''}`}
-                        onClick={(e) => { e.stopPropagation(); handleAction('like', post); }}
-                    >
-                        {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
-                    </button>
-
-                    <button
-                        className="action-btn-main"
-                        onClick={(e) => { e.stopPropagation(); navigate(`/post/${post.id}`); }}
-                    >
-                        <HiOutlineChatBubbleOvalLeft />
-                    </button>
-
-                    <button
-                        className="action-btn-main"
-                        onClick={(e) => { e.stopPropagation(); handleShare(post); }}
-                    >
-                        <HiOutlinePaperAirplane style={{ transform: 'rotate(-20deg) translateY(-2px)' }} />
-                    </button>
-
-                    {isBusiness && (
-                        <button
-                            className="enquire-pill-btn"
-                            onClick={(e) => { e.stopPropagation(); setEnquiryPost(post); }}
-                        >
-                            <HiOutlineStar />
-                            <span>Enquire</span>
-                        </button>
-                    )}
-                </div>
-
-                <div className="actions-right">
-                    <button
-                        className={`action-btn-main ${post.isSaved ? 'saved' : ''}`}
-                        onClick={(e) => { e.stopPropagation(); handleAddToBoard(post.id); }}
-                    >
-                        {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
-                    </button>
-                </div>
-            </div>
+            <EngagementBar 
+                post={post}
+                isOwner={user?.id === author?.id}
+                onLike={() => {
+                    if (!user) setAuthModal({ isOpen: true, message: 'Like videos and save your favourites' });
+                    else handleAction('like', post);
+                }}
+                onSave={() => {
+                    if (!user) setAuthModal({ isOpen: true, message: 'Save videos to your trip boards' });
+                    else handleAddToBoard(post.id);
+                }}
+                onComment={() => navigate(`/post/${post.id}`)}
+                onAction={(type) => {
+                    if (!user && type !== 'download') {
+                        setAuthModal({ isOpen: true, message: 'Log in to perform this action' });
+                        return;
+                    }
+                    if (type === 'repost') handleRepost(post);
+                    else if (type === 'recommend') setRecommendPost(post);
+                    else if (type === 'board') handleAddToBoard(post.id);
+                    else if (type === 'download') handleDownload(post);
+                    else if (type === 'report') setReportPostId(post.id);
+                    else if (type === 'delete') {
+                        if (window.confirm('Are you sure you want to delete this post?')) {
+                            api.delete(`/posts/${post.id}`).then(() => {
+                                setPosts(prev => prev.filter(p => p.id !== post.id));
+                                toast.success('Post deleted');
+                            }).catch(err => toast.error('Failed to delete'));
+                        }
+                    }
+                }}
+            />
         );
     };
 

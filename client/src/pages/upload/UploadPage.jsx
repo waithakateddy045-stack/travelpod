@@ -1,18 +1,29 @@
-import { useState, useRef, useContext } from 'react';
-import axios from 'axios';
-import toast from 'react-hot-toast';
 import { AuthContext } from '../../context/AuthContext';
-import { HiOutlineCloudUpload, HiOutlineSparkles, HiOutlinePhotograph, HiOutlineRefresh, HiOutlineCheck, HiOutlineX, HiOutlineTag, HiOutlineLocationMarker } from 'react-icons/hi';
+import { useLocation } from 'react-router-dom';
+import api from '../../services/api';
+import { 
+    HiOutlineCloudUpload, HiOutlineSparkles, HiOutlinePhotograph, 
+    HiOutlineRefresh, HiOutlineCheck, HiOutlineX, HiOutlineTag, 
+    HiOutlineLocationMarker, HiOutlineChatBubbleBottomCenterText 
+} from 'react-icons/hi2';
 import './UploadPage.css';
 
 const API = import.meta.env.VITE_API_URL || '';
 
 export default function UploadPage() {
     const { user, token } = useContext(AuthContext);
+    const locationState = useLocation();
+    
+    // Parse query params for linked business (reviews)
+    const searchParams = new URLSearchParams(locationState.search);
+    const initialBusinessId = searchParams.get('linkedBusinessId');
+    const initialBusinessName = searchParams.get('businessName');
+
     const [step, setStep] = useState(1); // 1=Select, 2=Thumbnail, 3=Details, 4=Review
     const [file, setFile] = useState(null);
     const [filePreview, setFilePreview] = useState(null);
     const [isVideo, setIsVideo] = useState(false);
+    const [isTextPost, setIsTextPost] = useState(false);
     const [duration, setDuration] = useState(0);
 
     // Thumbnail
@@ -20,12 +31,13 @@ export default function UploadPage() {
     const [selectedThumb, setSelectedThumb] = useState(0);
 
     // Details
-    const [title, setTitle] = useState('');
+    const [title, setTitle] = useState(initialBusinessName ? `Review: ${initialBusinessName}` : '');
     const [description, setDescription] = useState('');
-    const [tags, setTags] = useState([]);
+    const [tags, setTags] = useState(initialBusinessId ? ['review', 'verified-review'] : []);
     const [tagInput, setTagInput] = useState('');
     const [location, setLocation] = useState('');
-    const [category, setCategory] = useState('');
+    const [category, setCategory] = useState(initialBusinessId ? 'Reviews' : '');
+    const [linkedBusinessId] = useState(initialBusinessId);
     const [aiLoading, setAiLoading] = useState(false);
     const [aiGenerated, setAiGenerated] = useState(false);
     const [titleOptions, setTitleOptions] = useState([]);
@@ -93,13 +105,19 @@ export default function UploadPage() {
 
     // ─── STEP 3: Gemini AI Suggestions ──────────────────────
     const generateAI = async () => {
+        if (isTextPost && !title.trim() && !description.trim()) {
+            toast.error('Add a title or description for AI to help');
+            return;
+        }
         setAiLoading(true);
         try {
-            const res = await axios.post(`${API}/api/upload/suggestions`, {
-                fileName: file?.name || 'travel-content',
-                fileType: isVideo ? 'video' : 'image',
+            const res = await api.post('/upload/suggestions', {
+                fileName: file?.name || (isTextPost ? 'text-post' : 'travel-content'),
+                fileType: isVideo ? 'video' : isTextPost ? 'text' : 'image',
                 duration: duration || null,
-            }, { headers: { Authorization: `Bearer ${token}` } });
+                existingTitle: title,
+                existingDesc: description
+            });
 
             const s = res.data.suggestions;
             setTitleOptions(s.titles || []);
@@ -137,21 +155,21 @@ export default function UploadPage() {
         setUploadProgress(0);
 
         const formData = new FormData();
-        formData.append('media', file);
+        if (file) formData.append('media', file);
         formData.append('title', title.trim());
         formData.append('description', description);
         formData.append('locationTag', location);
         formData.append('category', category);
         formData.append('tags', JSON.stringify(tags));
+        formData.append('isTextPost', isTextPost);
+        if (linkedBusinessId) formData.append('linkedBusinessId', linkedBusinessId);
+
         if (isVideo && thumbnails.length > 0) {
             formData.append('thumbnailIndex', selectedThumb);
         }
 
         try {
-            const res = await axios.post(`${API}/api/posts`, formData, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                },
+            const res = await api.post('/posts', formData, {
                 onUploadProgress: (e) => {
                     const pct = Math.round((e.loaded / e.total) * 100);
                     setUploadProgress(pct);
@@ -160,8 +178,8 @@ export default function UploadPage() {
 
             setUploadResult({
                 postId: res.data.post?.id,
-                originalSize: file.size,
-                compressedSize: res.data.post?.compressedSize || file.size * 0.7,
+                originalSize: file?.size || 0,
+                compressedSize: res.data.post?.compressedSize || (file?.size ? file.size * 0.7 : 0),
             });
             toast.success('🎉 Published successfully!');
         } catch (err) {
@@ -176,7 +194,7 @@ export default function UploadPage() {
     };
 
     const resetForm = () => {
-        setStep(1); setFile(null); setFilePreview(null); setIsVideo(false); setDuration(0);
+        setStep(1); setFile(null); setFilePreview(null); setIsVideo(false); setIsTextPost(false); setDuration(0);
         setThumbnails([]); setSelectedThumb(0); setTitle(''); setDescription('');
         setTags([]); setTagInput(''); setLocation(''); setCategory('');
         setAiGenerated(false); setTitleOptions([]); setUploading(false);
@@ -205,16 +223,26 @@ export default function UploadPage() {
                 {/* STEP 1 — File Selection */}
                 {step === 1 && (
                     <div className="upload-step-content">
-                        <div
-                            className="upload-dropzone"
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={handleDrop}
-                            onClick={() => fileRef.current?.click()}
-                        >
-                            <HiOutlineCloudUpload className="dropzone-icon" />
-                            <p className="dropzone-title">Drag & drop your file here</p>
-                            <p className="dropzone-sub">or tap to browse</p>
-                            <p className="dropzone-formats">MP4, MOV, AVI (up to 500MB) · JPG, PNG, WEBP (up to 10MB)</p>
+                        <div className="upload-options-grid">
+                            <div
+                                className="upload-dropzone"
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={handleDrop}
+                                onClick={() => fileRef.current?.click()}
+                            >
+                                <HiOutlineCloudUpload className="dropzone-icon" />
+                                <p className="dropzone-title">Media Post</p>
+                                <p className="dropzone-sub">Photo or Video</p>
+                            </div>
+
+                            <div
+                                className="upload-dropzone text-type"
+                                onClick={() => { setIsTextPost(true); setStep(3); }}
+                            >
+                                <HiOutlineChatBubbleBottomCenterText className="dropzone-icon" />
+                                <p className="dropzone-title">Text Post</p>
+                                <p className="dropzone-sub">Thoughts & Reviews</p>
+                            </div>
                         </div>
                         <input
                             ref={fileRef}
@@ -365,7 +393,12 @@ export default function UploadPage() {
 
                         <div className="review-card">
                             <div className="review-preview">
-                                {isVideo ? (
+                                {isTextPost ? (
+                                    <div className="review-media text-placeholder">
+                                        <HiOutlineChatBubbleBottomCenterText />
+                                        <span>Text Post</span>
+                                    </div>
+                                ) : isVideo ? (
                                     <video src={filePreview} className="review-media" muted />
                                 ) : (
                                     <img src={filePreview} className="review-media" alt="preview" />
@@ -378,7 +411,7 @@ export default function UploadPage() {
                                     {category && <span className="review-cat">{category}</span>}
                                     {location && <span className="review-loc"><HiOutlineLocationMarker /> {location}</span>}
                                     {isVideo && <span>{duration}s</span>}
-                                    <span>{formatSize(file?.size || 0)}</span>
+                                    {!isTextPost && <span>{formatSize(file?.size || 0)}</span>}
                                 </div>
                                 {tags.length > 0 && (
                                     <div className="review-tags">

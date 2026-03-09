@@ -179,7 +179,13 @@ export default function ProfilePage() {
                     <div className="profile-info">
                         <h1 className="profile-name">
                             {profile.displayName}
-                            {profile.isVerified && <HiCheckBadge className="verified-badge-icon" />}
+                            {profile.isVerified && (
+                                <HiCheckBadge 
+                                    className="verified-badge-icon interactive" 
+                                    onClick={() => setIsVerificationModalOpen(true)}
+                                    title="Verified Business - Click for details"
+                                />
+                            )}
                         </h1>
                         <p className="profile-handle">@{profile.handle}</p>
 
@@ -242,9 +248,9 @@ export default function ProfilePage() {
                         {/* Action buttons */}
                         {isOwn ? (
                             <div className="profile-actions">
-                                <Link to="/settings" className="profile-action-btn primary">
+                                <button className="profile-action-btn primary" onClick={() => setIsEditModalOpen(true)}>
                                     <HiOutlinePencilSquare /> Edit Profile
-                                </Link>
+                                </button>
                                 <Link to="/settings" className="profile-action-btn secondary">
                                     <HiOutlineCog6Tooth /> Settings
                                 </Link>
@@ -399,7 +405,16 @@ export default function ProfilePage() {
                                         </div>
                                     ) : (
                                         <div className="text-preview">
-                                            <HiOutlineChatBubbleLeft className="text-icon" />
+                                            {isVerified && (
+                                                <HiCheckBadge 
+                                                    className="verified-badge-inline interactive" 
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setIsVerificationModalOpen(true);
+                                                    }}
+                                                />
+                                            )}
                                             <p>{post.title || post.description}</p>
                                         </div>
                                     )}

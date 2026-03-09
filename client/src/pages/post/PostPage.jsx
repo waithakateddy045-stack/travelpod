@@ -13,9 +13,9 @@ import VideoPlayer from '../../components/video/VideoPlayer';
 import CommentItem from '../../components/post/CommentItem';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import AddToBoardModal from '../../components/boards/AddToBoardModal';
-import PostMoreMenu from '../../components/post/PostMoreMenu';
-import RecommendModal from '../../components/feed/RecommendModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
+import EngagementBar from '../../components/post/EngagementBar';
+import { useEngagement } from '../../hooks/useEngagement';
 import './PostPage.css';
 
 const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
@@ -25,7 +25,6 @@ export default function PostPage() {
     const navigate = useNavigate();
     const { user, isMuted, setIsMuted } = useAuth();
 
-    const [post, setPost] = useState(null);
     const [comments, setComments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [commentText, setCommentText] = useState('');
@@ -38,6 +37,14 @@ export default function PostPage() {
     const [reportPostId, setReportPostId] = useState(null);
     const lastTap = useRef(0);
     const touchStart = useRef(0);
+
+    const { 
+        post, 
+        setPost, 
+        handleLike, 
+        handleSave, 
+        handleRepost 
+    } = useEngagement(null);
 
     const isBusiness = post && BUSINESS_TYPES.includes(post.author?.accountType);
 
@@ -87,24 +94,7 @@ export default function PostPage() {
 
     useEffect(() => { loadData(); }, [loadData]);
 
-    const handleLike = async () => {
-        if (!user) {
-            setAuthModal({ isOpen: true, message: 'Like videos and save your favourites' });
-            return;
-        }
-        try {
-            if (post.isLiked) {
-                await api.delete(`/engagement/like/${id}`);
-            } else {
-                await api.post(`/engagement/like/${id}`);
-            }
-            setPost(prev => ({ ...prev, isLiked: !prev.isLiked, likeCount: prev.likeCount + (prev.isLiked ? -1 : 1) }));
-        } catch {
-            toast.error('Failed to update like');
-        }
-    };
-
-    const handleSave = () => {
+    const onSaveAction = () => {
         if (!user) {
             setAuthModal({ isOpen: true, message: 'Save videos to your trip boards' });
             return;
@@ -157,17 +147,12 @@ export default function PostPage() {
         }
     };
 
-    const handleRepost = async () => {
+    const onRepostAction = async () => {
         if (!user) {
             setAuthModal({ isOpen: true, message: 'Log in to add to your feed' });
             return;
         }
-        try {
-            await api.post(`/posts/${id}/repost`);
-            toast.success('Added to your feed!');
-        } catch (err) {
-            toast.error('Failed to repost');
-        }
+        handleRepost();
     };
 
     const toggleMute = (e) => {
@@ -282,60 +267,51 @@ export default function PostPage() {
                         </div>
 
                         {/* Engagement Bar */}
-                        <div className="post-actions-refined-linear">
-                            <div className="actions-left">
-                                <button className={`post-action-btn-main ${post.isLiked ? 'active' : ''}`} onClick={handleLike}>
-                                    {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
-                                    <span className="action-count">{post.likeCount || 0}</span>
-                                </button>
-                                <div className="post-action-btn-main">
-                                    <HiOutlineChatBubbleOvalLeft />
-                                    <span className="action-count">{post.commentCount || 0}</span>
-                                </div>
-                                <button
-                                    className="post-action-btn-main"
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(window.location.href);
-                                        toast.success('Link copied!');
-                                    }}
-                                >
-                                    <HiOutlinePaperAirplane style={{ transform: 'rotate(-20deg) translateY(-2px)' }} />
-                                </button>
-                            </div>
-
-                            <div className="actions-right">
-                                <button className={`post-action-btn-main ${post.isSaved ? 'active' : ''}`} onClick={handleSave}>
-                                    {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
-                                </button>
-                                <PostMoreMenu
-                                    post={post}
-                                    isOwner={user?.id === post.author?.id}
-                                    onAction={(type) => {
-                                        if (!user && type !== 'download') {
-                                            setAuthModal({ isOpen: true, message: 'Log in to perform this action' });
-                                            return;
-                                        }
-                                        if (type === 'repost') handleRepost();
-                                        else if (type === 'recommend') setRecommendPost(post);
-                                        else if (type === 'board') setSaveToBoardOpen(true);
-                                        else if (type === 'download') handleDownload();
-                                        else if (type === 'report') setReportPostId(post.id);
-                                        else if (type === 'delete') {
-                                            if (window.confirm('Are you sure you want to delete this post?')) {
-                                                api.delete(`/posts/${post.id}`).then(() => {
-                                                    toast.success('Post deleted');
-                                                    navigate('/feed');
-                                                }).catch(err => toast.error('Failed to delete'));
-                                            }
-                                        }
-                                    }}
-                                />
-                            </div>
-                        </div>
+                        <EngagementBar 
+                            post={post}
+                            isOwner={user?.id === post.author?.id}
+                            onLike={() => {
+                                if (!user) setAuthModal({ isOpen: true, message: 'Like videos and save your favourites' });
+                                else handleLike();
+                            }}
+                            onSave={onSaveAction}
+                            onComment={() => {
+                                document.querySelector('.comment-input-linear')?.focus();
+                            }}
+                            onAction={(type) => {
+                                if (!user && type !== 'download') {
+                                    setAuthModal({ isOpen: true, message: 'Log in to perform this action' });
+                                    return;
+                                }
+                                if (type === 'repost') onRepostAction();
+                                else if (type === 'recommend') setRecommendPost(post);
+                                else if (type === 'board') setSaveToBoardOpen(true);
+                                else if (type === 'download') handleDownload();
+                                else if (type === 'report') setReportPostId(post.id);
+                                else if (type === 'delete') {
+                                    if (window.confirm('Are you sure you want to delete this post?')) {
+                                        api.delete(`/posts/${post.id}`).then(() => {
+                                            toast.success('Post deleted');
+                                            navigate('/feed');
+                                        }).catch(err => toast.error('Failed to delete'));
+                                    }
+                                }
+                            }}
+                        />
 
                         {/* Comments List */}
                         <div className="post-comments-section">
-                            <h3 className="comments-header-sm">Comments ({post.commentCount || 0})</h3>
+                            <div className="comments-header-row">
+                                <h3 className="comments-header-sm">Comments ({post.commentCount || 0})</h3>
+                                {isBusiness && (
+                                    <button 
+                                        className="write-review-btn-sm"
+                                        onClick={() => navigate(`/upload?linkedBusinessId=${post.author.id}&businessName=${encodeURIComponent(post.author.profile?.displayName)}`)}
+                                    >
+                                        <HiOutlineStar /> Write a Review
+                                    </button>
+                                )}
+                            </div>
                             <div className="comments-list-sm">
                                 {comments.length === 0 ? (
                                     <div className="comments-empty-sm">No comments yet.</div>

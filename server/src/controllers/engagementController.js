@@ -10,7 +10,7 @@ const likePost = async (req, res, next) => {
 
         const post = await prisma.post.findUnique({ where: { id: postId } });
         if (!post) throw new AppError('Post not found', 404);
-        if (post.userId === userId) throw new AppError('You cannot like your own post', 400);
+        // if (post.userId === userId) throw new AppError('You cannot like your own post', 400);
 
         const existing = await prisma.like.findUnique({
             where: { userId_postId: { userId, postId } },
