@@ -25,7 +25,7 @@ const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE
 
 export default function FeedPage() {
     const navigate = useNavigate();
-    const { user, loadUser, isMuted, setIsMuted, unreadCount } = useAuth();
+    const { user, isMuted, setIsMuted, unreadCount } = useAuth();
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
@@ -108,7 +108,7 @@ export default function FeedPage() {
 
             if (items.length < 10) setHasMore(false);
             setPosts(prev => isRefresh ? items : [...prev, ...items]);
-        } catch (err) {
+        } catch {
             setHasMore(false);
             toast.error('Failed to load feed');
         } finally {

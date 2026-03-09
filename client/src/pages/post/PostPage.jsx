@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
@@ -51,7 +51,7 @@ export default function PostPage() {
                 const authorPostsRes = await api.get(`/profile/${authorHandle}/posts`);
                 setAuthorPosts(authorPostsRes.data.posts || []);
             }
-        } catch (err) {
+        } catch {
             toast.error('Failed to load post');
             navigate('/feed');
         } finally {
