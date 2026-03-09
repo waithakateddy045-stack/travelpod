@@ -228,12 +228,11 @@
     width: 100%;
     position: relative;
     background: #000;
-    min-height: 400px; /* Prevent collapse on load */
     display: flex;
     flex-direction: column;
 }
 
-.feed-card-media .feed-mute-corner {
+.feed-card-media-wrapper .feed-mute-corner {
     position: absolute;
     bottom: 12px;
     right: 12px;
@@ -249,6 +248,13 @@
     backdrop-filter: blur(4px);
     z-index: 5;
 }
+
+.feed-video-container {
+    min-height: 400px;
+    width: 100%;
+    position: relative;
+}
+
 
 /* ═══════════════════════════════════════
    Floating Travel Kit (Interaction Hub)
@@ -719,7 +725,121 @@
     transform: scale(1);
 }
 
-/* Responsive fixes */
+/* ═══════════════════════════════════════
+   Board Cards (Trip Boards Feed Mode)
+   ═══════════════════════════════════════ */
+.board-card {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.board-card:active {
+    transform: scale(0.98);
+}
+
+.board-card-cover {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    position: relative;
+    overflow: hidden;
+    background: #111;
+}
+
+.board-card-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.board-card-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: rgba(255, 255, 255, 0.15);
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+}
+
+.board-card-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 24px 16px 14px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+}
+
+.board-card-title {
+    font-weight: 800;
+    font-size: 1.15rem;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.board-card-destination {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 4px;
+}
+
+.board-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+}
+
+.board-card-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+    font-weight: 500;
+}
+
+/* ═══════════════════════════════════════
+   Responsive — Mobile-first
+   ═══════════════════════════════════════ */
+
+/* Small phones (< 375px) */
+@media (max-width: 374px) {
+    .feed-tabs {
+        gap: var(--space-4);
+    }
+    .feed-tab {
+        font-size: 0.82rem;
+    }
+    .feed-chip {
+        padding: 5px 12px;
+        font-size: 0.7rem;
+    }
+    .action-btn-main {
+        font-size: 1.5rem;
+    }
+    .feed-card-title {
+        font-size: 0.85rem;
+    }
+    .text-post-title {
+        font-size: 1.2rem;
+    }
+    .text-post-body {
+        font-size: 0.95rem;
+    }
+}
+
+/* Standard phones */
+@media (min-width: 375px) and (max-width: 599px) {
+    .feed-filter-chips {
+        padding: var(--space-2) var(--space-4);
+    }
+}
+
+/* Tablets & Desktop */
 @media (min-width: 600px) {
     .feed-page {
         max-width: 680px;
@@ -734,4 +854,31 @@
         transform: translateX(-50%);
         width: 680px;
     }
+
+    .feed-signup-nudge {
+        max-width: 680px;
+    }
+
+    .board-card-cover {
+        aspect-ratio: 2 / 1;
+    }
 }
+
+/* Large Desktop */
+@media (min-width: 1024px) {
+    .feed-card-media-wrapper {
+        border-radius: 8px;
+        overflow: hidden;
+        margin: 0 var(--space-4);
+    }
+
+    .board-card-cover {
+        border-radius: 8px;
+        overflow: hidden;
+        margin: 0 var(--space-4);
+    }
+
+    .feed-card-linear:hover {
+        background: rgba(255, 255, 255, 0.02);
+    }
+}

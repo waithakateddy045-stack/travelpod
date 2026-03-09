@@ -272,6 +272,20 @@ const markBroadcastViewed = async (req, res, next) => {
 };
 
 // DELETE /api/admin/broadcasts/:id — Delete a broadcast
+const deleteBroadcast = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const broadcast = await prisma.broadcastPost.findUnique({ where: { id } });
+        if (!broadcast) throw new AppError('Broadcast not found', 404);
+
+        // Delete targets first, then the broadcast
+        await prisma.broadcastTarget.deleteMany({ where: { broadcastId: id } });
+        await prisma.broadcastPost.delete({ where: { id } });
+
+        res.json({ success: true, message: 'Broadcast deleted' });
+    } catch (err) { next(err); }
+};
+
 // GET /api/broadcasts/explore — Discovery feed for broadcasts
 const getBroadcastsExplore = async (req, res, next) => {
     try {

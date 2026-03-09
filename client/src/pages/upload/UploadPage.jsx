@@ -8,6 +8,8 @@ import {
     HiOutlinePhoto, HiOutlineScissors, HiOutlineClock,
     HiOutlineChevronRight, HiOutlineCheckCircle,
     HiOutlineChatBubbleLeft, HiOutlineAdjustmentsHorizontal,
+    HiOutlineMusicalNote, HiOutlineGlobeAlt, HiOutlineSignal,
+    HiOutlineUserGroup, HiOutlineArrowDownTray,
 } from 'react-icons/hi2';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -37,7 +39,7 @@ export default function UploadPage() {
     const videoRef = useRef(null);
 
     // Wizard State
-    const [step, setStep] = useState(1); // 1: Select, 2: Refine, 3: Details, 4: Processing/Selection
+    const [step, setStep] = useState(1); // 1: Select, 2: Refine, 3: Details, 4: Thumbnail & Publish
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadEta, setUploadEta] = useState(null);
@@ -50,6 +52,7 @@ export default function UploadPage() {
     const [videoDuration, setVideoDuration] = useState(0);
     const [videoHash, setVideoHash] = useState(null);
     const [isDuplicate, setIsDuplicate] = useState(false);
+    const [importSource, setImportSource] = useState(null); // null | 'capcut'
 
     // Refinement State
     const [trimRange, setTrimRange] = useState({ start: 0, end: 0 });
@@ -64,6 +67,7 @@ export default function UploadPage() {
         category: '',
         location: '',
         tags: '',
+        musicTitle: '',
         isReview: false,
         businessId: null,
         starRating: 0,
@@ -76,6 +80,7 @@ export default function UploadPage() {
     const [searchingBusiness, setSearchingBusiness] = useState(false);
     const [compressionStats, setCompressionStats] = useState(null);
 
+    // Broadcast Mode
     const [postMode, setPostMode] = useState('VIDEO'); // 'VIDEO' or 'BROADCAST'
     const [targetSectors, setTargetSectors] = useState([]);
     const [targetRegion, setTargetRegion] = useState('Global');
@@ -96,7 +101,7 @@ export default function UploadPage() {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    // ─── Handlers ───────────────────────────────────────────────
+    // ─── File Handling ──────────────────────────────────────────
     const handleFileSelect = async (e) => {
         const file = e.dataTransfer?.files?.[0] || e.target?.files?.[0];
         if (!file) return;
@@ -132,6 +137,11 @@ export default function UploadPage() {
         setStep(2);
     };
 
+    const handleCapCutImport = () => {
+        setImportSource('capcut');
+        fileInputRef.current?.click();
+    };
+
     const handleVideoLoaded = () => {
         const v = videoRef.current;
         if (!v) return;
@@ -144,7 +154,7 @@ export default function UploadPage() {
         const v = videoRef.current;
         if (!v) return;
         const rect = e.currentTarget.getBoundingClientRect();
-        const x = e.clientX - rect.left;
+        const x = (e.clientX || e.touches?.[0]?.clientX || 0) - rect.left;
         const pct = Math.max(0, Math.min(1, x / rect.width));
         const time = pct * v.duration;
         v.currentTime = time;
@@ -169,9 +179,18 @@ export default function UploadPage() {
         finally { setSearchingBusiness(false); }
     }, []);
 
+    // ─── Sector Toggle ──────────────────────────────────────────
+    const toggleSector = (sectorId) => {
+        setTargetSectors(prev =>
+            prev.includes(sectorId) ? prev.filter(s => s !== sectorId) : [...prev, sectorId]
+        );
+    };
+
     // ─── Submission ─────────────────────────────────────────────
     const handleSubmit = async () => {
         if (!videoFile && postMode === 'VIDEO') return;
+        if (!form.title.trim()) { toast.error('Title is required'); return; }
+
         setUploading(true);
         setUploadProgress(0);
         setUploadStartTime(Date.now());
@@ -183,11 +202,16 @@ export default function UploadPage() {
         fd.append('category', form.category);
         fd.append('locationTag', form.location);
         fd.append('tags', form.tags);
+        fd.append('musicTitle', form.musicTitle);
         fd.append('startTime', trimRange.start);
         fd.append('endTime', trimRange.end);
         fd.append('thumbnailTime', thumbnailTime);
         fd.append('chapters', JSON.stringify(chapters));
         fd.append('perceptualHash', videoHash);
+
+        if (postMode === 'BROADCAST') {
+            fd.append('postType', 'BROADCAST');
+        }
 
         if (form.isReview && selectedBusiness) {
             fd.append('isReview', 'true');
@@ -196,12 +220,31 @@ export default function UploadPage() {
         }
 
         try {
-            const response = await api.post('/posts', fd, {
+            let response;
+
+            if (postMode === 'BROADCAST') {
+                // Use broadcast endpoint
+                response = await api.post('/broadcasts', fd, {
+                    onUploadProgress: (evt) => {
+                        const pct = Math.round((evt.loaded * 100) / evt.total);
+                        setUploadProgress(pct);
+                        const elapsed = (Date.now() - (uploadStartTime || Date.now())) / 1000;
+                        if (pct > 5 && elapsed > 0) {
+                            const rate = evt.loaded / elapsed;
+                            const remaining = (evt.total - evt.loaded) / rate;
+                            setUploadEta(Math.round(remaining));
+                        }
+                    }
+                });
+                toast.success('Broadcast sent successfully!');
+                navigate('/feed');
+                return;
+            }
+
+            response = await api.post('/posts', fd, {
                 onUploadProgress: (evt) => {
                     const pct = Math.round((evt.loaded * 100) / evt.total);
                     setUploadProgress(pct);
-
-                    // Simple ETA calculation
                     const elapsed = (Date.now() - (uploadStartTime || Date.now())) / 1000;
                     if (pct > 5 && elapsed > 0) {
                         const rate = evt.loaded / elapsed;
@@ -211,18 +254,15 @@ export default function UploadPage() {
                 }
             });
 
-            const { post, compressionStats } = response.data;
+            const { post, compressionStats: stats } = response.data;
             setPostId(post.id);
-            setCompressionStats(compressionStats);
+            setCompressionStats(stats);
 
-            // Generate smart thumbnails logic would normally be handled by backend returning URLs
-            // For now, let's assume the backend returned some URLs
             if (response.data.smartThumbnails) {
                 setSmartThumbnails(response.data.smartThumbnails);
             }
 
             setStep(4);
-            // Pre-select first smart thumbnail if available
             if (response.data.smartThumbnails?.length > 0) {
                 setSelectedThumbnail(response.data.smartThumbnails[0]);
             }
@@ -240,18 +280,16 @@ export default function UploadPage() {
         }
 
         try {
-            await api.patch(`/posts/${postId}`, {
-                thumbnailUrl: selectedThumbnail
-            });
+            await api.patch(`/posts/${postId}`, { thumbnailUrl: selectedThumbnail });
             navigate('/feed');
             toast.success('Post published with custom thumbnail!');
         } catch (err) {
             console.error('Failed to save thumbnail:', err);
-            navigate('/feed'); // Still navigate, better than being stuck
+            navigate('/feed');
         }
     };
 
-    // ─── Renderers ──────────────────────────────────────────────
+    // ─── Step Indicator ─────────────────────────────────────────
     const renderStepIndicator = () => (
         <div className="step-indicator">
             {[1, 2, 3, 4].map(s => (
@@ -268,15 +306,35 @@ export default function UploadPage() {
                         <button onClick={() => step > 1 ? setStep(step - 1) : navigate(-1)} className="btn-icon">
                             <HiOutlineArrowLeft />
                         </button>
-                        <h1>{postMode === 'BROADCAST' ? 'Compose Broadcast' : 'Upload Video'}</h1>
+                        <h1>{step === 1 ? 'Create' : postMode === 'BROADCAST' ? 'Compose Broadcast' : 'Upload Video'}</h1>
                     </div>
                 </div>
 
                 {renderStepIndicator()}
 
-                {/* STEP 1: SELECT */}
+                {/* ═══════════════════════════════════════════════════
+                   STEP 1 — Select Source
+                   ═══════════════════════════════════════════════════ */}
                 {step === 1 && (
                     <div className="step-content">
+                        {/* Mode toggle for broadcast-capable users */}
+                        {canBroadcast && (
+                            <div className="mode-toggle">
+                                <button
+                                    className={`mode-toggle-btn ${postMode === 'VIDEO' ? 'active' : ''}`}
+                                    onClick={() => setPostMode('VIDEO')}
+                                >
+                                    <HiOutlineFilm /> Video Post
+                                </button>
+                                <button
+                                    className={`mode-toggle-btn ${postMode === 'BROADCAST' ? 'active' : ''}`}
+                                    onClick={() => setPostMode('BROADCAST')}
+                                >
+                                    <HiOutlineSignal /> Broadcast
+                                </button>
+                            </div>
+                        )}
+
                         <div
                             className="upload-dropzone"
                             onClick={() => fileInputRef.current.click()}
@@ -284,15 +342,27 @@ export default function UploadPage() {
                             onDrop={handleFileSelect}
                         >
                             <HiOutlineCloudArrowUp />
-                            <span className="title">Select video to upload</span>
-                            <span className="subtitle">Or drag and drop a file</span>
-                            <span className="hint">MP4 or WebM • 9:16 recommended • Max 500MB</span>
+                            <span className="dropzone-title">Select video to upload</span>
+                            <span className="dropzone-subtitle">Or drag and drop a file</span>
+                            <span className="dropzone-hint">MP4 or WebM • 9:16 recommended • Max 500MB</span>
                             <input ref={fileInputRef} type="file" accept="video/*" hidden onChange={handleFileSelect} />
+                        </div>
+
+                        <div className="import-options">
+                            <button className="import-btn capcut" onClick={handleCapCutImport}>
+                                <HiOutlineArrowDownTray />
+                                <div className="import-btn-text">
+                                    <span className="import-label">Import from CapCut</span>
+                                    <span className="import-hint">Import your edited CapCut project</span>
+                                </div>
+                            </button>
                         </div>
                     </div>
                 )}
 
-                {/* STEP 2: REFINE */}
+                {/* ═══════════════════════════════════════════════════
+                   STEP 2 — Refine (Trim + Cover Frame)
+                   ═══════════════════════════════════════════════════ */}
                 {step === 2 && (
                     <div className="step-content video-refine-container">
                         <div className="video-preview-large">
@@ -304,20 +374,23 @@ export default function UploadPage() {
                                 muted
                                 loop
                             />
+                            {importSource === 'capcut' && (
+                                <div className="import-badge">CapCut Import</div>
+                            )}
                         </div>
 
                         <div className="refine-controls">
                             <div className="control-group">
                                 <label className="control-label">
                                     <span><HiOutlineScissors /> Trimming</span>
-                                    <span>{formatTime(trimRange.start)} - {formatTime(trimRange.end)}</span>
+                                    <span>{formatTime(trimRange.start)} – {formatTime(trimRange.end)}</span>
                                 </label>
                                 <div className="trim-slider">
-                                    {/* Simple visual placeholder for dual range slider */}
                                     <input
                                         type="range"
                                         min={0}
                                         max={videoDuration}
+                                        step={0.1}
                                         value={trimRange.start}
                                         onChange={e => setTrimRange({ ...trimRange, start: parseFloat(e.target.value) })}
                                         className="scrub-slider"
@@ -326,6 +399,7 @@ export default function UploadPage() {
                                         type="range"
                                         min={0}
                                         max={videoDuration}
+                                        step={0.1}
                                         value={trimRange.end}
                                         onChange={e => setTrimRange({ ...trimRange, end: parseFloat(e.target.value) })}
                                         className="scrub-slider"
@@ -338,10 +412,11 @@ export default function UploadPage() {
                                     <span><HiOutlinePhoto /> Set Cover Frame</span>
                                     <span>{formatTime(thumbnailTime)}</span>
                                 </label>
-                                <div className="scrubber-bar" onClick={handleScrub}>
-                                    <div className="scrubber-handle" style={{ left: `${(thumbnailTime / videoDuration) * 100}%` }} />
+                                <div className="scrubber-bar" onClick={handleScrub} onTouchMove={handleScrub}>
+                                    <div className="scrubber-track-fill" style={{ width: `${(thumbnailTime / (videoDuration || 1)) * 100}%` }} />
+                                    <div className="scrubber-handle" style={{ left: `${(thumbnailTime / (videoDuration || 1)) * 100}%` }} />
                                 </div>
-                                <button className="btn-next" style={{ padding: '8px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.1)', color: '#fff' }} onClick={() => videoRef.current.currentTime = thumbnailTime}>
+                                <button className="btn-ghost" onClick={() => { if (videoRef.current) videoRef.current.currentTime = thumbnailTime; }}>
                                     Preview Frame
                                 </button>
                             </div>
@@ -353,30 +428,86 @@ export default function UploadPage() {
                     </div>
                 )}
 
-                {/* STEP 3: DETAILS */}
+                {/* ═══════════════════════════════════════════════════
+                   STEP 3 — Details & Targeting
+                   ═══════════════════════════════════════════════════ */}
                 {step === 3 && (
                     <div className="step-content form-section">
+                        {/* Title */}
                         <div className="input-group">
-                            <label className="input-label">Title</label>
+                            <label className="input-label">Title *</label>
                             <input
                                 className="premium-input"
                                 placeholder="Give your video a catchy title..."
                                 value={form.title}
                                 onChange={e => setForm({ ...form, title: e.target.value })}
+                                maxLength={100}
                             />
                         </div>
 
+                        {/* Description */}
                         <div className="input-group">
                             <label className="input-label">Description</label>
                             <textarea
                                 className="premium-input"
-                                rows={4}
+                                rows={3}
                                 placeholder="Tell us more about this experience..."
                                 value={form.description}
                                 onChange={e => setForm({ ...form, description: e.target.value })}
+                                maxLength={500}
                             />
                         </div>
 
+                        {/* Category */}
+                        <div className="input-group">
+                            <label className="input-label"><HiOutlineAdjustmentsHorizontal /> Category</label>
+                            <div className="category-chips">
+                                {CATEGORIES.map(cat => (
+                                    <button
+                                        key={cat}
+                                        className={`category-chip ${form.category === cat ? 'active' : ''}`}
+                                        onClick={() => setForm({ ...form, category: cat })}
+                                    >
+                                        {cat}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Location */}
+                        <div className="input-group">
+                            <label className="input-label"><HiOutlineMapPin /> Location Tag</label>
+                            <input
+                                className="premium-input"
+                                placeholder="e.g. Maasai Mara, Zanzibar, Dubai..."
+                                value={form.location}
+                                onChange={e => setForm({ ...form, location: e.target.value })}
+                            />
+                        </div>
+
+                        {/* Tags */}
+                        <div className="input-group">
+                            <label className="input-label"><HiOutlineTag /> Tags</label>
+                            <input
+                                className="premium-input"
+                                placeholder="safari, travel, adventure (comma-separated)"
+                                value={form.tags}
+                                onChange={e => setForm({ ...form, tags: e.target.value })}
+                            />
+                        </div>
+
+                        {/* Music Title */}
+                        <div className="input-group">
+                            <label className="input-label"><HiOutlineMusicalNote /> Music / Sound</label>
+                            <input
+                                className="premium-input"
+                                placeholder="Original sound or song name..."
+                                value={form.musicTitle}
+                                onChange={e => setForm({ ...form, musicTitle: e.target.value })}
+                            />
+                        </div>
+
+                        {/* Video Chapters */}
                         <div className="input-group">
                             <label className="input-label"><HiOutlineClock /> Video Chapters</label>
                             <div className="chapters-container">
@@ -396,24 +527,103 @@ export default function UploadPage() {
                                         />
                                     </div>
                                 ))}
-                                <button onClick={addChapter} className="profile-action-btn secondary" style={{ alignSelf: 'flex-start' }}>+ Add Current Frame as Chapter</button>
+                                <button onClick={addChapter} className="btn-ghost chapter-add">+ Add Chapter at Current Frame</button>
                             </div>
                         </div>
 
+                        {/* Business Review Toggle */}
+                        <div className="input-group">
+                            <label className="toggle-row" onClick={() => setForm({ ...form, isReview: !form.isReview })}>
+                                <span className="input-label"><HiOutlineStar /> Review a Business</span>
+                                <div className={`toggle-switch ${form.isReview ? 'active' : ''}`}>
+                                    <div className="toggle-knob" />
+                                </div>
+                            </label>
+
+                            {form.isReview && (
+                                <div className="review-section">
+                                    <div className="star-rating">
+                                        {[1, 2, 3, 4, 5].map(s => (
+                                            <button key={s} onClick={() => setForm({ ...form, starRating: s })} className="star-btn">
+                                                {s <= form.starRating ? <HiStar className="star-filled" /> : <HiOutlineStar />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <input
+                                        className="premium-input"
+                                        placeholder="Search business to review..."
+                                        value={businessQuery}
+                                        onChange={e => { setBusinessQuery(e.target.value); searchBusinesses(e.target.value); }}
+                                    />
+                                    {businessResults.length > 0 && (
+                                        <div className="business-results">
+                                            {businessResults.map(r => (
+                                                <button
+                                                    key={r.userId}
+                                                    className={`business-result-item ${selectedBusiness?.userId === r.userId ? 'active' : ''}`}
+                                                    onClick={() => { setSelectedBusiness(r); setBusinessQuery(r.displayName || r.handle); setBusinessResults([]); }}
+                                                >
+                                                    {r.displayName || r.handle}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ── Broadcast Targeting (associations/admins only) ── */}
+                        {postMode === 'BROADCAST' && canBroadcast && (
+                            <div className="broadcast-targeting">
+                                <h3 className="targeting-title"><HiOutlineUserGroup /> Broadcast Targeting</h3>
+
+                                <div className="input-group">
+                                    <label className="input-label">Target Audience</label>
+                                    <div className="sector-chips">
+                                        {SECTORS.map(s => (
+                                            <button
+                                                key={s.id}
+                                                className={`sector-chip ${targetSectors.includes(s.id) ? 'active' : ''}`}
+                                                onClick={() => toggleSector(s.id)}
+                                            >
+                                                {s.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <span className="input-hint">{targetSectors.length === 0 ? 'All users (no filter)' : `Targeting: ${targetSectors.length} sector(s)`}</span>
+                                </div>
+
+                                <div className="input-group">
+                                    <label className="input-label"><HiOutlineGlobeAlt /> Region</label>
+                                    <select
+                                        className="premium-input premium-select"
+                                        value={targetRegion}
+                                        onChange={e => setTargetRegion(e.target.value)}
+                                    >
+                                        {REGIONS.map(r => (
+                                            <option key={r} value={r}>{r}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="upload-footer">
                             <button className="btn-prev" onClick={() => setStep(2)}>Back</button>
-                            <button className="btn-next" onClick={handleSubmit} disabled={uploading}>
-                                {uploading ? 'Uploading...' : 'Upload & Proceed'}
+                            <button className="btn-next" onClick={handleSubmit} disabled={uploading || !form.title.trim()}>
+                                {uploading ? 'Processing...' : postMode === 'BROADCAST' ? 'Send Broadcast' : 'Upload & Proceed'}
                             </button>
                         </div>
                     </div>
                 )}
 
-                {/* STEP 4: PUBLISH (THUMBNAILS & STATS) */}
+                {/* ═══════════════════════════════════════════════════
+                   STEP 4 — Thumbnail Selection & Publish
+                   ═══════════════════════════════════════════════════ */}
                 {step === 4 && (
                     <div className="step-content form-section">
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Choose a Thumbnail</h2>
-                        <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>Cloudinary generated these smart options for your video.</p>
+                        <h2 className="section-heading">Choose a Thumbnail</h2>
+                        <p className="section-subtext">Smart thumbnails generated from your video</p>
 
                         <div className="thumbnail-options">
                             {smartThumbnails.length > 0 ? (
@@ -423,25 +633,26 @@ export default function UploadPage() {
                                         className={`thumbnail-option ${selectedThumbnail === url ? 'active' : ''}`}
                                         onClick={() => setSelectedThumbnail(url)}
                                     >
-                                        <img src={url} alt={`Option ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        <img src={url} alt={`Thumbnail ${i + 1}`} />
+                                        <span className="thumbnail-label">{['10%', '50%', '90%'][i] || `#${i + 1}`}</span>
                                     </div>
                                 ))
                             ) : (
                                 [1, 2, 3].map(i => (
                                     <div key={i} className="thumbnail-option placeholder">
-                                        <HiOutlinePhoto style={{ opacity: 0.2, fontSize: '2rem' }} />
+                                        <HiOutlinePhoto className="placeholder-icon" />
                                     </div>
                                 ))
                             )}
                         </div>
 
                         {compressionStats && (
-                            <div style={{ padding: '16px', background: 'rgba(0, 210, 255, 0.05)', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(0, 210, 255, 0.2)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                                    <span style={{ color: '#00d2ff', fontWeight: 700 }}>Compression Success</span>
-                                    <span style={{ fontWeight: 800 }}>{compressionStats.compressionRatio} Smaller</span>
+                            <div className="compression-stats">
+                                <div className="compression-header">
+                                    <span className="compression-label">Compression Success</span>
+                                    <span className="compression-ratio">{compressionStats.compressionRatio} Smaller</span>
                                 </div>
-                                <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: 4 }}>
+                                <div className="compression-detail">
                                     Original: {(compressionStats.originalSize / 1024 / 1024).toFixed(1)}MB →
                                     Optimized: {(compressionStats.compressedSize / 1024 / 1024).toFixed(1)}MB
                                 </div>
@@ -449,7 +660,9 @@ export default function UploadPage() {
                         )}
 
                         <div className="upload-footer">
-                            <button className="btn-next" onClick={handleFinalPublish}>Finish & Publish <HiOutlineCheckCircle /></button>
+                            <button className="btn-next" onClick={handleFinalPublish}>
+                                Publish <HiOutlineCheckCircle />
+                            </button>
                         </div>
                     </div>
                 )}
@@ -462,9 +675,9 @@ export default function UploadPage() {
                             <div className="premium-progress-fill" style={{ width: `${uploadProgress}%` }} />
                         </div>
                         {uploadEta && (
-                            <div className="progress-eta">~ {uploadEta} seconds remaining</div>
+                            <div className="progress-eta">~{uploadEta}s remaining</div>
                         )}
-                        <p style={{ marginTop: '20px', opacity: 0.6 }}>Optimizing video for mobile playback...</p>
+                        <p className="progress-message">Optimizing video for mobile playback...</p>
                     </div>
                 )}
             </div>

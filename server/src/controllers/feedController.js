@@ -14,13 +14,14 @@ const prisma = require('../utils/prisma');
 //   7. View dedup — seen posts deprioritised for logged-in users
 
 const WEIGHTS = {
-    categoryAffinity: 0.25,
+    categoryAffinity: 0.22,
     socialGraph: 0.15,
     engagementRate: 0.20,
-    freshness: 0.25,
+    freshness: 0.23,
     discovery: 0.05,
     personalShuffle: 0.05,
     verifiedBoost: 0.05,
+    locationAffinity: 0.05,
 };
 
 // Deterministic per-user hash for shuffle
@@ -35,7 +36,7 @@ function userHash(userId, postId) {
 }
 
 function computeScore(post, context) {
-    const { followingSet, categoryAffinityMap, now, userId, viewedSet } = context;
+    const { followingSet, categoryAffinityMap, now, userId, viewedSet, locationAffinityMap } = context;
 
     // 1. Category Affinity
     const catId = post.categoryId || 'uncategorized';
@@ -49,7 +50,7 @@ function computeScore(post, context) {
     const comments = post.commentCount || 0;
     const saves = post.saveCount || 0;
     const views = Math.max(post.viewCount || 1, 1);
-    const engagementRaw = (likes + comments * 2 + saves * 3) / views;
+    const engagementRaw = (likes + comments * 2 + saves * 4) / views;
     const engagementScore = Math.min(engagementRaw * 10, 1);
 
     // 4. Freshness — half-life 48hrs, but floor at 0.05 so old viral content still appears
@@ -72,6 +73,10 @@ function computeScore(post, context) {
     // 9. View dedup penalty (soft — reduces score by 60%, doesn't hide)
     const viewPenalty = viewedSet.has(post.id) ? 0.4 : 1.0;
 
+    // 10. Location Affinity
+    const postLoc = (post.locationTag || '').toLowerCase();
+    const locationScore = (locationAffinityMap && postLoc) ? (locationAffinityMap.get(postLoc) || 0) : 0;
+
     const score = (
         categoryScore * WEIGHTS.categoryAffinity +
         socialScore * WEIGHTS.socialGraph +
@@ -80,10 +85,40 @@ function computeScore(post, context) {
         discoveryScore * WEIGHTS.discovery +
         shuffleScore * WEIGHTS.personalShuffle +
         verifiedBoost * WEIGHTS.verifiedBoost +
-        broadcastBoost * 0.5 // High boost for targeted broadcasts
+        broadcastBoost * 0.5 + // High boost for targeted broadcasts
+        locationScore * WEIGHTS.locationAffinity
     ) * viewPenalty;
 
     return score;
+}
+
+// Build location affinity map from user's past liked/saved posts
+async function buildLocationAffinity(userId) {
+    const affinityMap = new Map();
+    if (!userId) return affinityMap;
+
+    const savedPosts = await prisma.save.findMany({
+        where: { userId },
+        select: { post: { select: { locationTag: true } } },
+        take: 80,
+    });
+
+    const locCounts = {};
+    let total = 0;
+    for (const s of savedPosts) {
+        const loc = s.post?.locationTag;
+        if (loc) {
+            locCounts[loc] = (locCounts[loc] || 0) + 1;
+            total++;
+        }
+    }
+
+    if (total > 0) {
+        for (const [loc, count] of Object.entries(locCounts)) {
+            affinityMap.set(loc.toLowerCase(), Math.min(count / total * 5, 1));
+        }
+    }
+    return affinityMap;
 }
 
 // Build category affinity map from user's past interactions
@@ -193,10 +228,11 @@ const getFeed = async (req, res, next) => {
         const sessionId = req.query.sessionId || null;
 
         // Build user context
-        const [followsList, categoryAffinityMap, viewedIds] = await Promise.all([
+        const [followsList, categoryAffinityMap, viewedIds, locationAffinityMap] = await Promise.all([
             userId ? prisma.follow.findMany({ where: { followerId: userId }, select: { followingId: true } }) : [],
             buildCategoryAffinity(userId),
             getViewedIds(userId, sessionId),
+            buildLocationAffinity(userId),
         ]);
         const followingSet = new Set(followsList.map(f => f.followingId));
         const viewedSet = new Set(viewedIds);
@@ -216,7 +252,7 @@ const getFeed = async (req, res, next) => {
         const [freshPool, qualityPool] = await Promise.all([
             // Fresh pool: Latest posts (limit to 400 for performance)
             prisma.post.findMany({
-                where: { ...where, createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } }, // Last 7 days
+                where: { ...where, createdAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) } }, // Last 14 days
                 orderBy: { createdAt: 'desc' },
                 take: 400,
                 include: {
@@ -245,7 +281,7 @@ const getFeed = async (req, res, next) => {
 
         // 2. Score and Sort
         const now = Date.now();
-        const context = { followingSet, categoryAffinityMap, now, userId, viewedSet };
+        const context = { followingSet, categoryAffinityMap, now, userId, viewedSet, locationAffinityMap };
         const scored = posts.map(p => ({ ...p, _score: computeScore(p, context) }));
 
         // Sort by score
@@ -254,16 +290,15 @@ const getFeed = async (req, res, next) => {
         // 3. Paginate
         const start = (page - 1) * limit;
         const paged = scored.slice(start, start + limit);
+        let finalPosts = paged.length > 0 ? [...paged] : [];
 
-        if (paged.length === 0 && posts.length > 0) {
-            // If we ran out of pages in personalized sort, just give them some random quality posts
-            // This happens if page is very high
+        if (finalPosts.length === 0 && posts.length > 0) {
+            // Exhausted scored pages — provide random quality posts as fallback
             const fallback = posts.sort(() => Math.random() - 0.5).slice(0, limit);
-            paged.push(...fallback);
+            finalPosts = fallback;
         }
 
         // 4. Inject promoted posts (1 per 5 organic)
-        let finalPosts = [...paged];
         if (page === 1) {
             const promotions = await getActivePromotions();
             if (promotions.length > 0) {

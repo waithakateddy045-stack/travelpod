@@ -9,7 +9,8 @@ import {
     HiOutlineArrowPath, HiOutlineStar, HiOutlineEnvelope,
     HiOutlineChartBar, HiOutlineShare, HiOutlineEllipsisHorizontal,
     HiOutlineRectangleStack, HiOutlineSpeakerWave, HiOutlineSpeakerXMark,
-    HiCheckBadge, HiOutlinePaperAirplane, HiOutlineTrash, HiOutlineFolderPlus
+    HiCheckBadge, HiOutlinePaperAirplane, HiOutlineTrash, HiOutlineFolderPlus,
+    HiOutlineMapPin
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -78,7 +79,7 @@ export default function FeedPage() {
         if (!localStorage.getItem('travelpod_session_id')) {
             localStorage.setItem('travelpod_session_id', sessionId);
         }
-        if (Notification.permission === 'default') {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
             Notification.requestPermission();
         }
     }, [sessionId]);
@@ -127,7 +128,7 @@ export default function FeedPage() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [page, activeChip, feedMode, sessionId, loading]);
+    }, [page, activeChip, feedMode, sessionId]);
 
     useEffect(() => { loadFeed(true); }, [activeChip, feedMode]);
     useEffect(() => { if (page > 1) loadFeed(); }, [page]);
@@ -402,26 +403,6 @@ export default function FeedPage() {
                     >
                         {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
                     </button>
-
-                    <PostMoreMenu
-                        post={post}
-                        isOwner={user?.id === (post.user?.id || post.author?.id)}
-                        onAction={(type) => {
-                            if (type === 'repost') handleRepost(post);
-                            else if (type === 'recommend') handleRecommend(post);
-                            else if (type === 'board') handleAddToBoard(post.id);
-                            else if (type === 'download') handleDownload(post);
-                            else if (type === 'report') setReportPostId(post.id);
-                            else if (type === 'delete') {
-                                if (window.confirm('Are you sure you want to delete this post?')) {
-                                    api.delete(`/posts/${post.id}`).then(() => {
-                                        setPosts(prev => prev.filter(p => p.id !== post.id));
-                                        toast.success('Post deleted');
-                                    }).catch(err => toast.error('Failed to delete'));
-                                }
-                            }
-                        }}
-                    />
                 </div>
             </div>
         );
@@ -497,6 +478,47 @@ export default function FeedPage() {
                     const isVerified = author?.profile?.businessProfile?.verificationStatus === 'APPROVED' || author?.profile?.verificationStatus === 'APPROVED';
                     const isLast = index === posts.length - 1;
 
+                    // ── Board Card (dedicated layout) ──
+                    if (post.isBoard) {
+                        return (
+                            <div
+                                key={post.id}
+                                ref={isLast ? lastPostElementRef : null}
+                                className="feed-card-linear board-card"
+                                data-id={post.id}
+                                onClick={() => navigate(`/boards/${post.id}`)}
+                            >
+                                <div className="board-card-cover">
+                                    {post.coverImage ? (
+                                        <img src={post.coverImage} alt={post.title} />
+                                    ) : (
+                                        <div className="board-card-placeholder"><HiOutlineRectangleStack /></div>
+                                    )}
+                                    <div className="board-card-overlay">
+                                        <div className="board-card-title">{post.title}</div>
+                                        {post.destination && <div className="board-card-destination"><HiOutlineMapPin /> {post.destination}</div>}
+                                    </div>
+                                </div>
+                                <div className="board-card-meta">
+                                    <Link to={`/profile/${author?.profile?.handle}`} className="feed-card-author" onClick={e => e.stopPropagation()}>
+                                        <div className="feed-card-avatar">
+                                            {author?.profile?.avatarUrl ? <img src={author.profile.avatarUrl} alt="" /> : <HiOutlineUser />}
+                                        </div>
+                                        <span className="feed-card-name">
+                                            {author?.profile?.displayName}
+                                            {isVerified && <HiCheckBadge className="verified-badge-inline" />}
+                                        </span>
+                                    </Link>
+                                    <div className="board-card-stats">
+                                        <span>{post.videoCount || 0} videos</span>
+                                        <span>♥ {post.likeCount || 0}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    // ── Standard / Broadcast Post Card ──
                     return (
                         <div
                             key={post.id}

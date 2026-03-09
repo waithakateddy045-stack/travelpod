@@ -894,6 +894,7 @@ model TripBoard {
   saveCount     Int      @default(0) @map("save_count")
   followerCount Int      @default(0) @map("follower_count")
   videoCount    Int      @default(0) @map("video_count")
+  moderationStatus String? @default("ACTIVE") @map("moderation_status") @db.VarChar(20)
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
