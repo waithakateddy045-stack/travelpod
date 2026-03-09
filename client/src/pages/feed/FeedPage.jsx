@@ -97,12 +97,12 @@ export default function FeedPage() {
             const { data } = await api.get(`${endpoint}${category}`);
 
             const items = data.posts || data.broadcasts?.map(b => ({
-                ...b.broadcast.post,
-                author: b.broadcast.association,
+                ...b.post,
+                author: b.sender,
                 isBroadcast: true,
-                broadcastId: b.broadcast.id,
-                mediaUrls: b.broadcast.mediaUrls,
-                mediaType: b.broadcast.mediaType,
+                broadcastId: b.id,
+                mediaUrls: b.mediaUrls,
+                mediaType: b.mediaType,
                 viewed: b.viewed
             })) || [];
 
@@ -273,19 +273,9 @@ export default function FeedPage() {
         const isBusiness = author?.profile?.accountType === 'BUSINESS' || author?.profile?.businessProfile;
 
         return (
-            <div className="feed-actions-vertical">
-                {isBusiness && (
-                    <button
-                        className="enquire-action-btn animate-scaleIn"
-                        onClick={(e) => { e.stopPropagation(); setEnquiryPost(post); }}
-                    >
-                        <HiOutlineStar />
-                        Enquire
-                    </button>
-                )}
-
+            <div className="feed-actions-linear glass-card animate-scaleIn">
                 <button
-                    className={`action-btn-vertical ${post.isLiked ? 'liked' : ''}`}
+                    className={`action-btn-linear ${post.isLiked ? 'liked' : ''}`}
                     onClick={(e) => { e.stopPropagation(); handleAction('like', post); }}
                 >
                     {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
@@ -293,7 +283,7 @@ export default function FeedPage() {
                 </button>
 
                 <button
-                    className="action-btn-vertical"
+                    className="action-btn-linear"
                     onClick={(e) => { e.stopPropagation(); navigate(`/post/${post.id}`); }}
                 >
                     <HiOutlineChatBubbleOvalLeft />
@@ -301,22 +291,32 @@ export default function FeedPage() {
                 </button>
 
                 <button
-                    className="action-btn-vertical"
+                    className="action-btn-linear"
                     onClick={(e) => { e.stopPropagation(); handleShare(post); }}
                 >
                     <HiOutlinePaperAirplane style={{ transform: 'rotate(-20deg) translateY(-2px)' }} />
                 </button>
 
                 <button
-                    className={`action-btn-vertical ${post.isSaved ? 'saved' : ''}`}
+                    className={`action-btn-linear ${post.isSaved ? 'saved' : ''}`}
                     onClick={(e) => { e.stopPropagation(); handleAddToBoard(post.id); }}
                 >
                     {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
                 </button>
 
+                {isBusiness && (
+                    <button
+                        className="enquire-linear-btn"
+                        onClick={(e) => { e.stopPropagation(); setEnquiryPost(post); }}
+                    >
+                        <HiOutlineStar />
+                        <span>Enquire</span>
+                    </button>
+                )}
+
                 <div className="hub-more-wrapper">
                     <button
-                        className="action-btn-vertical"
+                        className="action-btn-linear"
                         onClick={(e) => { e.stopPropagation(); setShowMoreMenu(showMoreMenu === post.id ? null : post.id); }}
                     >
                         <HiOutlineEllipsisHorizontal />

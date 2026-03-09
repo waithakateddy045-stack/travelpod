@@ -407,4 +407,68 @@ async function enrichPostsAsync(posts, userId, followingSet) {
     return enriched;
 }
 
-module.exports = { getFeed };
+// GET /api/feed/following — Only posts from users the current user follows
+const getFollowingFeed = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+
+        // 1. Get following list
+        const follows = await prisma.follow.findMany({
+            where: { followerId: userId },
+            select: { followingId: true }
+        });
+        const followingIds = follows.map(f => f.followingId);
+
+        if (followingIds.length === 0) {
+            return res.json({ success: true, posts: [], total: 0, page, totalPages: 0 });
+        }
+
+        // 2. Fetch posts from following
+        const [posts, total] = await Promise.all([
+            prisma.post.findMany({
+                where: {
+                    userId: { in: followingIds },
+                    moderationStatus: 'APPROVED'
+                },
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    author: {
+                        select: {
+                            id: true, accountType: true,
+                            profile: {
+                                select: {
+                                    displayName: true, handle: true, avatarUrl: true,
+                                    businessProfile: { select: { verificationStatus: true } }
+                                }
+                            }
+                        }
+                    },
+                    category: true,
+                    postTags: { include: { tag: true } }
+                }
+            }),
+            prisma.post.count({
+                where: {
+                    userId: { in: followingIds },
+                    moderationStatus: 'APPROVED'
+                }
+            })
+        ]);
+
+        const enriched = await enrichPostsAsync(posts, userId, new Set(followingIds));
+
+        res.json({
+            success: true,
+            posts: enriched,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit)
+        });
+    } catch (err) { next(err); }
+};
+
+module.exports = { getFeed, getFollowingFeed };

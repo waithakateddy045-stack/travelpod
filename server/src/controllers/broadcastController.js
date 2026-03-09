@@ -236,6 +236,8 @@ const getBroadcastsForUser = async (req, res, next) => {
             id: t.broadcast.id,
             post: t.broadcast.post,
             sender: t.broadcast.association,
+            mediaUrls: t.broadcast.mediaUrls,
+            mediaType: t.broadcast.mediaType,
             viewed: t.viewed,
             delivered: t.delivered,
             targetId: t.id,
