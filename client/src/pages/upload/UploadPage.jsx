@@ -125,7 +125,7 @@ export default function UploadPage() {
         }
         setAiLoading(true);
         try {
-            const res = await api.post('/upload/suggestions', {
+            const res = await api.post('/upload/ai-suggestions', {
                 fileName: file?.name || (isTextPost ? 'text-post' : 'travel-content'),
                 fileType: isVideo ? 'video' : isTextPost ? 'text' : 'image',
                 duration: duration || null,

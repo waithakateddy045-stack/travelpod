@@ -1008,7 +1008,7 @@ const BroadcastsTab = () => {
                         <tbody>
                             {broadcasts.map(b => (
                                 <tr key={b.id}>
-                                    <td>@{b.association?.profile?.handle || 'Admin'}</td>
+                                    <td>@{b.sender?.profile?.handle || 'Admin'}</td>
                                     <td>
                                         <div className="post-title" title={b.post?.description}>{b.post?.title || 'No Title'}</div>
                                         <div className="meta-text" style={{ fontSize: '0.75rem', marginTop: '4px' }}>

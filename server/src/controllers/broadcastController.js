@@ -165,7 +165,7 @@ const getBroadcasts = async (req, res, next) => {
                     post: {
                         select: { id: true, title: true, description: true, videoUrl: true, thumbnailUrl: true, duration: true, postType: true },
                     },
-                    author: {
+                    sender: {
                         select: {
                             id: true,
                             profile: {
@@ -215,7 +215,7 @@ const getBroadcastsForUser = async (req, res, next) => {
                         post: {
                             select: { id: true, title: true, description: true, videoUrl: true, thumbnailUrl: true, duration: true, postType: true },
                         },
-                        author: {
+                        sender: {
                             select: {
                                 id: true,
                                 profile: {
@@ -237,7 +237,7 @@ const getBroadcastsForUser = async (req, res, next) => {
         const broadcasts = targets.map(t => ({
             id: t.broadcast.id,
             post: t.broadcast.post,
-            sender: t.broadcast.author,
+            sender: t.broadcast.sender,
             mediaUrls: t.broadcast.mediaUrls,
             mediaType: t.broadcast.mediaType,
             viewed: t.viewed,
@@ -304,7 +304,7 @@ const getBroadcastsExplore = async (req, res, next) => {
                     post: {
                         select: { id: true, title: true, description: true, videoUrl: true, thumbnailUrl: true, duration: true, postType: true, likeCount: true, viewCount: true },
                     },
-                    author: {
+                    sender: {
                         select: {
                             id: true,
                             profile: {
@@ -323,7 +323,7 @@ const getBroadcastsExplore = async (req, res, next) => {
             ...b,
             post: {
                 ...b.post,
-                author: b.author,
+                author: b.sender,
                 isBroadcast: true,
                 broadcastId: b.id
             }
