@@ -1,6 +1,8 @@
 const prisma = require('../utils/prisma');
 const { AppError } = require('../middleware/errorHandler');
 const bcrypt = require('bcryptjs');
+const { uploadImage } = require('../services/cloudinary');
+const fs = require('fs');
 
 // GET /api/settings — Get user settings
 const getSettings = async (req, res, next) => {
@@ -88,4 +90,60 @@ const deleteAccount = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-module.exports = { getSettings, updateEmail, updatePassword, deleteAccount, updateSocialLinks };
+// PUT /api/settings/profile
+const updateProfile = async (req, res, next) => {
+    try {
+        const { displayName, handle, bio, description } = req.body;
+        const userId = req.user.id;
+
+        // 1. Handle uniqueness check if changing
+        if (handle) {
+            const existing = await prisma.profile.findFirst({
+                where: { handle: { equals: handle, mode: 'insensitive' }, userId: { not: userId } }
+            });
+            if (existing) throw new AppError('Handle is already taken', 400);
+        }
+
+        // 2. Update Profile
+        const profile = await prisma.profile.update({
+            where: { userId },
+            data: {
+                ...(displayName && { displayName: displayName.trim() }),
+                ...(handle && { handle: handle.trim().toLowerCase() }),
+                ...(bio !== undefined && { bio: bio?.trim() || null }),
+            }
+        });
+
+        // 3. Update Business Profile description if provided
+        if (description !== undefined) {
+            await prisma.businessProfile.updateMany({
+                where: { profileId: profile.id },
+                data: { description: description?.trim() || null }
+            });
+        }
+
+        res.json({ success: true, message: 'Profile updated' });
+    } catch (err) { next(err); }
+};
+
+// POST /api/settings/avatar
+const updateAvatar = async (req, res, next) => {
+    try {
+        if (!req.file) throw new AppError('No file uploaded', 400);
+
+        const upload = await uploadImage(req.file.path, 'travelpod/avatars');
+        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+
+        await prisma.profile.update({
+            where: { userId: req.user.id },
+            data: { avatarUrl: upload.secure_url }
+        });
+
+        res.json({ success: true, avatarUrl: upload.secure_url });
+    } catch (err) {
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        next(err);
+    }
+};
+
+module.exports = { getSettings, updateEmail, updatePassword, deleteAccount, updateSocialLinks, updateProfile, updateAvatar };

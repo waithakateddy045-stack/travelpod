@@ -246,12 +246,12 @@ export default function ProfilePage() {
                                 >
                                     <HiOutlineCog6Tooth style={{ marginRight: 6, fontSize: '1.2rem' }} /> Settings
                                 </Link>
-                                <button
-                                    className="profile-btn follow" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
-                                    onClick={() => setIsEditModalOpen(true)}
+                                <Link
+                                    to="/settings"
+                                    className="profile-btn follow" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                                 >
                                     Edit Profile
-                                </button>
+                                </Link>
                                 {isBusiness && profile.businessProfile?.verificationStatus === 'PENDING' && (
                                     <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', padding: '6px 12px', border: '1px solid var(--border-primary)', borderRadius: 'var(--radius-pill)' }}>
                                         ⏳ Verification Pending
@@ -377,8 +377,19 @@ export default function ProfilePage() {
                                     {post.thumbnailUrl ? (
                                         <img src={post.thumbnailUrl} alt={post.title} />
                                     ) : (
-                                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-elevated)' }}>
-                                            <HiOutlinePlayCircle style={{ fontSize: '2rem', color: 'var(--text-tertiary)' }} />
+                                        <div style={{
+                                            width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+                                            alignItems: 'center', justifyContent: 'center', background: 'var(--bg-elevated)',
+                                            padding: '12px', textAlign: 'center', overflow: 'hidden'
+                                        }}>
+                                            <span style={{
+                                                fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)',
+                                                display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical',
+                                                overflow: 'hidden', wordBreak: 'break-word', marginBottom: 8
+                                            }}>
+                                                {post.title || post.content || 'Video Post'}
+                                            </span>
+                                            <HiOutlinePlayCircle style={{ fontSize: '1.2rem', color: 'var(--text-tertiary)' }} />
                                         </div>
                                     )}
                                     <div className="post-grid-overlay">

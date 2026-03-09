@@ -172,8 +172,10 @@
 /* Actions */
 .profile-actions {
     display: flex;
-    gap: var(--space-3);
+    gap: var(--space-2);
     margin-top: var(--space-4);
+    flex-wrap: wrap;
+    align-items: center;
 }
 
 .profile-btn {
@@ -287,6 +289,40 @@
 
 .post-grid-item:hover {
     transform: scale(1.02);
+}
+
+.post-grid-item.text-only {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+    background: linear-gradient(135deg, var(--bg-elevated) 0%, #1a1a1a 100%);
+    border: 1px solid var(--border-primary);
+}
+
+.text-only .text-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    text-align: center;
+}
+
+.text-only .text-icon {
+    font-size: 2rem;
+    color: var(--color-accent);
+    opacity: 0.8;
+}
+
+.text-only p {
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+    font-weight: 500;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .post-grid-item img,

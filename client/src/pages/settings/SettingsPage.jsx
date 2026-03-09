@@ -4,7 +4,8 @@ import { toast } from 'react-hot-toast';
 import {
     HiOutlineBell, HiOutlineLockClosed, HiOutlineTrash,
     HiOutlineArrowLeft, HiOutlineShieldCheck, HiOutlineArrowDownTray,
-    HiOutlineUser, HiOutlineGlobeAlt, HiOutlineDevicePhoneMobile
+    HiOutlineUser, HiOutlineGlobeAlt, HiOutlineDevicePhoneMobile,
+    HiOutlineCamera, HiOutlinePencilSquare
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -22,9 +23,8 @@ const NOTIF_PREFS = [
 
 export default function SettingsPage() {
     const navigate = useNavigate();
-    const { user, logout } = useAuth();
-
-    const [activeSection, setActiveSection] = useState('notifications');
+    const { user, logout, loadUser } = useAuth();
+    const [activeSection, setActiveSection] = useState('edit_profile');
     const [notifPrefs, setNotifPrefs] = useState({
         notifLikes: true,
         notifComments: true,
@@ -37,6 +37,29 @@ export default function SettingsPage() {
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
     const [deleteConfirm, setDeleteConfirm] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // Profile State
+    const [profileForm, setProfileForm] = useState({
+        displayName: '',
+        handle: '',
+        bio: '',
+        description: ''
+    });
+    const [avatarFile, setAvatarFile] = useState(null);
+    const [avatarPreview, setAvatarPreview] = useState(null);
+    const [profileLoading, setProfileLoading] = useState(false);
+
+    useEffect(() => {
+        if (user) {
+            setProfileForm({
+                displayName: user.profile?.displayName || '',
+                handle: user.profile?.handle || '',
+                bio: user.profile?.bio || '',
+                description: user.profile?.businessProfile?.description || ''
+            });
+            setAvatarPreview(user.profile?.avatarUrl);
+        }
+    }, [user]);
 
     // Load prefs from localStorage as simple persistence
     useEffect(() => {
@@ -130,11 +153,46 @@ export default function SettingsPage() {
         } finally { setSocialLoading(false); }
     };
 
+    const handleProfileUpdate = async (e) => {
+        e.preventDefault();
+        setProfileLoading(true);
+        try {
+            // 1. Update Profile Information
+            await api.put('/settings/profile', profileForm);
+
+            // 2. Upload Avatar if changed
+            if (avatarFile) {
+                const formData = new FormData();
+                formData.append('avatar', avatarFile);
+                await api.post('/settings/avatar', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+            }
+
+            toast.success('Profile updated successfully');
+            await loadUser(); // Refresh global user state
+            setAvatarFile(null);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to update profile');
+        } finally { setProfileLoading(false); }
+    };
+
+    const handleAvatarChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setAvatarFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => setAvatarPreview(reader.result);
+            reader.readAsDataURL(file);
+        }
+    };
+
     const isBusiness = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'].includes(user?.accountType);
     const isNonIOS = !(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
     const isCapacitor = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform();
 
     const SECTIONS = [
+        { key: 'edit_profile', label: 'Edit Profile', icon: <HiOutlinePencilSquare /> },
         { key: 'notifications', label: 'Notifications', icon: <HiOutlineBell /> },
         { key: 'privacy', label: 'Privacy & Safety', icon: <HiOutlineShieldCheck /> },
         { key: 'security', label: 'Security', icon: <HiOutlineLockClosed /> },
@@ -181,6 +239,92 @@ export default function SettingsPage() {
 
                     {/* Content */}
                     <div style={{ flex: 1, background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-6)', border: '1px solid var(--border-primary)' }}>
+
+                        {/* Edit Profile */}
+                        {activeSection === 'edit_profile' && (
+                            <div>
+                                <h2 style={{ marginBottom: 'var(--space-4)', fontWeight: 700 }}>Edit Profile</h2>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-6)' }}>
+                                    Update your public profile information.
+                                </p>
+
+                                <form onSubmit={handleProfileUpdate}>
+                                    {/* Avatar Upload */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
+                                        <div style={{ position: 'relative', width: 100, height: 100, borderRadius: '50%', overflow: 'hidden', border: '3px solid var(--border-primary)', backgroundColor: 'var(--bg-elevated)', cursor: 'pointer' }} onClick={() => document.getElementById('avatar-input').click()}>
+                                            {avatarPreview ? (
+                                                <img src={avatarPreview} alt="Avatar Preview" style={{ width: '100%', height: '100%', objectFit: cover }} />
+                                            ) : (
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '2rem' }}>
+                                                    <HiOutlineUser />
+                                                </div>
+                                            )}
+                                            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '30%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.2rem' }}>
+                                                <HiOutlineCamera />
+                                            </div>
+                                        </div>
+                                        <input
+                                            id="avatar-input"
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleAvatarChange}
+                                            style={{ display: 'none' }}
+                                        />
+                                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 'var(--space-2)' }}>Click to change photo</span>
+                                    </div>
+
+                                    <div className="form-field">
+                                        <label className="form-label">Display Name</label>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            value={profileForm.displayName}
+                                            onChange={e => setProfileForm(f => ({ ...f, displayName: e.target.value }))}
+                                            placeholder="Your Name"
+                                        />
+                                    </div>
+
+                                    <div className="form-field">
+                                        <label className="form-label">Handle</label>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            value={profileForm.handle}
+                                            onChange={e => setProfileForm(f => ({ ...f, handle: e.target.value }))}
+                                            placeholder="username"
+                                        />
+                                    </div>
+
+                                    <div className="form-field">
+                                        <label className="form-label">{isBusiness ? 'Business Bio' : 'Bio'}</label>
+                                        <textarea
+                                            className="form-input"
+                                            style={{ minHeight: 100, paddingTop: 10 }}
+                                            value={profileForm.bio}
+                                            onChange={e => setProfileForm(f => ({ ...f, bio: e.target.value }))}
+                                            placeholder="Tell the world about yourself..."
+                                        />
+                                    </div>
+
+                                    {isBusiness && (
+                                        <div className="form-field">
+                                            <label className="form-label">Full Business Description</label>
+                                            <textarea
+                                                className="form-input"
+                                                style={{ minHeight: 150, paddingTop: 10 }}
+                                                value={profileForm.description}
+                                                onChange={e => setProfileForm(f => ({ ...f, description: e.target.value }))}
+                                                placeholder="Detailed description of your services..."
+                                            />
+                                        </div>
+                                    )}
+
+                                    <button type="submit" className="auth-submit" disabled={profileLoading} style={{ width: 'auto', padding: '10px 28px', marginTop: 'var(--space-4)' }}>
+                                        {profileLoading ? 'Saving...' : 'Save Profile'}
+                                    </button>
+                                </form>
+                            </div>
+                        )}
 
                         {/* Notifications */}
                         {activeSection === 'notifications' && (

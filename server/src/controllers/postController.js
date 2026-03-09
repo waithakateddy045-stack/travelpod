@@ -220,4 +220,105 @@ const moderatePost = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-module.exports = { createPost, getPost, deletePost, getModerationQueue, moderatePost };
+// ============================================================
+// POST /api/posts/:id/repost
+// ============================================================
+const repostPost = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const original = await prisma.post.findUnique({
+            where: { id },
+            include: { postTags: true }
+        });
+
+        if (!original) throw new AppError('Post not found', 404);
+
+        // Create a new post that references the original
+        // Note: For now we copy the content as our schema doesn't have repostOfId
+        const post = await prisma.post.create({
+            data: {
+                userId,
+                title: `Repost: ${original.title}`,
+                description: original.description,
+                videoUrl: original.videoUrl,
+                thumbnailUrl: original.thumbnailUrl,
+                duration: original.duration,
+                postType: 'STANDARD',
+                categoryId: original.categoryId,
+                locationTag: original.locationTag,
+                moderationStatus: 'APPROVED',
+            }
+        });
+
+        // Copy tags
+        if (original.postTags.length > 0) {
+            await prisma.postTag.createMany({
+                data: original.postTags.map(pt => ({
+                    postId: post.id,
+                    tagId: pt.tagId
+                })),
+                skipDuplicates: true
+            });
+        }
+
+        res.status(201).json({ success: true, post });
+    } catch (err) { next(err); }
+};
+
+// ============================================================
+// POST /api/posts/:id/recommend
+// ============================================================
+const recommendPost = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { targetUserId } = req.body;
+        const senderId = req.user.id;
+
+        if (!targetUserId) throw new AppError('Target user ID is required', 400);
+
+        const post = await prisma.post.findUnique({
+            where: { id },
+            include: { author: { select: { profile: { select: { displayName: true } } } } }
+        });
+        if (!post) throw new AppError('Post not found', 404);
+
+        // Implementation: Send a structured message to the target user
+        // First find or create conversation
+        const p1 = senderId < targetUserId ? senderId : targetUserId;
+        const p2 = senderId < targetUserId ? targetUserId : senderId;
+
+        const conversation = await prisma.conversation.upsert({
+            where: { participant1Id_participant2Id: { participant1Id: p1, participant2Id: p2 } },
+            update: {
+                lastMessagePreview: `Recommended a post: ${post.title}`,
+                lastMessageAt: new Date(),
+                ...(p1 === targetUserId ? { unreadCountP1: { increment: 1 } } : { unreadCountP2: { increment: 1 } })
+            },
+            create: {
+                participant1Id: p1,
+                participant2Id: p2,
+                lastMessagePreview: `Recommended a post: ${post.title}`,
+                lastMessageAt: new Date(),
+                ...(p1 === targetUserId ? { unreadCountP1: 1 } : { unreadCountP2: 1 })
+            }
+        });
+
+        const message = await prisma.directMessage.create({
+            data: {
+                conversationId: conversation.id,
+                senderId,
+                content: `Hey! I thought you'd like this post from ${post.author?.profile?.displayName || 'someone'}: ${post.title}\n\nView it here: https://travelpod.app/post/${id}`
+            }
+        });
+
+        res.json({ success: true, message: 'Recommended successfully' });
+    } catch (err) { next(err); }
+};
+
+module.exports = {
+    createPost, getPost, deletePost,
+    getModerationQueue, moderatePost,
+    repostPost, recommendPost
+};

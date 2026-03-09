@@ -7,7 +7,8 @@ const fs = require('fs');
 const { authenticate, optionalAuth, adminOnly } = require('../middleware/auth');
 const {
     createPost, getPost, deletePost,
-    getModerationQueue, moderatePost
+    getModerationQueue, moderatePost,
+    repostPost, recommendPost
 } = require('../controllers/postController');
 const { reportEntity } = require('../controllers/moderationController');
 
@@ -42,6 +43,10 @@ router.delete('/:id', authenticate, deletePost);
 // Admin moderation
 router.get('/moderation/queue', authenticate, adminOnly, getModerationQueue);
 router.put('/moderation/:id', authenticate, adminOnly, moderatePost);
+
+// Engagement & Hub
+router.post('/:id/repost', authenticate, repostPost);
+router.post('/:id/recommend', authenticate, recommendPost);
 
 // Reporting — generic endpoint
 router.post('/reports', optionalAuth, reportEntity);

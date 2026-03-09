@@ -9,7 +9,7 @@ import {
     HiOutlineArrowPath, HiOutlineStar, HiOutlineEnvelope,
     HiOutlineChartBar, HiOutlineShare, HiOutlineEllipsisHorizontal,
     HiOutlineRectangleStack, HiOutlineSpeakerWave, HiOutlineSpeakerXMark,
-    HiCheckBadge, HiOutlinePaperAirplane, HiOutlineTrash
+    HiCheckBadge, HiOutlinePaperAirplane, HiOutlineTrash, HiOutlineFolderPlus
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -17,6 +17,7 @@ import VideoPlayer from '../../components/video/VideoPlayer';
 import ReportModal from '../../components/common/ReportModal';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import AddToBoardModal from '../../components/boards/AddToBoardModal';
+import RecommendModal from '../../components/feed/RecommendModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import './FeedPage.css';
 
@@ -43,6 +44,8 @@ export default function FeedPage() {
     const [reportPostId, setReportPostId] = useState(null);
     const [enquiryPost, setEnquiryPost] = useState(null);
     const [saveToBoardPostId, setSaveToBoardPostId] = useState(null);
+    const [recommendPost, setRecommendPost] = useState(null);
+    const [reposting, setReposting] = useState(null);
 
     const lastPostElementRef = useCallback(node => {
         if (loading) return;
@@ -96,15 +99,17 @@ export default function FeedPage() {
             const category = activeChip !== 'All' && feedMode === 'FOR_YOU' ? `&category=${encodeURIComponent(activeChip)}` : '';
             const { data } = await api.get(`${endpoint}${category}`);
 
-            const items = data.posts || data.broadcasts?.map(b => ({
-                ...b.post,
-                author: b.sender,
-                isBroadcast: true,
-                broadcastId: b.id,
-                mediaUrls: b.mediaUrls,
-                mediaType: b.mediaType,
-                viewed: b.viewed
-            })) || [];
+            const items = data.posts ||
+                data.boards?.map(b => ({ ...b, isBoard: true })) ||
+                data.broadcasts?.map(b => ({
+                    ...(b.post || {}),
+                    author: b.sender,
+                    isBroadcast: true,
+                    broadcastId: b.id,
+                    mediaUrls: b.mediaUrls || [],
+                    mediaType: b.mediaType || 'TEXT',
+                    viewed: b.viewed
+                })) || [];
 
             if (items.length < 10) setHasMore(false);
             setPosts(prev => isRefresh ? items : [...prev, ...items]);
@@ -201,8 +206,29 @@ export default function FeedPage() {
     };
 
     const handleRecommend = (post) => {
-        toast.success(`Post recommended to your followers!`);
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Log in to recommend posts' });
+            return;
+        }
+        setRecommendPost(post);
         setShowMoreMenu(null);
+    };
+
+    const handleRepost = async (post) => {
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Log in to add to your feed' });
+            return;
+        }
+        setReposting(post.id);
+        try {
+            await api.post(`/posts/${post.id}/repost`);
+            toast.success('Added to your feed!');
+            setShowMoreMenu(null);
+        } catch (err) {
+            toast.error('Failed to repost');
+        } finally {
+            setReposting(null);
+        }
     };
 
     const handleAddToBoard = (postId) => {
@@ -351,8 +377,14 @@ export default function FeedPage() {
                         {showMoreMenu === post.id && (
                             <div className="more-context-sheet glass-card animate-scaleIn">
                                 <div className="sheet-handle" />
+                                <button className="sheet-item" onClick={() => handleRepost(post)} disabled={reposting === post.id}>
+                                    <HiOutlineShare className="item-icon" /> {reposting === post.id ? 'Adding...' : 'Add to Feed'}
+                                </button>
                                 <button className="sheet-item" onClick={() => handleRecommend(post)}>
-                                    <HiOutlineStar className="item-icon" /> Recommend Post
+                                    <HiOutlineStar className="item-icon" /> Recommend to Follower
+                                </button>
+                                <button className="sheet-item" onClick={() => handleAddToBoard(post.id)}>
+                                    <HiOutlineFolderPlus className="item-icon" /> Add to Trip Board
                                 </button>
                                 <button className="sheet-item" onClick={() => handleDownload(post)}>
                                     <HiOutlineArrowPath className="item-icon" /> Download Media
@@ -507,6 +539,13 @@ export default function FeedPage() {
                 <AddToBoardModal
                     postId={saveToBoardPostId}
                     onClose={() => setSaveToBoardPostId(null)}
+                />
+            )}
+
+            {recommendPost && (
+                <RecommendModal
+                    post={recommendPost}
+                    onClose={() => setRecommendPost(null)}
                 />
             )}
 

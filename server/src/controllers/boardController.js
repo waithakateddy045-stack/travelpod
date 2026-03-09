@@ -359,9 +359,32 @@ const deleteComment = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
+// ============================================================
+// GET /api/boards/user/me — My boards
+// ============================================================
+const getMyBoards = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        const boards = await prisma.tripBoard.findMany({
+            where: { userId },
+            orderBy: { updatedAt: 'desc' },
+            include: {
+                _count: { select: { videos: true } }
+            }
+        });
+
+        const mapped = boards.map(b => ({
+            ...b,
+            videoCount: b._count.videos
+        }));
+
+        res.json({ success: true, boards: mapped });
+    } catch (err) { next(err); }
+};
+
 module.exports = {
     createBoard, getBoardsFeed, getBoard, updateBoard, deleteBoard,
     addVideoToBoard, removeVideoFromBoard, getUserBoards,
     toggleLike, toggleSave, toggleFollow,
-    getComments, addComment, deleteComment,
+    getComments, addComment, deleteComment, getMyBoards
 };

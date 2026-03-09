@@ -5,7 +5,7 @@ import {
     HiOutlineHeart, HiHeart,
     HiOutlineChatBubbleOvalLeft, HiOutlineBookmark, HiBookmark,
     HiOutlineUser, HiOutlineArrowLeft, HiOutlineTrash, HiOutlineShare, HiOutlineArrowPath,
-    HiOutlineEllipsisHorizontal, HiOutlinePaperAirplane, HiOutlineStar
+    HiOutlineEllipsisHorizontal, HiOutlinePaperAirplane, HiOutlineStar, HiOutlineFolderPlus
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -13,6 +13,7 @@ import VideoPlayer from '../../components/video/VideoPlayer';
 import CommentItem from '../../components/post/CommentItem';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import AddToBoardModal from '../../components/boards/AddToBoardModal';
+import RecommendModal from '../../components/feed/RecommendModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import './PostPage.css';
 
@@ -32,6 +33,9 @@ export default function PostPage() {
     const [saveToBoardOpen, setSaveToBoardOpen] = useState(false);
     const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
     const [authorPosts, setAuthorPosts] = useState([]);
+    const [showMoreMenu, setShowMoreMenu] = useState(false);
+    const [reposting, setReposting] = useState(false);
+    const [recommendPost, setRecommendPost] = useState(null);
     const touchStart = useRef(0);
 
     const isBusiness = post && BUSINESS_TYPES.includes(post.author?.accountType);
@@ -141,15 +145,39 @@ export default function PostPage() {
         }
     };
 
-    const handleDeleteComment = async (commentId) => {
-        try {
-            await api.delete(`/engagement/comments/${commentId}`);
-            setComments(prev => prev.filter(c => c.id !== commentId));
-            setPost(prev => ({ ...prev, commentCount: Math.max(0, prev.commentCount - 1) }));
-            toast.success('Comment deleted');
-        } catch {
-            toast.error('Failed to delete comment');
+    const handleRepost = async () => {
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Log in to add to your feed' });
+            return;
         }
+        setReposting(true);
+        try {
+            await api.post(`/posts/${id}/repost`);
+            toast.success('Added to your feed!');
+            setShowMoreMenu(false);
+        } catch (err) {
+            toast.error('Failed to repost');
+        } finally {
+            setReposting(false);
+        }
+    };
+
+    const handleRecommend = () => {
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Log in to recommend posts' });
+            return;
+        }
+        setRecommendPost(post);
+        setShowMoreMenu(false);
+    };
+
+    const handleAddToBoard = () => {
+        if (!user) {
+            setAuthModal({ isOpen: true, message: 'Log in to save to trip boards' });
+            return;
+        }
+        setSaveToBoardOpen(true);
+        setShowMoreMenu(false);
     };
 
     if (loading) return <div className="post-page-loading"><div className="spinner"></div></div>;
@@ -279,6 +307,15 @@ export default function PostPage() {
                                 {showMoreMenu && (
                                     <div className="more-context-sheet glass-card animate-scaleIn">
                                         <div className="sheet-handle" />
+                                        <button className="sheet-item" onClick={handleRepost} disabled={reposting}>
+                                            <HiOutlineShare className="item-icon" /> {reposting ? 'Adding...' : 'Add to Feed'}
+                                        </button>
+                                        <button className="sheet-item" onClick={handleRecommend}>
+                                            <HiOutlineStar className="item-icon" /> Recommend to Follower
+                                        </button>
+                                        <button className="sheet-item" onClick={handleAddToBoard}>
+                                            <HiOutlineFolderPlus className="item-icon" /> Add to Trip Board
+                                        </button>
                                         <button className="sheet-item" onClick={handleDownload} disabled={!post.videoUrl}>
                                             <HiOutlineArrowPath className="item-icon" /> Download Media
                                         </button>
@@ -345,6 +382,13 @@ export default function PostPage() {
                 <AddToBoardModal
                     postId={id}
                     onClose={() => setSaveToBoardOpen(false)}
+                />
+            )}
+
+            {recommendPost && (
+                <RecommendModal
+                    post={recommendPost}
+                    onClose={() => setRecommendPost(null)}
                 />
             )}
 

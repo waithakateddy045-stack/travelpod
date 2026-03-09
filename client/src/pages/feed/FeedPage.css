@@ -28,8 +28,8 @@
     left: 0;
     right: 0;
     z-index: 100;
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
-    padding-top: env(safe-area-inset-top, 20px);
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.2) 60%, transparent 100%);
+    padding-top: env(safe-area-inset-top, 10px);
     pointer-events: none;
 }
 
@@ -37,13 +37,13 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-4) var(--space-6);
+    padding: var(--space-2) var(--space-5);
     pointer-events: auto;
 }
 
 .feed-nav-logo {
     font-family: var(--font-display);
-    font-size: var(--text-2xl);
+    font-size: 1.4rem;
     font-weight: 800;
     color: #fff;
     letter-spacing: -0.02em;
@@ -105,7 +105,7 @@
 }
 
 .feed-tabs-container {
-    padding: 0 var(--space-4) var(--space-2);
+    padding: 0 var(--space-4) var(--space-1);
     pointer-events: auto;
 }
 
@@ -143,9 +143,9 @@
 
 .feed-filter-chips {
     display: flex;
-    gap: var(--space-3);
+    gap: var(--space-2);
     overflow-x: auto;
-    padding: var(--space-3) var(--space-6);
+    padding: var(--space-2) var(--space-6);
     scrollbar-width: none;
     pointer-events: auto;
 }
@@ -298,7 +298,7 @@
    ═══════════════════════════════════════ */
 .feed-actions-linear-integrated {
     position: absolute;
-    bottom: 110px;
+    bottom: 30px;
     left: 20px;
     right: 20px;
     display: flex;
@@ -451,13 +451,12 @@
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 0, 0, 0.2);
 }
 
-/* Info Panel Adjustments */
 .feed-info-panel {
     position: absolute;
-    bottom: 0;
+    bottom: 80px;
     left: 0;
     right: 0;
-    padding: 100px var(--space-6) 40px;
+    padding: 60px var(--space-6) 20px;
     background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
     pointer-events: none;
     z-index: 40;

@@ -11,6 +11,7 @@ router.get('/:id/comments', boardController.getComments);
 
 // Protected Routes
 router.use(authenticate);
+router.get('/user/me', boardController.getMyBoards);
 router.post('/', boardController.createBoard);
 router.put('/:id', boardController.updateBoard);
 router.delete('/:id', boardController.deleteBoard);
