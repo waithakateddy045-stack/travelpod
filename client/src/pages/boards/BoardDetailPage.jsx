@@ -129,7 +129,7 @@ export default function BoardDetailPage() {
                     <div>
                         <div className="bd-creator-name">
                             {profile?.displayName || 'Unknown'}
-                            {isVerified && <HiOutlineCheckBadge className="bd-verified-badge" />}
+                            {isVerified && <span className="verified-badge-stamp" style={{ marginLeft: 8 }}>Verified</span>}
                         </div>
                         <div className="bd-creator-handle">@{profile?.handle || '—'}</div>
                     </div>

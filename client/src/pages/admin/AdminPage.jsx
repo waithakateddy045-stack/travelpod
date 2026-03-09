@@ -470,13 +470,19 @@ const TripBoardsTab = () => {
 
     useEffect(() => { load(page); }, [page, load]);
 
-    const actDelete = async (boardId) => {
-        if (!window.confirm('Are you sure you want to permanently delete this Trip Board?')) return;
+    const actToggleStatus = async (boardId, action) => {
+        const confirmMsg = action === 'REMOVED'
+            ? 'Are you sure you want to take down this Trip Board?'
+            : 'Restore this Trip Board?';
+        if (!window.confirm(confirmMsg)) return;
+
         setActionLoading(boardId);
         try {
-            await apiCall(`/admin/boards/${boardId}`, { method: 'DELETE' });
-            setBoards(prev => prev.filter(b => b.id !== boardId));
-            setTotal(prev => prev - 1);
+            await apiCall(`/admin/boards/${boardId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ action })
+            });
+            setBoards(prev => prev.map(b => b.id === boardId ? { ...b, moderationStatus: action === 'RESTORED' ? 'ACTIVE' : 'REMOVED' } : b));
         } catch (e) { alert('Action failed: ' + e.message); }
         finally { setActionLoading(null); }
     };
@@ -517,14 +523,25 @@ const TripBoardsTab = () => {
                                 <div className="cell-center">{board._count?.videos ?? 0}</div>
                                 <div className="cell-muted">{new Date(board.createdAt).toLocaleDateString()}</div>
                                 <div>
-                                    <button
-                                        className="btn-reject"
-                                        style={{ padding: '6px 12px', width: '100%', fontSize: 12 }}
-                                        onClick={() => actDelete(board.id)}
-                                        disabled={actionLoading === board.id}
-                                    >
-                                        {actionLoading === board.id ? '...' : 'Take Down'}
-                                    </button>
+                                    {board.moderationStatus === 'REMOVED' ? (
+                                        <button
+                                            className="btn-approve"
+                                            style={{ padding: '6px 12px', width: '100%', fontSize: 12 }}
+                                            onClick={() => actToggleStatus(board.id, 'RESTORED')}
+                                            disabled={actionLoading === board.id}
+                                        >
+                                            {actionLoading === board.id ? '...' : 'Restore'}
+                                        </button>
+                                    ) : (
+                                        <button
+                                            className="btn-reject"
+                                            style={{ padding: '6px 12px', width: '100%', fontSize: 12 }}
+                                            onClick={() => actToggleStatus(board.id, 'REMOVED')}
+                                            disabled={actionLoading === board.id}
+                                        >
+                                            {actionLoading === board.id ? '...' : 'Take Down'}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}

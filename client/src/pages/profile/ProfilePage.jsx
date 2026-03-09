@@ -169,34 +169,20 @@ export default function ProfilePage() {
                     <div className="profile-info">
                         <h1 className="profile-name">
                             {profile.displayName}
-                            {profile.businessProfile?.verificationStatus === 'APPROVED' && (
-                                <button
-                                    className="profile-badge verified"
-                                    onClick={() => setIsVerificationModalOpen(true)}
-                                    style={{ cursor: 'pointer', border: 'none', background: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--color-primary-light)', fontWeight: 600, fontSize: 'var(--text-xs)' }}
-                                >
-                                    <HiOutlineCheckBadge /> Verified
-                                </button>
-                            )}
+                            {profile.isVerified && <span className="verified-badge-stamp" style={{ marginLeft: 8, verticalAlign: 'middle' }}>Verified</span>}
                         </h1>
                         <p className="profile-handle">@{profile.handle}</p>
 
-                        <div className="profile-stats" style={{ position: 'relative' }}>
-                            <div className="stat-item">
+                        <div className="profile-stats">
+                            <div className="stat-item" onClick={() => setActiveTab('posts')}>
                                 <span className="stat-value">{profile.postCount || 0}</span>
                                 <span className="stat-label">Posts</span>
                             </div>
-                            <div className="stat-item" onClick={() => {
-                                if (!user) { setAuthModal({ isOpen: true, message: 'Join Travelpod to see connections' }); return; }
-                                setFollowModalType('followers');
-                            }} style={{ cursor: 'pointer' }}>
+                            <div className="stat-item" onClick={() => setActiveTab('followers')}>
                                 <span className="stat-value">{profile.followerCount || 0}</span>
                                 <span className="stat-label">Followers</span>
                             </div>
-                            <div className="stat-item" onClick={() => {
-                                if (!user) { setAuthModal({ isOpen: true, message: 'Join Travelpod to see connections' }); return; }
-                                setFollowModalType('following');
-                            }} style={{ cursor: 'pointer' }}>
+                            <div className="stat-item" onClick={() => setActiveTab('following')}>
                                 <span className="stat-value">{profile.followingCount || 0}</span>
                                 <span className="stat-label">Following</span>
                             </div>
@@ -343,45 +329,28 @@ export default function ProfilePage() {
                     </div>
                 )}
 
-                <div className="profile-tabs" style={{ display: 'flex', gap: 'var(--space-4)', borderBottom: '1px solid var(--border-primary)', marginBottom: 'var(--space-4)', overflowX: 'auto', whiteSpace: 'nowrap' }}>
+                <div className="profile-tabs-nav">
                     <button
                         className={`tab-btn ${activeTab === 'posts' ? 'active' : ''}`}
                         onClick={() => setActiveTab('posts')}
-                        style={{ padding: 'var(--space-2) 0', background: 'none', border: 'none', borderBottom: activeTab === 'posts' ? '2px solid var(--color-primary)' : '2px solid transparent', color: activeTab === 'posts' ? 'var(--text-primary)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
                     >
-                        <HiOutlinePlayCircle style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                        Posts
-                    </button>
-                    <button
-                        className={`tab-btn ${activeTab === 'followers' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('followers')}
-                        style={{ padding: 'var(--space-2) 0', background: 'none', border: 'none', borderBottom: activeTab === 'followers' ? '2px solid var(--color-primary)' : '2px solid transparent', color: activeTab === 'followers' ? 'var(--text-primary)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
-                    >
-                        {profile.followerCount || 0} Followers
-                    </button>
-                    <button
-                        className={`tab-btn ${activeTab === 'following' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('following')}
-                        style={{ padding: 'var(--space-2) 0', background: 'none', border: 'none', borderBottom: activeTab === 'following' ? '2px solid var(--color-primary)' : '2px solid transparent', color: activeTab === 'following' ? 'var(--text-primary)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
-                    >
-                        {profile.followingCount || 0} Following
+                        <HiOutlinePlayCircle />
+                        <span>Posts</span>
                     </button>
                     <button
                         className={`tab-btn ${activeTab === 'boards' ? 'active' : ''}`}
                         onClick={() => setActiveTab('boards')}
-                        style={{ padding: 'var(--space-2) 0', background: 'none', border: 'none', borderBottom: activeTab === 'boards' ? '2px solid var(--color-primary)' : '2px solid transparent', color: activeTab === 'boards' ? 'var(--text-primary)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
                     >
-                        <HiOutlineRectangleStack style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                        Boards
+                        <HiOutlineRectangleStack />
+                        <span>Boards</span>
                     </button>
                     {isOwn && (
                         <button
                             className={`tab-btn ${activeTab === 'saved' ? 'active' : ''}`}
                             onClick={() => setActiveTab('saved')}
-                            style={{ padding: 'var(--space-2) 0', background: 'none', border: 'none', borderBottom: activeTab === 'saved' ? '2px solid var(--color-primary)' : '2px solid transparent', color: activeTab === 'saved' ? 'var(--text-primary)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
                         >
-                            <HiOutlineHeart style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                            Saved
+                            <HiOutlineHeart />
+                            <span>Saved</span>
                         </button>
                     )}
                 </div>

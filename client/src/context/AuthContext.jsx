@@ -56,8 +56,20 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
+    const [isMuted, setIsMuted] = useState(() => {
+        const saved = localStorage.getItem('travelpod_is_muted');
+        return saved === null ? true : saved === 'true';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('travelpod_is_muted', isMuted);
+    }, [isMuted]);
+
     return (
-        <AuthContext.Provider value={{ user, setUser, loading, login, register, logout, loadUser }}>
+        <AuthContext.Provider value={{
+            user, setUser, loading, login, register, logout, loadUser,
+            isMuted, setIsMuted
+        }}>
             {children}
         </AuthContext.Provider>
     );

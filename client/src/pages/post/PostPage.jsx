@@ -28,6 +28,8 @@ export default function PostPage() {
     const [submitting, setSubmitting] = useState(false);
     const [isEnquiryModalOpen, setIsEnquiryModalOpen] = useState(false);
     const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
+    const [authorPosts, setAuthorPosts] = useState([]);
+    const touchStart = useRef(0);
 
     const isBusiness = post && BUSINESS_TYPES.includes(post.author?.accountType);
 
@@ -40,6 +42,13 @@ export default function PostPage() {
             ]);
             setPost(postRes.data.post);
             setComments(commentsRes.data.comments);
+
+            // Fetch author's other posts for swipe navigation
+            const authorHandle = postRes.data.post.author?.profile?.handle;
+            if (authorHandle) {
+                const authorPostsRes = await api.get(`/profile/${authorHandle}/posts`);
+                setAuthorPosts(authorPostsRes.data.posts || []);
+            }
         } catch (err) {
             toast.error('Failed to load post');
             navigate('/feed');
@@ -47,6 +56,26 @@ export default function PostPage() {
             setLoading(false);
         }
     }, [id, navigate]);
+
+    // Swipe Navigation
+    const handleTouchStart = (e) => {
+        touchStart.current = e.touches[0].clientX;
+    };
+    const handleTouchEnd = (e) => {
+        const touchEnd = e.changedTouches[0].clientX;
+        const diff = touchStart.current - touchEnd;
+
+        if (Math.abs(diff) > 70) {
+            const currentIndex = authorPosts.findIndex(p => p.id === id);
+            if (currentIndex === -1 || authorPosts.length === 0) return;
+
+            if (diff > 0 && currentIndex < authorPosts.length - 1) {
+                navigate(`/post/${authorPosts[currentIndex + 1].id}`);
+            } else if (diff < 0 && currentIndex > 0) {
+                navigate(`/post/${authorPosts[currentIndex - 1].id}`);
+            }
+        }
+    };
 
     useEffect(() => { loadData(); }, [loadData]);
 
@@ -121,7 +150,7 @@ export default function PostPage() {
     if (!post) return null;
 
     return (
-        <div className="post-page">
+        <div className="post-page" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
             {/* Top nav */}
             <nav className="post-nav">
                 <button className="post-nav-btn" onClick={() => navigate(-1)}>

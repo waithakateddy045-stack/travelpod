@@ -469,3 +469,41 @@ select:focus {
     --text-3xl: 1.5rem;
   }
 }
+
+/* ============================================
+   PREMIUM UI ELEMENTS
+   ============================================ */
+.verified-badge-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(32, 213, 236, 0.1);
+  color: #20d5ec;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(32, 213, 236, 0.3);
+  backdrop-filter: blur(4px);
+  width: fit-content;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: #ff4757;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg-primary);
+  box-shadow: 0 0 10px rgba(255, 71, 87, 0.4);
+}
