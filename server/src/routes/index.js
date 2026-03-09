@@ -25,6 +25,8 @@ const boardRoutes = require('./boards');
 const verificationRoutes = require('./verification');
 const userRoutes = require('./users');
 const moderationRoutes = require('./moderation');
+const uploadRoutes = require('./upload');
+const featureRoutes = require('./features');
 
 // Mount all routes
 router.use('/auth', authRoutes);
@@ -50,5 +52,7 @@ router.use('/admin', adminRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/boards', boardRoutes);
 router.use('/verify', verificationRoutes);
+router.use('/upload', uploadRoutes);
+router.use('/features', featureRoutes);
 
 module.exports = router;

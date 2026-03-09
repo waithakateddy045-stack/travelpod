@@ -8,10 +8,12 @@ import {
     HiOutlineArrowLeft, HiOutlineCog6Tooth,
     HiOutlineChartBar, HiOutlineEnvelope,
     HiOutlineRectangleStack, HiOutlineFlag, HiCheckBadge,
-    HiOutlineChartPie, HiOutlinePencilSquare, HiOutlineTrash
+    HiOutlineChartPie, HiOutlinePencilSquare, HiOutlineTrash,
+    HiOutlineUserGroup, HiOutlineTrophy
 } from 'react-icons/hi2';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import useFeatureFlag from '../../hooks/useFeatureFlag';
 import api from '../../services/api';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import VerificationDetailsModal from '../../components/verification/VerificationDetailsModal';
@@ -20,6 +22,7 @@ import FollowListModal from '../../components/profile/FollowListModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import ReportModal from '../../components/common/ReportModal';
 import PostMoreMenu from '../../components/post/PostMoreMenu';
+import CollaborationRequestModal from '../../components/collaborations/CollaborationRequestModal';
 import './ProfilePage.css';
 
 const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
@@ -44,6 +47,10 @@ export default function ProfilePage() {
     const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
     const [isReportingUser, setIsReportingUser] = useState(false);
     const [reportPostId, setReportPostId] = useState(null);
+    const [isCollabModalOpen, setIsCollabModalOpen] = useState(false);
+
+    const { enabled: gamificationEnabled } = useFeatureFlag('gamification');
+    const { enabled: collabEnabled } = useFeatureFlag('collaborations');
 
     const isOwn = user && profile && user.id === profile.userId;
     const isBusiness = profile && BUSINESS_TYPES.includes(profile.accountType);
@@ -277,6 +284,15 @@ export default function ProfilePage() {
                                         <HiOutlineChatBubbleLeft /> Enquire Now
                                     </button>
                                 )}
+                                {collabEnabled && (
+                                    <button
+                                        className="profile-action-btn secondary"
+                                        onClick={() => setIsCollabModalOpen(true)}
+                                        title="Collaborate"
+                                    >
+                                        <HiOutlineUserGroup /> Collab
+                                    </button>
+                                )}
                                 <button className="profile-action-btn icon-only" onClick={handleStartMessage} title="Message">
                                     <HiOutlineEnvelope />
                                 </button>
@@ -343,6 +359,15 @@ export default function ProfilePage() {
                         >
                             <HiOutlineHeart />
                             <span>Saved</span>
+                        </button>
+                    )}
+                    {gamificationEnabled && badges.length > 0 && (
+                        <button
+                            className={`tab-btn ${activeTab === 'achievements' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('achievements')}
+                        >
+                            <HiOutlineTrophy />
+                            <span>Achievements</span>
                         </button>
                     )}
                 </div>
@@ -420,6 +445,45 @@ export default function ProfilePage() {
                                         : "You haven't saved any posts yet"
                                     }
                                 </p>
+                            </div>
+                        )}
+                    </div>
+                )}
+                
+                {/* Achievements Grid */}
+                {activeTab === 'achievements' && gamificationEnabled && (
+                    <div className="post-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+                        {badges.length > 0 ? badges.map(badge => (
+                            <div key={badge.id} style={{
+                                padding: 'var(--space-4)',
+                                background: 'var(--bg-elevated)',
+                                border: '1.5px solid var(--border-primary)',
+                                borderRadius: 'var(--radius-lg)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--space-3)'
+                            }}>
+                                <div style={{ fontSize: '2rem' }}>{badge.icon || '🏆'}</div>
+                                <div>
+                                    <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 2 }}>{badge.name}</h4>
+                                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginBottom: 4 }}>{badge.description}</p>
+                                    <span style={{
+                                        fontSize: '0.6rem',
+                                        fontWeight: 700,
+                                        textTransform: 'uppercase',
+                                        padding: '1px 6px',
+                                        background: 'var(--bg-tertiary)',
+                                        color: 'var(--text-secondary)',
+                                        borderRadius: 'var(--radius-full)'
+                                    }}>
+                                        {badge.tier}
+                                    </span>
+                                </div>
+                            </div>
+                        )) : (
+                            <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
+                                <HiOutlineTrophy />
+                                <p>No achievements unlocked yet</p>
                             </div>
                         )}
                     </div>
@@ -545,6 +609,14 @@ export default function ProfilePage() {
                 message={authModal.message}
                 onClose={() => setAuthModal({ isOpen: false, message: '' })}
             />
+
+            {isCollabModalOpen && profile && (
+                <CollaborationRequestModal
+                    receiverId={profile.userId}
+                    receiverName={profile.displayName}
+                    onClose={() => setIsCollabModalOpen(false)}
+                />
+            )}
         </div>
     );
 }

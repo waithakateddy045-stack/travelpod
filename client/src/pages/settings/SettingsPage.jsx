@@ -5,9 +5,10 @@ import {
     HiOutlineBell, HiOutlineLockClosed, HiOutlineTrash,
     HiOutlineArrowLeft, HiOutlineShieldCheck, HiOutlineArrowDownTray,
     HiOutlineUser, HiOutlineGlobeAlt, HiOutlineDevicePhoneMobile,
-    HiOutlineCamera, HiOutlinePencilSquare
+    HiOutlineCamera, HiOutlinePencilSquare, HiOutlineArrowTrendingUp
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
+import useFeatureFlag from '../../hooks/useFeatureFlag';
 import api from '../../services/api';
 import { Capacitor } from '@capacitor/core';
 import '../auth/AuthPage.css';
@@ -195,12 +196,15 @@ export default function SettingsPage() {
     const isNonIOS = !(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
     const isCapacitor = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform();
 
+    const { enabled: promotionsEnabled } = useFeatureFlag('sponsored_promotions');
+
     const SECTIONS = [
         { key: 'edit_profile', label: 'Edit Profile', icon: <HiOutlinePencilSquare /> },
         { key: 'notifications', label: 'Notifications', icon: <HiOutlineBell /> },
         { key: 'privacy', label: 'Privacy & Safety', icon: <HiOutlineShieldCheck /> },
         { key: 'security', label: 'Security', icon: <HiOutlineLockClosed /> },
         ...(isBusiness ? [{ key: 'social', label: 'Social Links', icon: <HiOutlineGlobeAlt /> }] : []),
+        ...(promotionsEnabled ? [{ key: 'boosts', label: 'My Boosts', icon: <HiOutlineArrowTrendingUp /> }] : []),
         ...(isNonIOS ? [{ key: 'app', label: 'Get the App', icon: <HiOutlineDevicePhoneMobile /> }] : []),
         { key: 'data', label: 'Data & Export', icon: <HiOutlineArrowDownTray /> },
         { key: 'account', label: 'Account', icon: <HiOutlineUser /> },
@@ -492,6 +496,21 @@ export default function SettingsPage() {
                                 <button className="auth-submit" onClick={saveSocialLinks} disabled={socialLoading} style={{ marginTop: 'var(--space-4)', width: 'auto', padding: '10px 28px' }}>
                                     {socialLoading ? 'Saving...' : 'Save Social Links'}
                                 </button>
+                            </div>
+                        )}
+
+                        {/* My Boosts */}
+                        {activeSection === 'boosts' && promotionsEnabled && (
+                            <div>
+                                <h2 style={{ marginBottom: 'var(--space-4)', fontWeight: 700 }}>My Promoted Posts</h2>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-6)' }}>
+                                    View the status of your boosted content and ongoing promotions.
+                                </p>
+                                <div className="empty-state">
+                                    <HiOutlineArrowTrendingUp style={{ fontSize: '2rem', color: 'var(--text-tertiary)' }} />
+                                    <p>Your active and past promotions will appear here.</p>
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>To boost a post, go to your profile, tap a video, and select "Boost Post" from the menu.</span>
+                                </div>
                             </div>
                         )}
 

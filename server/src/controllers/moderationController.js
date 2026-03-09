@@ -8,7 +8,7 @@ const reportEntity = async (req, res, next) => {
         if (!entityType || !entityId || !reason) throw new AppError('entityType, entityId, and reason required', 400);
 
         // Validate reason is a valid ReportReason enum
-        const validReasons = ['MISLEADING', 'INAPPROPRIATE', 'SPAM', 'FAKE_REVIEW', 'HARASSMENT'];
+        const validReasons = ['MISLEADING', 'INAPPROPRIATE', 'SPAM', 'FAKE_REVIEW', 'HARASSMENT', 'COPYRIGHT'];
         if (!validReasons.includes(reason)) throw new AppError('Invalid reason. Must be one of: ' + validReasons.join(', '), 400);
 
         const report = await prisma.report.create({

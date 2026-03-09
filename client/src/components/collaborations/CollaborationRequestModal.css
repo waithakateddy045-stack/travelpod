@@ -1,0 +1,19 @@
+.collab-modal {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-xl);
+    width: 90%;
+    max-width: 500px;
+    border: 1px solid var(--border-primary);
+    display: flex;
+    flex-direction: column;
+    animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.collab-form {
+    padding: var(--space-6);
+}
+
+.collab-form textarea {
+    resize: vertical;
+    min-height: 100px;
+}

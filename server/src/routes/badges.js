@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
-const { getUserBadges } = require('../controllers/badgeController');
+const { authenticate, optionalAuth } = require('../middleware/auth');
+const { getAllBadges, getMyBadges, getUserBadges } = require('../controllers/gamificationController');
 
-router.get('/', authenticate, getUserBadges);
+router.get('/all', getAllBadges);
+router.get('/my', authenticate, getMyBadges);
+router.get('/user/:username', getUserBadges);
 
 module.exports = router;

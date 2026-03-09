@@ -8,6 +8,7 @@ const { getModerationQueue, moderatePost } = require('../controllers/postControl
 const { getAdminVerifications, approveVerification, rejectVerification } = require('../controllers/verificationController');
 const { createPromotion, getPromotions, updatePromotion, deletePromotion } = require('../controllers/promotedController');
 const { getBroadcasts, deleteBroadcast, createBroadcast } = require('../controllers/broadcastController');
+const { getAdminCollaborations } = require('../controllers/collaborationRequestController');
 
 // ── Dashboard Stats ──────────────────────────────────────────
 router.get('/stats', authenticate, adminOnly, getDashboardStats);
@@ -38,6 +39,9 @@ router.delete('/promotions/:id', authenticate, adminOnly, deletePromotion);
 router.get('/broadcasts', authenticate, adminOnly, getBroadcasts);
 router.post('/broadcasts', authenticate, adminOnly, createBroadcast);
 router.delete('/broadcasts/:id', authenticate, adminOnly, deleteBroadcast);
+
+// ── Collaborations Overview ───────────────────────────────────
+router.get('/collaborations', authenticate, adminOnly, getAdminCollaborations);
 
 // ── Business Verifications (Legacy routes now point to enhanced functions for stability)
 router.get('/verifications', authenticate, adminOnly, getAdminVerifications);

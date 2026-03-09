@@ -23,6 +23,9 @@ import MessagesPage from './pages/messages/MessagesPage';
 import AdminPage from './pages/admin/AdminPage';
 import BoardsFeedPage from './pages/boards/BoardsFeedPage';
 import BoardDetailPage from './pages/boards/BoardDetailPage';
+import CopyrightPage from './pages/legal/CopyrightPage';
+import BadgesPage from './pages/badges/BadgesPage';
+import CollaborationsPage from './pages/collaborations/CollaborationsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
@@ -42,7 +45,6 @@ function App() {
       CapacitorApp.addListener('appUrlOpen', (event) => {
         const url = new URL(event.url);
         if (url.protocol === 'travelpod:' && url.host === 'callback') {
-          // Push to React router handling
           window.location.href = `/auth/callback${url.search}`;
         }
       });
@@ -68,7 +70,6 @@ function App() {
           />
           <Routes>
             {/* Public */}
-            {/* Public Entry - Direct to Feed */}
             <Route path="/" element={<FeedPage />} />
             <Route path="/auth/login" element={<LoginPage />} />
             <Route path="/auth/register" element={<RegisterPage />} />
@@ -82,6 +83,8 @@ function App() {
             <Route path="/boards/:id" element={<BoardDetailPage />} />
             <Route path="/post/:id" element={<PostPage />} />
             <Route path="/profile/:handle" element={<ProfilePage />} />
+            <Route path="/badges" element={<BadgesPage />} />
+            <Route path="/legal/copyright" element={<CopyrightPage />} />
 
             {/* Protected */}
             <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
@@ -93,8 +96,9 @@ function App() {
             <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
             <Route path="/enquiries" element={<ProtectedRoute><EnquiriesPage /></ProtectedRoute>} />
             <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+            <Route path="/collaborations" element={<ProtectedRoute><CollaborationsPage /></ProtectedRoute>} />
 
-            {/* Admin Console — web-only, standalone, NOT linked from the app UI */}
+            {/* Admin Console */}
             <Route path="/admin" element={<AdminPage />} />
 
             {/* 404 */}

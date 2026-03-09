@@ -1,0 +1,51 @@
+.badge-celebration-modal {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-8);
+    width: 90%;
+    max-width: 400px;
+    position: relative;
+    text-align: center;
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid var(--border-primary);
+}
+
+@keyframes popIn {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.celebration-icon {
+    font-size: 5rem;
+    margin-bottom: var(--space-4);
+    animation: pulseIcon 2s infinite;
+}
+
+@keyframes pulseIcon {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.celebration-content h2 {
+    font-size: var(--text-lg);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-2);
+}
+
+.celebration-content h3 {
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+}
+
+.celebration-content h3.tier-platinum { color: #e5e5e5; text-shadow: 0 0 10px rgba(229,229,229,0.5); }
+.celebration-content h3.tier-gold { color: #f59e0b; text-shadow: 0 0 10px rgba(245,158,11,0.5); }
+.celebration-content h3.tier-silver { color: #94a3b8; }
+.celebration-content h3.tier-bronze { color: #cd7f32; }
+
+.celebration-content p {
+    color: var(--text-tertiary);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-6);
+}

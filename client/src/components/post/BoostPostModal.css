@@ -1,0 +1,42 @@
+.boost-modal {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-xl);
+    width: 90%;
+    max-width: 480px;
+    border: 1px solid var(--border-primary);
+    display: flex;
+    flex-direction: column;
+    animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.boost-subtitle {
+    color: var(--text-tertiary);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-6);
+}
+
+.boost-form {
+    padding: var(--space-6);
+}
+
+.tier-selector {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.tier-btn {
+    flex: 1;
+    padding: var(--space-2);
+    border: 1.5px solid var(--border-primary);
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.tier-btn.active.tier-bronze { border-color: #cd7f32; background: rgba(205, 127, 50, 0.1); color: #cd7f32; }
+.tier-btn.active.tier-silver { border-color: #94a3b8; background: rgba(148, 163, 184, 0.1); color: #94a3b8; }
+.tier-btn.active.tier-gold { border-color: #f59e0b; background: rgba(245, 158, 11, 0.1); color: #f59e0b; }

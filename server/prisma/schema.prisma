@@ -75,6 +75,7 @@ enum ReportReason {
   SPAM
   FAKE_REVIEW
   HARASSMENT
+  COPYRIGHT
 }
 
 enum ReportStatus {
@@ -96,6 +97,37 @@ enum CollaborationStatus {
   PENDING
   ACCEPTED
   DECLINED
+  COMPLETED
+  CANCELLED
+}
+
+enum BadgeTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum BoostStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ACTIVE
+  EXPIRED
+}
+
+enum BoostTier {
+  BRONZE
+  SILVER
+  GOLD
+}
+
+enum CompensationType {
+  PAID
+  FREE_STAY
+  COMMISSION
+  EXPOSURE
+  OTHER
 }
 
 // ============================================================
@@ -165,6 +197,10 @@ model User {
   boardFollows          BoardFollow[]
   boardComments         BoardComment[]
   businessVerification  BusinessVerification?
+  gamificationBadges    UserBadge[]            @relation("UserGamificationBadges")
+  boostRequests         BoostRequest[]         @relation("UserBoosts")
+  collabsInitiated      CollaborationRequest[] @relation("CollabInitiator")
+  collabsReceived       CollaborationRequest[] @relation("CollabReceiver")
 
   @@index([accountType])
   @@map("users")
@@ -274,6 +310,7 @@ model Post {
   originalSize      Int?             @map("original_size")
   compressedSize    Int?             @map("compressed_size")
   musicTitle        String?          @map("music_title") @db.VarChar(100)
+  storageAccount    Int?             @default(1) @map("storage_account")
   createdAt         DateTime         @default(now()) @map("created_at")
 
   author            User             @relation("PostAuthor", fields: [userId], references: [id], onDelete: Cascade)
@@ -289,6 +326,7 @@ model Post {
   featuredPlacements FeaturedPlacement[]
   reports           Report[]         @relation("ReportedPost")
   tripBoardVideos   TripBoardVideo[]
+  boostRequests     BoostRequest[]   @relation("BoostedPost")
 
   @@index([userId])
   @@index([moderationStatus])
@@ -1003,4 +1041,103 @@ model BusinessVerification {
   user                         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("business_verifications")
+}
+
+// ============================================================
+// FEATURE FLAGS
+// ============================================================
+
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  isEnabled   Boolean  @default(false) @map("is_enabled")
+  description String?  @db.Text
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("feature_flags")
+}
+
+// ============================================================
+// GAMIFICATION BADGES
+// ============================================================
+
+model GamificationBadge {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  description String     @db.Text
+  icon        String     @db.VarChar(10)
+  tier        BadgeTier
+  criteria    Json
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  earnedBy    UserBadge[]
+
+  @@map("gamification_badges")
+}
+
+model UserBadge {
+  id       String   @id @default(uuid())
+  userId   String   @map("user_id")
+  badgeId  String   @map("badge_id")
+  earnedAt DateTime @default(now()) @map("earned_at")
+
+  user     User              @relation("UserGamificationBadges", fields: [userId], references: [id], onDelete: Cascade)
+  badge    GamificationBadge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@map("user_badges")
+}
+
+// ============================================================
+// BOOST REQUESTS
+// ============================================================
+
+model BoostRequest {
+  id              String      @id @default(uuid())
+  userId          String      @map("user_id")
+  postId          String      @map("post_id")
+  duration        Int         @default(1)
+  targetAudience  Json?       @map("target_audience")
+  targetRegion    String?     @map("target_region") @db.VarChar(100)
+  tier            BoostTier   @default(BRONZE)
+  status          BoostStatus @default(PENDING)
+  startDate       DateTime?   @map("start_date")
+  endDate         DateTime?   @map("end_date")
+  impressions     Int         @default(0)
+  clicks          Int         @default(0)
+  adminNotes      String?     @map("admin_notes") @db.Text
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  user            User        @relation("UserBoosts", fields: [userId], references: [id], onDelete: Cascade)
+  post            Post        @relation("BoostedPost", fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([userId])
+  @@map("boost_requests")
+}
+
+// ============================================================
+// COLLABORATION REQUESTS
+// ============================================================
+
+model CollaborationRequest {
+  id               String              @id @default(uuid())
+  initiatorId      String              @map("initiator_id")
+  receiverId       String              @map("receiver_id")
+  postId           String?             @map("post_id")
+  proposal         String              @db.Text
+  contentIdea      String?             @map("content_idea") @db.Text
+  proposedDates    String?             @map("proposed_dates") @db.VarChar(200)
+  compensationType CompensationType    @default(EXPOSURE) @map("compensation_type")
+  status           CollaborationStatus @default(PENDING)
+  declineReason    String?             @map("decline_reason") @db.Text
+  createdAt        DateTime            @default(now()) @map("created_at")
+
+  initiator        User                @relation("CollabInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  receiver         User                @relation("CollabReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([initiatorId])
+  @@index([receiverId])
+  @@index([status])
+  @@map("collaboration_requests")
 }

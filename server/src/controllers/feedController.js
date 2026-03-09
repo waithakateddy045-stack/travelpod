@@ -97,27 +97,32 @@ async function buildLocationAffinity(userId) {
     const affinityMap = new Map();
     if (!userId) return affinityMap;
 
-    const savedPosts = await prisma.save.findMany({
-        where: { userId },
-        select: { post: { select: { locationTag: true } } },
-        take: 80,
-    });
+    try {
+        const savedPosts = await prisma.save.findMany({
+            where: { userId },
+            select: { post: { select: { locationTag: true } } },
+            take: 80,
+        });
 
-    const locCounts = {};
-    let total = 0;
-    for (const s of savedPosts) {
-        const loc = s.post?.locationTag;
-        if (loc) {
-            locCounts[loc] = (locCounts[loc] || 0) + 1;
-            total++;
+        const locCounts = {};
+        let total = 0;
+        for (const s of savedPosts) {
+            const loc = s.post?.locationTag;
+            if (loc) {
+                locCounts[loc] = (locCounts[loc] || 0) + 1;
+                total++;
+            }
         }
+
+        if (total > 0) {
+            for (const [loc, count] of Object.entries(locCounts)) {
+                affinityMap.set(loc.toLowerCase(), Math.min(count / total * 5, 1));
+            }
+        }
+    } catch (err) {
+        console.warn('buildLocationAffinity failed, using empty map:', err.message);
     }
 
-    if (total > 0) {
-        for (const [loc, count] of Object.entries(locCounts)) {
-            affinityMap.set(loc.toLowerCase(), Math.min(count / total * 5, 1));
-        }
-    }
     return affinityMap;
 }
 

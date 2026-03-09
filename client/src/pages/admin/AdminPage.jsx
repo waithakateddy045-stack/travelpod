@@ -700,89 +700,18 @@ const VerificationTab = () => {
     );
 };
 
-const CreatePromotionModal = ({ onClose, onSuccess }) => {
-    const [postId, setPostId] = useState('');
-    const [dailyReach, setDailyReach] = useState(1000);
-    const [days, setDays] = useState(7);
-    const [loading, setLoading] = useState(false);
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            const startAt = new Date();
-            const endAt = new Date();
-            endAt.setDate(endAt.getDate() + parseInt(days));
-
-            await apiCall('/admin/promotions', {
-                method: 'POST',
-                body: JSON.stringify({
-                    postId,
-                    startAt,
-                    endAt,
-                    dailyReachTarget: parseInt(dailyReach),
-                    targetingCriteria: {}
-                }),
-            });
-            onSuccess();
-            onClose();
-        } catch (err) {
-            alert('Failed to create promotion: ' + err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div className="admin-modal-overlay" onClick={onClose}>
-            <div className="admin-modal" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2>Feature Content (Promotion)</h2>
-                    <button className="close-btn" onClick={onClose}>✕</button>
-                </div>
-                <form onSubmit={handleSubmit} className="admin-form">
-                    <div className="form-group">
-                        <label>Post ID to Promote</label>
-                        <input value={postId} onChange={e => setPostId(e.target.value)} placeholder="Paste the UUID of the post..." required />
-                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                            Tip: Copy the ID from the "Content" moderation tab.
-                        </p>
-                    </div>
-                    <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                        <div className="form-group">
-                            <label>Daily Reach Target</label>
-                            <input type="number" value={dailyReach} onChange={e => setDailyReach(e.target.value)} required min="100" />
-                        </div>
-                        <div className="form-group">
-                            <label>Duration (Days)</label>
-                            <input type="number" value={days} onChange={e => setDays(e.target.value)} required min="1" max="90" />
-                        </div>
-                    </div>
-                    <div className="modal-footer">
-                        <button type="button" className="btn-outline" onClick={onClose}>Cancel</button>
-                        <button type="submit" className="btn-primary" disabled={loading}>
-                            {loading ? 'Creating...' : '🚀 Launch Promotion'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-// ─── Promoted Posts ─────────────────────────────────────────────────────────────
+// ─── Promoted Posts / Boosts ─────────────────────────────────────────────────────────────
 const PromotedPostsTab = () => {
     const [promotions, setPromotions] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [showCreate, setShowCreate] = useState(false);
 
-    const loadPromotions = useCallback(async () => {
+    const loadPromotions = useCallback(async (status = '') => {
         try {
             setLoading(true);
-            const data = await apiCall('/admin/promotions');
-            setPromotions(data.promotions || []);
+            const data = await apiCall(`/featured/boosts${status ? `?status=${status}` : ''}`);
+            setPromotions(data.boosts || []);
         } catch (err) {
-            console.error('Failed to load promotions', err);
+            console.error('Failed to load boosts', err);
         } finally {
             setLoading(false);
         }
@@ -790,24 +719,33 @@ const PromotedPostsTab = () => {
 
     useEffect(() => { loadPromotions(); }, [loadPromotions]);
 
-    const handleAction = async (id, status) => {
-        if (!window.confirm(`Mark promotion as ${status}?`)) return;
+    const handleAction = async (id, action) => {
+        if (!window.confirm(`Are you sure you want to ${action} this boost?`)) return;
         try {
-            await apiCall(`/admin/promotions/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
+            await apiCall(`/featured/boosts/${id}/${action}`, { method: 'PATCH' });
             loadPromotions();
         } catch (err) { alert('Action failed'); }
     };
 
     return (
         <div className="tab-pane">
-            {showCreate && <CreatePromotionModal onClose={() => setShowCreate(false)} onSuccess={loadPromotions} />}
             <div className="tab-header">
-                <h2>Featured Placements</h2>
+                <h2>Sponsored Boost Requests</h2>
                 <div className="tab-actions">
-                    <button className="btn-primary" onClick={() => setShowCreate(true)}>+ New Promotion</button>
+                    <select
+                        onChange={(e) => loadPromotions(e.target.value)}
+                        className="admin-select"
+                        style={{ padding: '8px 16px', borderRadius: 8 }}
+                    >
+                        <option value="">All Boosts</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="ACTIVE">Active</option>
+                        <option value="REJECTED">Rejected</option>
+                        <option value="COMPLETED">Completed</option>
+                    </select>
                 </div>
             </div>
-            {loading ? <div className="loading-state">Loading promotions...</div> : (
+            {loading ? <div className="loading-state">Loading boosts...</div> : (
                 <div className="cards-grid">
                     {promotions.map(promo => (
                         <div key={promo.id} className="admin-card">
@@ -816,26 +754,30 @@ const PromotedPostsTab = () => {
                                 <Badge type={promo.status === 'ACTIVE' ? 'APPROVED' : promo.status} small />
                             </div>
                             <div className="card-body">
-                                <p className="meta-text">Business: @{promo.business?.profile?.handle}</p>
-                                <p className="meta-text">Target: {promo.dailyReachTarget} reach/day</p>
+                                <p className="meta-text">User: @{promo.user?.profile?.handle}</p>
+                                <p className="meta-text">Tier: {promo.tier} • Duration: {promo.duration} days</p>
+                                {promo.targetAudience && <p className="meta-text">Target: {promo.targetAudience}</p>}
                                 <div className="stats-row" style={{ marginTop: '12px' }}>
                                     <div className="stat-mini"><span>👁️</span> {promo.impressions} Views</div>
-                                    <div className="stat-mini"><span>🔗</span> {promo.profileVisits || 0} Clicks</div>
+                                    <div className="stat-mini"><span>🔗</span> {promo.clicks || 0} Clicks</div>
                                 </div>
-                                <div className="meta-text" style={{ marginTop: '8px', fontSize: '0.75rem' }}>
-                                    {new Date(promo.startAt).toLocaleDateString()} - {new Date(promo.endAt).toLocaleDateString()}
-                                </div>
+                                {promo.status === 'ACTIVE' && promo.startDate && promo.endDate && (
+                                    <div className="meta-text" style={{ marginTop: '8px', fontSize: '0.75rem' }}>
+                                        {new Date(promo.startDate).toLocaleDateString()} - {new Date(promo.endDate).toLocaleDateString()}
+                                    </div>
+                                )}
                             </div>
                             <div className="card-actions">
-                                {promo.status === 'ACTIVE' ? (
-                                    <button className="btn-outline danger" onClick={() => handleAction(promo.id, 'PAUSED')}>Pause</button>
-                                ) : (
-                                    <button className="btn-outline success" onClick={() => handleAction(promo.id, 'ACTIVE')}>Resume</button>
+                                {promo.status === 'PENDING' && (
+                                    <>
+                                        <button className="btn-approve" onClick={() => handleAction(promo.id, 'approve')}>Approve</button>
+                                        <button className="btn-reject" onClick={() => handleAction(promo.id, 'reject')}>Reject</button>
+                                    </>
                                 )}
                             </div>
                         </div>
                     ))}
-                    {promotions.length === 0 && <div className="empty-state">No promoted posts</div>}
+                    {promotions.length === 0 && <div className="empty-state">No boost requests found</div>}
                 </div>
             )}
         </div>
@@ -1451,6 +1393,203 @@ const HistoryTab = () => {
     );
 };
 
+// ─── Feature Flags Management ──────────────────────────────────────────────────
+const FeatureFlagsTab = () => {
+    const [flags, setFlags] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState(null);
+
+    const loadFlags = useCallback(async () => {
+        try {
+            setLoading(true);
+            const data = await apiCall('/features');
+            setFlags(data.features || []);
+        } catch (err) {
+            console.error('Failed to load flags', err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { loadFlags(); }, [loadFlags]);
+
+    const toggleFlag = async (name, currentStatus) => {
+        setActionLoading(name);
+        try {
+            await apiCall(`/features/${name}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ isEnabled: !currentStatus })
+            });
+            setFlags(prev => prev.map(f => f.name === name ? { ...f, isEnabled: !currentStatus } : f));
+        } catch (err) {
+            alert('Action failed: ' + err.message);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    return (
+        <div className="tab-pane">
+            <div className="tab-header">
+                <h2>Feature Flags</h2>
+                <p>Manage beta features and platform capabilities</p>
+            </div>
+            {loading ? <div className="loading-state">Loading flags...</div> : (
+                <div className="data-table-wrapper">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>Feature Name</th>
+                                <th>Description</th>
+                                <th>Status</th>
+                                <th>Last Updated</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {flags.map(flag => (
+                                <tr key={flag.id}>
+                                    <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>{flag.name}</td>
+                                    <td style={{ maxWidth: 300 }}>{flag.description}</td>
+                                    <td>
+                                        <Badge type={flag.isEnabled ? 'APPROVED' : 'REMOVED'} small />
+                                    </td>
+                                    <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{new Date(flag.updatedAt).toLocaleString()}</td>
+                                    <td>
+                                        <button
+                                            className={flag.isEnabled ? 'btn-reject' : 'btn-approve'}
+                                            onClick={() => toggleFlag(flag.name, flag.isEnabled)}
+                                            disabled={actionLoading === flag.name}
+                                            style={{ padding: '6px 12px', fontSize: 11 }}
+                                        >
+                                            {actionLoading === flag.name ? '...' : flag.isEnabled ? 'Disable' : 'Enable'}
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {flags.length === 0 && <div className="empty-state">No feature flags defined.</div>}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── Collaborations Overview ──────────────────────────────────────────────────
+const CollaborationsTab = () => {
+    const [collabs, setCollabs] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const loadCollabs = useCallback(async () => {
+        try {
+            setLoading(true);
+            const data = await apiCall('/admin/collaborations');
+            setCollabs(data.collaborations || []);
+        } catch (err) {
+            console.error('Failed to load collaborations', err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { loadCollabs(); }, [loadCollabs]);
+
+    return (
+        <div className="tab-pane">
+            <div className="tab-header">
+                <h2>Collaborations Overview</h2>
+                <p>Monitor collaboration requests between creators and businesses</p>
+            </div>
+            {loading ? <div className="loading-state">Loading collaborations...</div> : (
+                <div className="data-table-wrapper">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>Initiator</th>
+                                <th>Receiver</th>
+                                <th>Proposal Snippet</th>
+                                <th>Compensation</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {collabs.map(collab => (
+                                <tr key={collab.id}>
+                                    <td>
+                                        <div style={{ fontWeight: 600 }}>{collab.initiator?.profile?.displayName}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{collab.initiator?.profile?.handle}</div>
+                                    </td>
+                                    <td>
+                                        <div style={{ fontWeight: 600 }}>{collab.receiver?.profile?.displayName}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{collab.receiver?.profile?.handle}</div>
+                                    </td>
+                                    <td style={{ maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {collab.proposal}
+                                    </td>
+                                    <td>
+                                        <Badge type={collab.compensationType} small />
+                                    </td>
+                                    <td>
+                                        <Badge type={collab.status === 'ACCEPTED' ? 'APPROVED' : collab.status === 'COMPLETED' ? 'COMPLETED' : collab.status} small />
+                                    </td>
+                                    <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{new Date(collab.createdAt).toLocaleDateString()}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {collabs.length === 0 && <div className="empty-state">No collaborations initiated yet.</div>}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── Gamification & Badges ────────────────────────────────────────────────────
+const BadgesTab = () => {
+    const [badges, setBadges] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const loadBadges = useCallback(async () => {
+        try {
+            setLoading(true);
+            const data = await apiCall('/badges/all');
+            setBadges(data.badges || []);
+        } catch (err) {
+            console.error('Failed to load badges', err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { loadBadges(); }, [loadBadges]);
+
+    return (
+        <div className="tab-pane">
+            <div className="tab-header">
+                <h2>Gamification Badges</h2>
+                <p>View platform badges available to users</p>
+            </div>
+            {loading ? <div className="loading-state">Loading badges...</div> : (
+                <div className="cards-grid">
+                    {badges.map(badge => (
+                        <div key={badge.id} className="admin-card" style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                            <div style={{ fontSize: '3rem' }}>{badge.icon}</div>
+                            <div>
+                                <h3 style={{ margin: '0 0 4px 0' }}>{badge.name}</h3>
+                                <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{badge.description}</p>
+                                <span className={`badge badge-${badge.tier.toLowerCase()}`} style={{ fontSize: 10 }}>{badge.tier}</span>
+                            </div>
+                        </div>
+                    ))}
+                    {badges.length === 0 && <div className="empty-state">No badges seeded yet.</div>}
+                </div>
+            )}
+        </div>
+    );
+};
+
 // ─── Main Admin App ───────────────────────────────────────────────────────────
 export default function AdminPage() {
     const [user, setUser] = useState(() => {
@@ -1481,11 +1620,14 @@ export default function AdminPage() {
         { id: 'moderation', icon: '🛡️', label: 'Content', adminOnly: true },
         { id: 'reports', icon: '🚩', label: 'Reports / Hub', adminOnly: true },
         { id: 'history', icon: '📜', label: 'Audit Trail', adminOnly: true },
-        { id: 'promotions', icon: '🚀', label: 'Promotions' },
+        { id: 'promotions', icon: '🚀', label: 'Boosts & Promoted' },
+        { id: 'collaborations', icon: '🤝', label: 'Collaborations', adminOnly: true },
+        { id: 'badges', icon: '🏆', label: 'Badges', adminOnly: true },
         { id: 'broadcasts', icon: '📢', label: 'Broadcasts' },
         { id: 'boards', icon: '📁', label: 'Trip Boards', adminOnly: true },
         { id: 'users', icon: '👥', label: 'Users', adminOnly: true },
         { id: 'verifications', icon: '✓', label: 'Verifications' },
+        { id: 'features', icon: '⚙️', label: 'Feature Flags', adminOnly: true },
     ].filter(t => isAdmin || !t.adminOnly);
 
     return (
@@ -1547,6 +1689,9 @@ export default function AdminPage() {
                     {activeTab === 'verifications' && <VerificationTab />}
                     {activeTab === 'reports' && <ReportsTab />}
                     {activeTab === 'history' && <HistoryTab />}
+                    {activeTab === 'features' && <FeatureFlagsTab />}
+                    {activeTab === 'collaborations' && <CollaborationsTab />}
+                    {activeTab === 'badges' && <BadgesTab />}
                 </div>
             </main>
         </div>
