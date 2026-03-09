@@ -4,7 +4,8 @@ import { toast } from 'react-hot-toast';
 import {
     HiOutlineHeart, HiHeart,
     HiOutlineChatBubbleOvalLeft, HiOutlineBookmark, HiBookmark,
-    HiOutlineUser, HiOutlineArrowLeft, HiOutlineTrash, HiOutlineShare, HiOutlineArrowPath
+    HiOutlineUser, HiOutlineArrowLeft, HiOutlineTrash, HiOutlineShare, HiOutlineArrowPath,
+    HiOutlineEllipsisHorizontal, HiOutlinePaperAirplane, HiOutlineStar
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -165,10 +166,32 @@ export default function PostPage() {
                 <div style={{ width: 40 }}></div>
             </nav>
 
-            <div className="post-container">
-                {/* Left: Video */}
-                <div className="post-video-section">
-                    <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} autoPlay={true} />
+            <div className={`post-container ${(!post.videoUrl && (!post.mediaUrls || post.mediaUrls.length === 0)) ? 'text-only' : ''}`}>
+                {/* Left: Media or Text Card */}
+                <div className="post-media-section">
+                    {post.videoUrl ? (
+                        <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} autoPlay={true} />
+                    ) : (post.mediaUrls && post.mediaUrls.length > 0) ? (
+                        <div className={`post-image-grid grid-${Math.min(post.mediaUrls.length, 4)}`}>
+                            {post.mediaUrls.slice(0, 4).map((url, i) => (
+                                <img key={i} src={url} alt="" />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="post-text-card-wrapper">
+                            <div className="text-post-card glass-card">
+                                <h2 className="text-post-title">{post.title}</h2>
+                                <p className="text-post-body">{post.description}</p>
+                                {post.postTags?.length > 0 && (
+                                    <div className="text-post-tags">
+                                        {post.postTags.map(pt => (
+                                            <span key={pt.id} className="text-post-tag">#{pt.tag.name}</span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right: Details & Comments */}
@@ -219,32 +242,54 @@ export default function PostPage() {
                     </div>
 
                     {/* Engagement Bar */}
-                    <div className="post-actions">
-                        <button className={`post-action-btn ${post.isLiked ? 'active' : ''}`} onClick={handleLike}>
-                            {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
-                            <span>{post.likeCount || 0}</span>
-                        </button>
-                        <div className="post-action-btn">
-                            <HiOutlineChatBubbleOvalLeft />
-                            <span>{post.commentCount || 0}</span>
+                    <div className="post-actions-refined">
+                        <div className="actions-left">
+                            <button className={`post-action-btn-main ${post.isLiked ? 'active' : ''}`} onClick={handleLike}>
+                                {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
+                                <span className="action-count">{post.likeCount || 0}</span>
+                            </button>
+                            <div className="post-action-btn-main">
+                                <HiOutlineChatBubbleOvalLeft />
+                                <span className="action-count">{post.commentCount || 0}</span>
+                            </div>
+                            <button
+                                className="post-action-btn-main"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(window.location.href);
+                                    toast.success('Link copied!');
+                                }}
+                            >
+                                <HiOutlinePaperAirplane style={{ transform: 'rotate(-20deg) translateY(-2px)' }} />
+                            </button>
                         </div>
-                        <button
-                            className="post-action-btn"
-                            onClick={() => {
-                                navigator.clipboard.writeText(window.location.href);
-                                toast.success('Link copied!');
-                            }}
-                            title="Share"
-                        >
-                            <HiOutlineShare />
-                        </button>
-                        <button className="post-action-btn" onClick={handleDownload} title="Download">
-                            <HiOutlineArrowPath style={{ transform: 'rotate(90deg)' }} />
-                        </button>
-                        <button className={`post-action-btn ml-auto ${post.isSaved ? 'active' : ''}`} onClick={handleSave}>
-                            {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
-                            <span>Save</span>
-                        </button>
+
+                        <div className="actions-right">
+                            <button className={`post-action-btn-main ${post.isSaved ? 'active' : ''}`} onClick={handleSave}>
+                                {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
+                            </button>
+
+                            <div className="more-menu-container">
+                                <button
+                                    className="post-action-btn-main"
+                                    onClick={() => setShowMoreMenu(!showMoreMenu)}
+                                >
+                                    <HiOutlineEllipsisHorizontal />
+                                </button>
+
+                                {showMoreMenu && (
+                                    <div className="more-context-sheet glass-card animate-scaleIn">
+                                        <div className="sheet-handle" />
+                                        <button className="sheet-item" onClick={handleDownload} disabled={!post.videoUrl}>
+                                            <HiOutlineArrowPath className="item-icon" /> Download Media
+                                        </button>
+                                        <div className="sheet-divider" />
+                                        <button className="sheet-item danger" onClick={() => setReportPostId(post.id)}>
+                                            <HiOutlineTrash className="item-icon" /> Report Content
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Comments List */}

@@ -9,7 +9,7 @@ import {
     HiOutlineArrowPath, HiOutlineStar, HiOutlineEnvelope,
     HiOutlineChartBar, HiOutlineShare, HiOutlineEllipsisHorizontal,
     HiOutlineRectangleStack, HiOutlineSpeakerWave, HiOutlineSpeakerXMark,
-    HiCheckBadge, HiOutlinePaperAirplane
+    HiCheckBadge, HiOutlinePaperAirplane, HiOutlineTrash
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -221,7 +221,40 @@ export default function FeedPage() {
 
     const renderMedia = (post) => {
         const isActive = activeVideoId === post.id;
+        const hasVideo = !!post.videoUrl;
+        const mediaUrls = post.mediaUrls || [];
 
+        // CASE 1: Text-Only Post (X-Style)
+        if (!hasVideo && mediaUrls.length === 0) {
+            return (
+                <div className="feed-text-post-container">
+                    <div className="text-post-card glass-card animate-scaleIn">
+                        <div className="text-post-header">
+                            <div className="text-post-avatar">
+                                <img src={post.author?.profile?.avatarUrl} alt="" />
+                            </div>
+                            <div className="text-post-user-info">
+                                <span className="text-post-name">{post.author?.profile?.displayName}</span>
+                                <span className="text-post-handle">@{post.author?.profile?.handle}</span>
+                            </div>
+                        </div>
+                        <div className="text-post-content">
+                            <h3 className="text-post-title">{post.title}</h3>
+                            <p className="text-post-body">{post.description}</p>
+                        </div>
+                        {post.postTags?.length > 0 && (
+                            <div className="text-post-tags">
+                                {post.postTags.map(pt => (
+                                    <span key={pt.id} className="text-post-tag">#{pt.tag.name}</span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // CASE 2: Standard Post (Video)
         if (!post.isBroadcast) {
             return (
                 <div className="feed-video-container" onClick={toggleMute}>
@@ -236,14 +269,11 @@ export default function FeedPage() {
             );
         }
 
-        // Broadcast Rich Media Grid
-        const urls = post.mediaUrls || [];
-        const hasVideo = !!post.videoUrl;
-
+        // CASE 3: Broadcast (Mixed Media)
         return (
             <div className="feed-broadcast-layer" onClick={toggleMute}>
                 {hasVideo && (
-                    <div className="broadcast-video-wrap" style={{ height: urls.length > 0 ? '55%' : '100%', width: '100%' }}>
+                    <div className="broadcast-video-wrap" style={{ height: mediaUrls.length > 0 ? '55%' : '100%', width: '100%' }}>
                         <VideoPlayer
                             src={post.videoUrl}
                             poster={post.thumbnailUrl}
@@ -252,16 +282,11 @@ export default function FeedPage() {
                         />
                     </div>
                 )}
-                {urls.length > 0 && (
-                    <div className={`broadcast-rich-media media-grid-${Math.min(urls.length, 4)}`} style={{ height: hasVideo ? '40%' : '60%' }}>
-                        {urls.slice(0, 4).map((url, i) => (
+                {mediaUrls.length > 0 && (
+                    <div className={`broadcast-rich-media media-grid-${Math.min(mediaUrls.length, 4)}`} style={{ height: hasVideo ? '40%' : '60%' }}>
+                        {mediaUrls.slice(0, 4).map((url, i) => (
                             <img key={i} src={url} alt="" loading="lazy" />
                         ))}
-                    </div>
-                )}
-                {!hasVideo && urls.length === 0 && (
-                    <div className="broadcast-text-only">
-                        {post.description}
                     </div>
                 )}
             </div>
@@ -273,62 +298,72 @@ export default function FeedPage() {
         const isBusiness = author?.profile?.accountType === 'BUSINESS' || author?.profile?.businessProfile;
 
         return (
-            <div className="feed-actions-linear glass-card animate-scaleIn">
-                <button
-                    className={`action-btn-linear ${post.isLiked ? 'liked' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); handleAction('like', post); }}
-                >
-                    {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
-                    <span className="action-count">{post.likeCount || 0}</span>
-                </button>
-
-                <button
-                    className="action-btn-linear"
-                    onClick={(e) => { e.stopPropagation(); navigate(`/post/${post.id}`); }}
-                >
-                    <HiOutlineChatBubbleOvalLeft />
-                    <span className="action-count">{post.commentCount || 0}</span>
-                </button>
-
-                <button
-                    className="action-btn-linear"
-                    onClick={(e) => { e.stopPropagation(); handleShare(post); }}
-                >
-                    <HiOutlinePaperAirplane style={{ transform: 'rotate(-20deg) translateY(-2px)' }} />
-                </button>
-
-                <button
-                    className={`action-btn-linear ${post.isSaved ? 'saved' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); handleAddToBoard(post.id); }}
-                >
-                    {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
-                </button>
-
-                {isBusiness && (
+            <div className="feed-actions-linear-integrated">
+                <div className="actions-left">
                     <button
-                        className="enquire-linear-btn"
-                        onClick={(e) => { e.stopPropagation(); setEnquiryPost(post); }}
+                        className={`action-btn-main ${post.isLiked ? 'liked' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); handleAction('like', post); }}
                     >
-                        <HiOutlineStar />
-                        <span>Enquire</span>
-                    </button>
-                )}
-
-                <div className="hub-more-wrapper">
-                    <button
-                        className="action-btn-linear"
-                        onClick={(e) => { e.stopPropagation(); setShowMoreMenu(showMoreMenu === post.id ? null : post.id); }}
-                    >
-                        <HiOutlineEllipsisHorizontal />
+                        {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
                     </button>
 
-                    {showMoreMenu === post.id && (
-                        <div className="hub-more-menu glass-card animate-scaleIn">
-                            <button className="menu-item" onClick={() => handleRecommend(post)}>Recommend</button>
-                            <button className="menu-item" onClick={() => handleDownload(post)}>Download Video</button>
-                            <button className="menu-item danger" onClick={() => setReportPostId(post.id)}>Report Content</button>
-                        </div>
+                    <button
+                        className="action-btn-main"
+                        onClick={(e) => { e.stopPropagation(); navigate(`/post/${post.id}`); }}
+                    >
+                        <HiOutlineChatBubbleOvalLeft />
+                    </button>
+
+                    <button
+                        className="action-btn-main"
+                        onClick={(e) => { e.stopPropagation(); handleShare(post); }}
+                    >
+                        <HiOutlinePaperAirplane style={{ transform: 'rotate(-20deg) translateY(-2px)' }} />
+                    </button>
+
+                    {isBusiness && (
+                        <button
+                            className="enquire-pill-btn"
+                            onClick={(e) => { e.stopPropagation(); setEnquiryPost(post); }}
+                        >
+                            <HiOutlineStar />
+                            <span>Enquire</span>
+                        </button>
                     )}
+                </div>
+
+                <div className="actions-right">
+                    <button
+                        className={`action-btn-main ${post.isSaved ? 'saved' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); handleAddToBoard(post.id); }}
+                    >
+                        {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
+                    </button>
+
+                    <div className="more-menu-container">
+                        <button
+                            className="action-btn-main"
+                            onClick={(e) => { e.stopPropagation(); setShowMoreMenu(showMoreMenu === post.id ? null : post.id); }}
+                        >
+                            <HiOutlineEllipsisHorizontal />
+                        </button>
+
+                        {showMoreMenu === post.id && (
+                            <div className="more-context-sheet glass-card animate-scaleIn">
+                                <div className="sheet-handle" />
+                                <button className="sheet-item" onClick={() => handleRecommend(post)}>
+                                    <HiOutlineStar className="item-icon" /> Recommend Post
+                                </button>
+                                <button className="sheet-item" onClick={() => handleDownload(post)}>
+                                    <HiOutlineArrowPath className="item-icon" /> Download Media
+                                </button>
+                                <div className="sheet-divider" />
+                                <button className="sheet-item danger" onClick={() => setReportPostId(post.id)}>
+                                    <HiOutlineTrash className="item-icon" /> Report Content
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         );
