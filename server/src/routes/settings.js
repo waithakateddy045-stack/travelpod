@@ -6,9 +6,18 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const uploadDir = path.join(os.tmpdir(), 'travelpod-uploads');
+const uploadDir = path.join(os.tmpdir(), 'travelpod-avatars');
 if (!fs.existsSync(uploadDir)) { fs.mkdirSync(uploadDir, { recursive: true }); }
-const upload = multer({ dest: uploadDir });
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => cb(null, `${req.user.id}-settings-${Date.now()}${path.extname(file.originalname)}`),
+});
+
+const upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 }
+});
 
 router.get('/', authenticate, getSettings);
 router.put('/profile', authenticate, updateProfile);

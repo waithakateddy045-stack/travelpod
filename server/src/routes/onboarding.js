@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const os = require('os');
+const fs = require('fs');
 const { authenticate } = require('../middleware/auth');
 const {
     saveProfile,
@@ -10,9 +12,14 @@ const {
     completeOnboarding,
 } = require('../controllers/onboardingController');
 
-// Multer config for avatar uploads
+// Multer config for avatar uploads — use OS temp directory
+const uploadDir = path.join(os.tmpdir(), 'travelpod-avatars');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, path.join(__dirname, '../../uploads/avatars')),
+    destination: (req, file, cb) => cb(null, uploadDir),
     filename: (req, file, cb) => cb(null, `${req.user.id}-${Date.now()}${path.extname(file.originalname)}`),
 });
 

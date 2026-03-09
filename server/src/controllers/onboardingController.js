@@ -80,8 +80,10 @@ const uploadAvatar = async (req, res, next) => {
 
         res.json({ success: true, avatarUrl });
     } catch (err) {
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         next(err);
     }
+
 };
 
 // ============================================================
