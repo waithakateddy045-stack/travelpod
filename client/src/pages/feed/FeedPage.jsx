@@ -94,8 +94,8 @@ export default function FeedPage() {
             }
 
             let endpoint = `/feed?page=${currentPage}&limit=10&sessionId=${sessionId}`;
-            if (feedMode === 'FOLLOWING') endpoint = `/feed/following?page=${currentPage}&limit=10`;
-            if (feedMode === 'BROADCASTS') endpoint = `/broadcasts/inbox?page=${currentPage}&limit=10`;
+            if (feedMode === 'FOLLOWING') endpoint = `/feed/following?page=${currentPage}&limit=10&sessionId=${sessionId}`;
+            if (feedMode === 'BROADCASTS') endpoint = `/broadcasts/explore?page=${currentPage}&limit=10`;
             if (feedMode === 'BOARDS') endpoint = `/boards/feed?page=${currentPage}&limit=10`;
 
             const category = activeChip !== 'All' && feedMode === 'FOR_YOU' ? `&category=${encodeURIComponent(activeChip)}` : '';

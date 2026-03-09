@@ -272,11 +272,63 @@ const markBroadcastViewed = async (req, res, next) => {
 };
 
 // DELETE /api/admin/broadcasts/:id — Delete a broadcast
-const deleteBroadcast = async (req, res, next) => {
+// GET /api/broadcasts/explore — Discovery feed for broadcasts
+const getBroadcastsExplore = async (req, res, next) => {
     try {
-        await prisma.broadcastPost.delete({ where: { id: req.params.id } });
-        res.json({ success: true });
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const userId = req.user?.id;
+
+        const [broadcasts, total] = await Promise.all([
+            prisma.broadcastPost.findMany({
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    post: {
+                        select: { id: true, title: true, description: true, videoUrl: true, thumbnailUrl: true, duration: true, postType: true, likeCount: true, viewCount: true },
+                    },
+                    association: {
+                        select: {
+                            id: true,
+                            profile: {
+                                select: { displayName: true, handle: true, avatarUrl: true },
+                                include: { businessProfile: { select: { verificationStatus: true } } }
+                            },
+                        },
+                    },
+                },
+            }),
+            prisma.broadcastPost.count(),
+        ]);
+
+        // Enrich with engagement status if user is logged in
+        let enriched = broadcasts.map(b => ({
+            ...b,
+            post: {
+                ...b.post,
+                author: b.association,
+                isBroadcast: true,
+                broadcastId: b.id
+            }
+        }));
+
+        if (userId) {
+            const postIds = broadcasts.map(b => b.post.id);
+            const targets = await prisma.broadcastTarget.findMany({
+                where: { targetUserId: userId, broadcastId: { in: broadcasts.map(b => b.id) } },
+                select: { broadcastId: true, viewed: true }
+            });
+            const viewedSet = new Set(targets.filter(t => t.viewed).map(t => t.broadcastId));
+
+            enriched = enriched.map(b => ({
+                ...b,
+                viewed: viewedSet.has(b.id)
+            }));
+        }
+
+        res.json({ success: true, broadcasts: enriched, total, page });
     } catch (err) { next(err); }
 };
 
-module.exports = { createBroadcast, getBroadcasts, getBroadcastsForUser, markBroadcastViewed, deleteBroadcast };
+module.exports = { createBroadcast, getBroadcasts, getBroadcastsForUser, getBroadcastsExplore, markBroadcastViewed, deleteBroadcast };

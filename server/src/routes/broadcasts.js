@@ -4,8 +4,8 @@ const multer = require('multer');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
-const { authenticate } = require('../middleware/auth');
-const { createBroadcast, getBroadcasts, getBroadcastsForUser, markBroadcastViewed } = require('../controllers/broadcastController');
+const { optionalAuth, authenticate } = require('../middleware/auth');
+const { createBroadcast, getBroadcasts, getBroadcastsForUser, getBroadcastsExplore, markBroadcastViewed } = require('../controllers/broadcastController');
 
 // Multer config for broadcast media
 const uploadDir = path.join(os.tmpdir(), 'travelpod-broadcasts');
@@ -37,5 +37,8 @@ router.get('/inbox', authenticate, getBroadcastsForUser);
 
 // User: mark broadcast as viewed
 router.put('/:id/viewed', authenticate, markBroadcastViewed);
+
+// Public/User: explore discovery broadcasts
+router.get('/explore', optionalAuth, getBroadcastsExplore);
 
 module.exports = router;

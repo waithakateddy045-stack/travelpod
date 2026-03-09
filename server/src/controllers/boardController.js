@@ -35,7 +35,7 @@ const getBoardsFeed = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const destination = req.query.destination || null;
-        const sort = req.query.sort || 'newest'; // newest | popular
+        const sort = req.query.sort || 'personalized'; // personalized | popular | newest
         const userId = req.user?.id;
 
         const where = { isPublic: true };
@@ -43,16 +43,15 @@ const getBoardsFeed = async (req, res, next) => {
             where.destination = { contains: destination, mode: 'insensitive' };
         }
 
-        const orderBy = sort === 'popular'
-            ? [{ likeCount: 'desc' }, { followerCount: 'desc' }, { createdAt: 'desc' }]
-            : [{ createdAt: 'desc' }];
-
+        // Fetch a pool for personalization
+        const poolSize = sort === 'personalized' ? 200 : limit;
         const [boards, total] = await Promise.all([
             prisma.tripBoard.findMany({
                 where,
-                orderBy,
-                skip: (page - 1) * limit,
-                take: limit,
+                orderBy: sort === 'personalized' ? [{ createdAt: 'desc' }] : (sort === 'popular'
+                    ? [{ likeCount: 'desc' }, { followerCount: 'desc' }, { createdAt: 'desc' }]
+                    : [{ createdAt: 'desc' }]),
+                take: poolSize,
                 include: {
                     user: {
                         select: {
@@ -70,14 +69,41 @@ const getBoardsFeed = async (req, res, next) => {
             prisma.tripBoard.count({ where }),
         ]);
 
-        // Enrich with user engagement status
-        let enriched = boards.map(b => ({
+        let processed = boards.map(b => ({
             ...b,
             coverImage: b.coverImage || b.videos?.[0]?.post?.thumbnailUrl || null,
         }));
 
+        // Personalized scoring if requested
+        if (sort === 'personalized' && userId) {
+            // Simple heuristic: Boost boards with same destination as recently liked posts
+            const recentLikes = await prisma.like.findMany({
+                where: { userId },
+                take: 20,
+                orderBy: { createdAt: 'desc' },
+                include: { post: { select: { locationTag: true } } }
+            });
+            const prefDestinations = new Set(recentLikes.map(l => l.post.locationTag).filter(Boolean));
+
+            processed = processed.map(b => {
+                let score = 0;
+                if (b.destination && prefDestinations.has(b.destination)) score += 50;
+                score += (b.likeCount * 2) + (b.followerCount * 5);
+                // Freshness bonus
+                const daysOld = (Date.now() - new Date(b.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+                score += Math.max(100 - daysOld, 0);
+                return { ...b, _score: score };
+            });
+            processed.sort((a, b) => b._score - a._score);
+            processed = processed.slice((page - 1) * limit, page * limit);
+        } else if (sort === 'personalized') {
+            // Default to popular for guests in personalized mode
+            processed.sort((a, b) => (b.likeCount + b.followerCount) - (a.likeCount + a.followerCount));
+            processed = processed.slice((page - 1) * limit, page * limit);
+        }
+
         if (userId) {
-            const boardIds = boards.map(b => b.id);
+            const boardIds = processed.map(b => b.id);
             const [likes, saves, follows] = await Promise.all([
                 prisma.boardLike.findMany({ where: { userId, boardId: { in: boardIds } }, select: { boardId: true } }),
                 prisma.boardSave.findMany({ where: { userId, boardId: { in: boardIds } }, select: { boardId: true } }),
@@ -86,7 +112,7 @@ const getBoardsFeed = async (req, res, next) => {
             const likedSet = new Set(likes.map(l => l.boardId));
             const savedSet = new Set(saves.map(s => s.boardId));
             const followedSet = new Set(follows.map(f => f.boardId));
-            enriched = enriched.map(b => ({
+            processed = processed.map(b => ({
                 ...b,
                 isLiked: likedSet.has(b.id),
                 isSaved: savedSet.has(b.id),
@@ -94,7 +120,7 @@ const getBoardsFeed = async (req, res, next) => {
             }));
         }
 
-        res.json({ success: true, boards: enriched, total, page, totalPages: Math.ceil(total / limit) });
+        res.json({ success: true, boards: processed, total, page, totalPages: Math.ceil(total / limit) });
     } catch (err) { next(err); }
 };
 
