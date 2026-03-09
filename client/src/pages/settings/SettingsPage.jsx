@@ -43,7 +43,9 @@ export default function SettingsPage() {
         displayName: '',
         handle: '',
         bio: '',
-        description: ''
+        description: '',
+        personalityTags: [],
+        preferredRegions: []
     });
     const [avatarFile, setAvatarFile] = useState(null);
     const [avatarPreview, setAvatarPreview] = useState(null);
@@ -55,7 +57,9 @@ export default function SettingsPage() {
                 displayName: user.profile?.displayName || '',
                 handle: user.profile?.handle || '',
                 bio: user.profile?.bio || '',
-                description: user.profile?.businessProfile?.description || ''
+                description: user.profile?.businessProfile?.description || '',
+                personalityTags: user.profile?.personalityTags || [],
+                preferredRegions: user.profile?.preferredRegions || []
             });
             setAvatarPreview(user.profile?.avatarUrl);
         }
@@ -296,7 +300,7 @@ export default function SettingsPage() {
                                     </div>
 
                                     <div className="form-field">
-                                        <label className="form-label">{isBusiness ? 'Business Bio' : 'Bio'}</label>
+                                        <label className="form-label">{user?.accountType !== 'TRAVELER' ? 'Business Bio' : 'Bio'}</label>
                                         <textarea
                                             className="form-input"
                                             style={{ minHeight: 100, paddingTop: 10 }}
@@ -306,7 +310,27 @@ export default function SettingsPage() {
                                         />
                                     </div>
 
-                                    {isBusiness && (
+                                    <div className="form-field">
+                                        <label className="form-label">Personality Tags (comma separated)</label>
+                                        <input
+                                            className="form-input"
+                                            value={profileForm.personalityTags?.join(', ') || ''}
+                                            onChange={e => setProfileForm(f => ({ ...f, personalityTags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) }))}
+                                            placeholder="e.g. Backpacker, Luxury, Foodie"
+                                        />
+                                    </div>
+
+                                    <div className="form-field">
+                                        <label className="form-label">Preferred Regions (comma separated)</label>
+                                        <input
+                                            className="form-input"
+                                            value={profileForm.preferredRegions?.join(', ') || ''}
+                                            onChange={e => setProfileForm(f => ({ ...f, preferredRegions: e.target.value.split(',').map(t => t.trim()).filter(Boolean) }))}
+                                            placeholder="e.g. SE Asia, Europe, Africa"
+                                        />
+                                    </div>
+
+                                    {user?.accountType !== 'TRAVELER' && (
                                         <div className="form-field">
                                             <label className="form-label">Full Business Description</label>
                                             <textarea
@@ -319,9 +343,16 @@ export default function SettingsPage() {
                                         </div>
                                     )}
 
-                                    <button type="submit" className="auth-submit" disabled={profileLoading} style={{ width: 'auto', padding: '10px 28px', marginTop: 'var(--space-4)' }}>
-                                        {profileLoading ? 'Saving...' : 'Save Profile'}
-                                    </button>
+                                    <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-6)' }}>
+                                        <button
+                                            type="submit"
+                                            className="auth-submit"
+                                            disabled={profileLoading}
+                                            style={{ width: 'auto', padding: '10px 28px' }}
+                                        >
+                                            {profileLoading ? 'Saving...' : 'Save Changes'}
+                                        </button>
+                                    </div>
                                 </form>
                             </div>
                         )}
@@ -546,7 +577,7 @@ export default function SettingsPage() {
 
                     </div>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

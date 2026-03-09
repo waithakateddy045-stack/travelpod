@@ -13,6 +13,7 @@ import VideoPlayer from '../../components/video/VideoPlayer';
 import CommentItem from '../../components/post/CommentItem';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import AddToBoardModal from '../../components/boards/AddToBoardModal';
+import PostMoreMenu from '../../components/post/PostMoreMenu';
 import RecommendModal from '../../components/feed/RecommendModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import './PostPage.css';
@@ -33,9 +34,8 @@ export default function PostPage() {
     const [saveToBoardOpen, setSaveToBoardOpen] = useState(false);
     const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
     const [authorPosts, setAuthorPosts] = useState([]);
-    const [showMoreMenu, setShowMoreMenu] = useState(false);
-    const [reposting, setReposting] = useState(false);
     const [recommendPost, setRecommendPost] = useState(null);
+    const [reportPostId, setReportPostId] = useState(null);
     const lastTap = useRef(0);
     const touchStart = useRef(0);
 
@@ -146,39 +146,28 @@ export default function PostPage() {
         }
     };
 
+    const handleDeleteComment = async (commentId) => {
+        try {
+            await api.delete(`/engagement/comments/${commentId}`);
+            setComments(prev => prev.filter(comment => comment.id !== commentId));
+            setPost(prev => ({ ...prev, commentCount: prev.commentCount - 1 }));
+            toast.success('Comment deleted');
+        } catch (err) {
+            toast.error('Failed to delete comment');
+        }
+    };
+
     const handleRepost = async () => {
         if (!user) {
             setAuthModal({ isOpen: true, message: 'Log in to add to your feed' });
             return;
         }
-        setReposting(true);
         try {
             await api.post(`/posts/${id}/repost`);
             toast.success('Added to your feed!');
-            setShowMoreMenu(false);
         } catch (err) {
             toast.error('Failed to repost');
-        } finally {
-            setReposting(false);
         }
-    };
-
-    const handleRecommend = () => {
-        if (!user) {
-            setAuthModal({ isOpen: true, message: 'Log in to recommend posts' });
-            return;
-        }
-        setRecommendPost(post);
-        setShowMoreMenu(false);
-    };
-
-    const handleAddToBoard = () => {
-        if (!user) {
-            setAuthModal({ isOpen: true, message: 'Log in to save to trip boards' });
-            return;
-        }
-        setSaveToBoardOpen(true);
-        setShowMoreMenu(false);
     };
 
     const toggleMute = (e) => {
@@ -329,34 +318,29 @@ export default function PostPage() {
                             </button>
 
                             <div className="more-menu-container">
-                                <button
-                                    className="post-action-btn-main"
-                                    onClick={() => setShowMoreMenu(!showMoreMenu)}
-                                >
-                                    <HiOutlineEllipsisHorizontal />
-                                </button>
-
-                                {showMoreMenu && (
-                                    <div className="more-context-sheet glass-card animate-scaleIn">
-                                        <div className="sheet-handle" />
-                                        <button className="sheet-item" onClick={handleRepost} disabled={reposting}>
-                                            <HiOutlineShare className="item-icon" /> {reposting ? 'Adding...' : 'Add to Feed'}
-                                        </button>
-                                        <button className="sheet-item" onClick={handleRecommend}>
-                                            <HiOutlineStar className="item-icon" /> Recommend to Follower
-                                        </button>
-                                        <button className="sheet-item" onClick={handleAddToBoard}>
-                                            <HiOutlineFolderPlus className="item-icon" /> Add to Trip Board
-                                        </button>
-                                        <button className="sheet-item" onClick={handleDownload} disabled={!post.videoUrl}>
-                                            <HiOutlineArrowPath className="item-icon" /> Download Media
-                                        </button>
-                                        <div className="sheet-divider" />
-                                        <button className="sheet-item danger" onClick={() => setReportPostId(post.id)}>
-                                            <HiOutlineTrash className="item-icon" /> Report Content
-                                        </button>
-                                    </div>
-                                )}
+                                <PostMoreMenu
+                                    post={post}
+                                    isOwner={user?.id === post.author?.id}
+                                    onAction={(type) => {
+                                        if (!user && type !== 'download') { // Download doesn't require auth
+                                            setAuthModal({ isOpen: true, message: 'Log in to perform this action' });
+                                            return;
+                                        }
+                                        if (type === 'repost') handleRepost();
+                                        else if (type === 'recommend') setRecommendPost(post);
+                                        else if (type === 'board') setSaveToBoardOpen(true);
+                                        else if (type === 'download') handleDownload();
+                                        else if (type === 'report') setReportPostId(post.id);
+                                        else if (type === 'delete') {
+                                            if (window.confirm('Are you sure you want to delete this post?')) {
+                                                api.delete(`/posts/${post.id}`).then(() => {
+                                                    toast.success('Post deleted');
+                                                    navigate('/feed');
+                                                }).catch(err => toast.error('Failed to delete'));
+                                            }
+                                        }
+                                    }}
+                                />
                             </div>
                         </div>
                     </div>

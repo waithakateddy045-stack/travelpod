@@ -18,6 +18,7 @@ import VerificationApplicationModal from '../../components/verification/Verifica
 import FollowListModal from '../../components/profile/FollowListModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import ReportModal from '../../components/common/ReportModal';
+import PostMoreMenu from '../../components/post/PostMoreMenu';
 import './ProfilePage.css';
 
 const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
@@ -40,7 +41,8 @@ export default function ProfilePage() {
     const [boards, setBoards] = useState([]);
     const [followModalType, setFollowModalType] = useState(null); // 'followers' | 'following' | null
     const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
-    const [isReporting, setIsReporting] = useState(false);
+    const [isReportingUser, setIsReportingUser] = useState(false);
+    const [reportPostId, setReportPostId] = useState(null);
 
     const isOwn = user && profile && user.id === profile.userId;
     const isBusiness = profile && BUSINESS_TYPES.includes(profile.accountType);
@@ -288,7 +290,7 @@ export default function ProfilePage() {
                                 <button className="profile-btn message" onClick={handleStartMessage}>
                                     <HiOutlineEnvelope style={{ marginRight: 4 }} /> Message
                                 </button>
-                                <button className="profile-btn message" onClick={() => setIsReporting(true)} style={{ color: 'var(--text-tertiary)' }}>
+                                <button className="profile-btn message" onClick={() => setIsReportingUser(true)} style={{ color: 'var(--text-tertiary)' }}>
                                     <HiOutlineFlag /> Report
                                 </button>
                             </div>
@@ -387,8 +389,35 @@ export default function ProfilePage() {
                                         </div>
                                     )}
                                     <div className="post-grid-overlay">
-                                        <span><HiOutlineHeart /> {post.likeCount}</span>
-                                        <span><HiOutlinePlayCircle /> {post.viewCount}</span>
+                                        <div className="overlay-stats">
+                                            <span><HiOutlineHeart /> {post.likeCount}</span>
+                                            <span><HiOutlinePlayCircle /> {post.viewCount}</span>
+                                        </div>
+                                        <div className="overlay-actions" onClick={e => e.preventDefault()}>
+                                            <PostMoreMenu
+                                                post={post}
+                                                isOwner={isOwn}
+                                                onAction={(type) => {
+                                                    if (type === 'repost') {
+                                                        api.post(`/posts/${post.id}/repost`).then(() => toast.success('Added to feed'));
+                                                    } else if (type === 'recommend') {
+                                                        // Handle recommend - maybe a generic modal or navigate?
+                                                        toast.success('Recommend logic here');
+                                                    } else if (type === 'board') {
+                                                        // Trigger board modal
+                                                    } else if (type === 'report') {
+                                                        setReportPostId(post.id);
+                                                    } else if (type === 'delete') {
+                                                        if (window.confirm('Delete this post?')) {
+                                                            api.delete(`/posts/${post.id}`).then(() => {
+                                                                setPosts(prev => prev.filter(p => p.id !== post.id));
+                                                                toast.success('Post deleted');
+                                                            });
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 </Link>
                             ))
@@ -418,10 +447,31 @@ export default function ProfilePage() {
                                         <HiOutlineRectangleStack style={{ fontSize: '2rem', color: 'var(--text-tertiary)' }} />
                                     </div>
                                 )}
-                                <div className="post-grid-overlay" style={{ flexDirection: 'column', alignItems: 'flex-start', padding: '12px', background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)' }}>
-                                    <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#fff' }}>{board.title}</span>
-                                    {board.destination && <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)' }}>📍 {board.destination}</span>}
-                                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)' }}>{board.videoCount || 0} videos · {board.likeCount || 0} likes</span>
+                                <div className="post-grid-overlay" style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', padding: '12px', background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                        <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#fff' }}>{board.title}</span>
+                                        {board.destination && <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)' }}>📍 {board.destination}</span>}
+                                        <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)' }}>{board.videoCount || 0} videos · {board.likeCount || 0} likes</span>
+                                    </div>
+                                    {isOwn && (
+                                        <div onClick={e => e.preventDefault()}>
+                                            <button
+                                                className="action-btn-main"
+                                                style={{ color: '#fff', fontSize: '1.2rem' }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (window.confirm('Delete this board?')) {
+                                                        api.delete(`/boards/${board.id}`).then(() => {
+                                                            setBoards(prev => prev.filter(b => b.id !== board.id));
+                                                            toast.success('Board deleted');
+                                                        });
+                                                    }
+                                                }}
+                                            >
+                                                <HiOutlineTrash />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </Link>
                         )) : (
@@ -483,14 +533,28 @@ export default function ProfilePage() {
                 onApplySuccess={loadProfile}
             />
 
-            {isReporting && (
+            {reportPostId && (
+                <ReportModal
+                    entityId={reportPostId}
+                    entityType="POST"
+                    onClose={() => setReportPostId(null)}
+                />
+            )}
+
+            {isReportingUser && (
                 <ReportModal
                     entityId={profile.userId}
                     entityType="USER"
                     title="Profile"
-                    onClose={() => setIsReporting(false)}
+                    onClose={() => setIsReportingUser(false)}
                 />
             )}
+
+            <AuthPromptModal
+                isOpen={authModal.isOpen}
+                message={authModal.message}
+                onClose={() => setAuthModal({ isOpen: false, message: '' })}
+            />
         </div>
     );
 }

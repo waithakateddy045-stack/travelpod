@@ -19,6 +19,7 @@ import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import AddToBoardModal from '../../components/boards/AddToBoardModal';
 import RecommendModal from '../../components/feed/RecommendModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
+import PostMoreMenu from '../../components/post/PostMoreMenu';
 import './FeedPage.css';
 
 const FILTER_CHIPS = ['All', 'Destinations', 'Hotels & Resorts', 'Safari', 'Beach', 'Adventures'];
@@ -401,36 +402,25 @@ export default function FeedPage() {
                         {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
                     </button>
 
-                    <div className="more-menu-container">
-                        <button
-                            className="action-btn-main"
-                            onClick={(e) => { e.stopPropagation(); setShowMoreMenu(showMoreMenu === post.id ? null : post.id); }}
-                        >
-                            <HiOutlineEllipsisHorizontal />
-                        </button>
-
-                        {showMoreMenu === post.id && (
-                            <div className="more-context-sheet glass-card animate-scaleIn">
-                                <div className="sheet-handle" />
-                                <button className="sheet-item" onClick={() => handleRepost(post)} disabled={reposting === post.id}>
-                                    <HiOutlineShare className="item-icon" /> {reposting === post.id ? 'Adding...' : 'Add to Feed'}
-                                </button>
-                                <button className="sheet-item" onClick={() => handleRecommend(post)}>
-                                    <HiOutlineStar className="item-icon" /> Recommend to Follower
-                                </button>
-                                <button className="sheet-item" onClick={() => handleAddToBoard(post.id)}>
-                                    <HiOutlineFolderPlus className="item-icon" /> Add to Trip Board
-                                </button>
-                                <button className="sheet-item" onClick={() => handleDownload(post)}>
-                                    <HiOutlineArrowPath className="item-icon" /> Download Media
-                                </button>
-                                <div className="sheet-divider" />
-                                <button className="sheet-item danger" onClick={() => setReportPostId(post.id)}>
-                                    <HiOutlineTrash className="item-icon" /> Report Content
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                    <PostMoreMenu
+                        post={post}
+                        isOwner={user?.id === (post.user?.id || post.author?.id)}
+                        onAction={(type) => {
+                            if (type === 'repost') handleRepost(post);
+                            else if (type === 'recommend') handleRecommend(post);
+                            else if (type === 'board') handleAddToBoard(post.id);
+                            else if (type === 'download') handleDownload(post);
+                            else if (type === 'report') setReportPostId(post.id);
+                            else if (type === 'delete') {
+                                if (window.confirm('Are you sure you want to delete this post?')) {
+                                    api.delete(`/posts/${post.id}`).then(() => {
+                                        setPosts(prev => prev.filter(p => p.id !== post.id));
+                                        toast.success('Post deleted');
+                                    }).catch(err => toast.error('Failed to delete'));
+                                }
+                            }
+                        }}
+                    />
                 </div>
             </div>
         );

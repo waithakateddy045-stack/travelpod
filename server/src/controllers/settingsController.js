@@ -4,6 +4,11 @@ const bcrypt = require('bcryptjs');
 const { uploadImage } = require('../services/cloudinary');
 const fs = require('fs');
 
+console.log('☁️ Settings loaded. Cloudinary status:', {
+    cloud: process.env.CLOUDINARY_CLOUD_NAME ? 'SET' : 'MISSING',
+    key: process.env.CLOUDINARY_API_KEY ? 'SET' : 'MISSING'
+});
+
 // GET /api/settings — Get user settings
 const getSettings = async (req, res, next) => {
     try {
@@ -93,13 +98,13 @@ const deleteAccount = async (req, res, next) => {
 // PUT /api/settings/profile
 const updateProfile = async (req, res, next) => {
     try {
-        const { displayName, handle, bio, description } = req.body;
+        const { displayName, handle, bio, description, personalityTags, preferredRegions } = req.body;
         const userId = req.user.id;
 
         // 1. Handle uniqueness check if changing
         if (handle) {
             const existing = await prisma.profile.findFirst({
-                where: { handle: { equals: handle, mode: 'insensitive' }, userId: { not: userId } }
+                where: { handle: { equals: handle.trim(), mode: 'insensitive' }, userId: { not: userId } }
             });
             if (existing) throw new AppError('Handle is already taken', 400);
         }
@@ -111,6 +116,8 @@ const updateProfile = async (req, res, next) => {
                 ...(displayName && { displayName: displayName.trim() }),
                 ...(handle && { handle: handle.trim().toLowerCase() }),
                 ...(bio !== undefined && { bio: bio?.trim() || null }),
+                ...(personalityTags && { personalityTags }),
+                ...(preferredRegions && { preferredRegions }),
             }
         });
 
@@ -129,9 +136,10 @@ const updateProfile = async (req, res, next) => {
 // POST /api/settings/avatar
 const updateAvatar = async (req, res, next) => {
     try {
-        if (!req.file) throw new AppError('No file uploaded', 400);
-
+        console.log('📸 Uploading avatar for user:', req.user.id, 'at path:', req.file.path);
         const upload = await uploadImage(req.file.path, 'travelpod/avatars');
+        console.log('✅ Cloudinary upload success:', upload.secure_url);
+
         if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
 
         await prisma.profile.update({

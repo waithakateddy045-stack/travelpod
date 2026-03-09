@@ -51,6 +51,7 @@ router.patch('/business-verifications/:id/reject', authenticate, adminOnly, reje
 
 // ── Trip Boards
 router.get('/boards', authenticate, adminOnly, getBoards);
+router.put('/boards/:id', authenticate, adminOnly, updateBoardStatus);
 router.delete('/boards/:id', authenticate, adminOnly, deleteBoard);
 
 // ── Comments

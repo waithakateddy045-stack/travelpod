@@ -31,8 +31,26 @@ export default function ReportModal({ entityId, entityType, title = 'Post', onCl
                         reason.includes('Misinformation') ? 'MISLEADING' : 'SPAM';
 
             await api.post('/reports', { entityId, entityType, reason: mappedReason, detail });
-            toast.success('Report submitted. Thank you for keeping Travelpod safe.');
-            onClose();
+
+            // The user requested that reporting opens a message channel/report hub.
+            // We'll show a success message and then offer to redirect to a message/support.
+            toast.success('Report submitted safely.');
+
+            if (window.confirm('Would you like to open a support message regarding this report?')) {
+                try {
+                    // Create a system message or start conversation with admin
+                    // For now, redirect to messages which will show the new "Report Hub" or similar
+                    // In a real app, we might create a specific ticket-based conversation
+                    toast('Redirecting to Report Hub...', { icon: '📨' });
+                    setTimeout(() => {
+                        window.location.href = '/messages';
+                    }, 1500);
+                } catch (err) {
+                    onClose();
+                }
+            } else {
+                onClose();
+            }
         } catch (err) {
             if (err.response?.status === 401 || err.response?.status === 403) {
                 toast.error('Please log in to report content');

@@ -182,4 +182,21 @@ const deleteBoard = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-module.exports = { getDashboardStats, getUsers, getBoards, deleteBoard };
+// PUT /api/admin/boards/:id — Update board status (moderation)
+const updateBoardStatus = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { action } = req.body;
+
+        const moderationStatus = action === 'RESTORED' ? 'ACTIVE' : 'REMOVED';
+
+        const board = await prisma.tripBoard.update({
+            where: { id },
+            data: { moderationStatus },
+        });
+
+        res.json({ success: true, board });
+    } catch (err) { next(err); }
+};
+
+module.exports = { getDashboardStats, getUsers, getBoards, deleteBoard, updateBoardStatus };
