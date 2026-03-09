@@ -18,14 +18,15 @@ export default function UploadPage() {
     
     // Parse query params for linked business (reviews)
     const searchParams = new URLSearchParams(locationState.search);
-    const initialBusinessId = searchParams.get('linkedBusinessId');
-    const initialBusinessName = searchParams.get('businessName');
+    const [initialBusinessId] = useState(searchParams.get('linkedBusinessId'));
+    const [initialBusinessName] = useState(searchParams.get('businessName'));
 
     const [step, setStep] = useState(1); // 1=Select, 2=Thumbnail, 3=Details, 4=Review
     const [file, setFile] = useState(null);
     const [filePreview, setFilePreview] = useState(null);
     const [isVideo, setIsVideo] = useState(false);
     const [isTextPost, setIsTextPost] = useState(false);
+    const [isBroadcast, setIsBroadcast] = useState(false);
     const [duration, setDuration] = useState(0);
 
     // Thumbnail
@@ -40,6 +41,8 @@ export default function UploadPage() {
     const [location, setLocation] = useState('');
     const [category, setCategory] = useState(initialBusinessId ? 'Reviews' : '');
     const [linkedBusinessId] = useState(initialBusinessId);
+    const [sectorTargeting, setSectorTargeting] = useState([]);
+    const [regionTargeting, setRegionTargeting] = useState('');
     const [aiLoading, setAiLoading] = useState(false);
     const [aiGenerated, setAiGenerated] = useState(false);
     const [titleOptions, setTitleOptions] = useState([]);
@@ -55,6 +58,15 @@ export default function UploadPage() {
     const CATEGORIES = ['Destinations', 'Hotels & Resorts', 'Restaurants & Food', 'Adventures & Activities', 'Travel Tips', 'Flight Reviews', 'Safari', 'Beach', 'City Life', 'Culture & History', 'Nightlife', 'Wellness'];
     const MAX_VIDEO_SIZE = 500 * 1024 * 1024; // 500MB
     const MAX_IMAGE_SIZE = 10 * 1024 * 1024;  // 10MB
+    const SECTORS = ['TRAVELER', 'TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
+
+    useEffect(() => {
+        if (searchParams.get('type') === 'broadcast') {
+            setIsBroadcast(true);
+            setIsTextPost(true);
+            setStep(3);
+        }
+    }, [searchParams]);
 
     // ─── STEP 1: File Selection ──────────────────────────────
     const handleFileSelect = (e) => {
@@ -161,21 +173,34 @@ export default function UploadPage() {
         setUploadProgress(0);
 
         const formData = new FormData();
-        if (file) formData.append('media', file);
-        formData.append('title', title.trim());
-        formData.append('description', description);
-        formData.append('locationTag', location);
-        formData.append('category', category);
-        formData.append('tags', JSON.stringify(tags));
-        formData.append('isTextPost', isTextPost);
-        if (linkedBusinessId) formData.append('linkedBusinessId', linkedBusinessId);
+        const endpoint = isBroadcast ? '/broadcasts' : '/posts';
 
-        if (isVideo && thumbnails.length > 0) {
-            formData.append('thumbnailIndex', selectedThumb);
+        if (isBroadcast) {
+            if (file) {
+                if (isVideo) formData.append('video', file);
+                else formData.append('images', file); // API expects 'images' field for broadcasts
+            }
+            formData.append('title', title.trim());
+            formData.append('message', description); // Controller expects 'message'
+            formData.append('sectorTargeting', JSON.stringify(sectorTargeting));
+            formData.append('region', regionTargeting);
+        } else {
+            if (file) formData.append('media', file);
+            formData.append('title', title.trim());
+            formData.append('description', description);
+            formData.append('locationTag', location);
+            formData.append('category', category);
+            formData.append('tags', JSON.stringify(tags));
+            formData.append('isTextPost', isTextPost);
+            if (linkedBusinessId) formData.append('linkedBusinessId', linkedBusinessId);
+
+            if (isVideo && thumbnails.length > 0) {
+                formData.append('thumbnailIndex', selectedThumb);
+            }
         }
 
         try {
-            const res = await api.post('/posts', formData, {
+            const res = await api.post(endpoint, formData, {
                 onUploadProgress: (e) => {
                     const pct = Math.round((e.loaded / e.total) * 100);
                     setUploadProgress(pct);
@@ -200,9 +225,10 @@ export default function UploadPage() {
     };
 
     const resetForm = () => {
-        setStep(1); setFile(null); setFilePreview(null); setIsVideo(false); setIsTextPost(false); setDuration(0);
+        setStep(1); setFile(null); setFilePreview(null); setIsVideo(false); setIsTextPost(false); setIsBroadcast(false); setDuration(0);
         setThumbnails([]); setSelectedThumb(0); setTitle(''); setDescription('');
         setTags([]); setTagInput(''); setLocation(''); setCategory('');
+        setSectorTargeting([]); setRegionTargeting('');
         setAiGenerated(false); setTitleOptions([]); setUploading(false);
         setUploadProgress(0); setAgreed(false); setUploadResult(null);
     };
@@ -249,6 +275,17 @@ export default function UploadPage() {
                                 <p className="dropzone-title">Text Post</p>
                                 <p className="dropzone-sub">Thoughts & Reviews</p>
                             </div>
+
+                            {user?.profile?.businessProfile?.verificationStatus === 'APPROVED' && (
+                                <div
+                                    className="upload-dropzone broadcast-type"
+                                    onClick={() => { setIsBroadcast(true); setIsTextPost(true); setStep(3); }}
+                                >
+                                    <HiOutlineSparkles className="dropzone-icon" />
+                                    <p className="dropzone-title">Verify Broadcast</p>
+                                    <p className="dropzone-sub">Reach thousands</p>
+                                </div>
+                            )}
                         </div>
                         <input
                             ref={fileRef}
@@ -384,6 +421,48 @@ export default function UploadPage() {
                                 </select>
                             </div>
                         </div>
+
+                        {isBroadcast && (
+                            <div className="broadcast-targeting" style={{ marginTop: '20px', padding: '20px', background: 'var(--bg-elevated)', borderRadius: '12px', border: '1px solid var(--border-primary)' }}>
+                                <h3 style={{ fontSize: '1rem', marginBottom: '15px', color: 'var(--accent-primary)' }}>Broadcast Targeting</h3>
+                                <div className="form-group" style={{ marginBottom: '15px' }}>
+                                    <label style={{ fontSize: '0.85rem', marginBottom: '8px', display: 'block' }}>Sectors (Optional)</label>
+                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                        {['TRAVELER', 'TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'].map(s => (
+                                            <button
+                                                key={s}
+                                                type="button"
+                                                onClick={() => {
+                                                    if (sectorTargeting.includes(s)) setSectorTargeting(sectorTargeting.filter(x => x !== s));
+                                                    else setSectorTargeting([...sectorTargeting, s]);
+                                                }}
+                                                style={{
+                                                    padding: '6px 12px',
+                                                    borderRadius: '20px',
+                                                    fontSize: '0.75rem',
+                                                    border: '1px solid var(--border-primary)',
+                                                    background: sectorTargeting.includes(s) ? 'var(--accent-primary)' : 'transparent',
+                                                    color: sectorTargeting.includes(s) ? 'white' : 'var(--text-primary)',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                {s.replace('_', ' ')}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label style={{ fontSize: '0.85rem', marginBottom: '8px', display: 'block' }}>Specific Region/Country (Optional)</label>
+                                    <input
+                                        type="text"
+                                        value={regionTargeting}
+                                        onChange={e => setRegionTargeting(e.target.value)}
+                                        placeholder="e.g. Kenya"
+                                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-primary)', background: 'var(--bg-main)' }}
+                                    />
+                                </div>
+                            </div>
+                        )}
 
                         <div className="step-actions">
                             <button className="btn-secondary" onClick={() => setStep(isVideo ? 2 : 1)}>Back</button>

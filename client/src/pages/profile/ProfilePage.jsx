@@ -9,7 +9,7 @@ import {
     HiOutlineChartBar, HiOutlineEnvelope,
     HiOutlineRectangleStack, HiOutlineFlag, HiCheckBadge,
     HiOutlineChartPie, HiOutlinePencilSquare, HiOutlineTrash,
-    HiOutlineUserGroup, HiOutlineTrophy
+    HiOutlineUserGroup, HiOutlineTrophy, HiOutlineSparkles
 } from 'react-icons/hi2';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -259,10 +259,18 @@ export default function ProfilePage() {
                                         <HiOutlineChartBar /> Analytics
                                     </Link>
                                 )}
-                                {isBusiness && profile.businessProfile?.verificationStatus === 'PENDING' && (
+                                 {isBusiness && profile.businessProfile?.verificationStatus === 'PENDING' && (
                                     <div className="verification-status-pill">
                                         ⏳ Verification Pending
                                     </div>
+                                )}
+                                {isBusiness && profile.businessProfile?.verificationStatus === 'APPROVED' && (
+                                    <button 
+                                        className="profile-action-btn accent pulse-broadcast"
+                                        onClick={() => navigate('/upload?type=broadcast')}
+                                    >
+                                        <HiOutlineSparkles /> Create Broadcast
+                                    </button>
                                 )}
                                 {isBusiness && !['APPROVED', 'PENDING'].includes(profile.businessProfile?.verificationStatus) && (
                                     <button

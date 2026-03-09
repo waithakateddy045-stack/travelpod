@@ -109,7 +109,7 @@ export default function FeedPage() {
             if (feedMode === 'BROADCASTS') {
                 items = (data.broadcasts || []).map(b => ({
                     ...(b.post || {}),
-                    author: b.sender,
+                    author: b.author,
                     isBroadcast: true,
                     broadcastId: b.id,
                     mediaUrls: b.mediaUrls || [],

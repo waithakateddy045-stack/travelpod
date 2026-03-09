@@ -613,7 +613,7 @@ enum BroadcastMediaType {
 model BroadcastPost {
   id              String             @id @default(uuid())
   postId          String             @unique @map("post_id")
-  associationId   String             @map("association_id")
+  senderId        String             @map("sender_id")
   sectorTargeting Json               @map("sector_targeting")
   mediaUrls       Json?              @map("media_urls")
   mediaType       BroadcastMediaType @default(TEXT) @map("media_type")
@@ -623,7 +623,7 @@ model BroadcastPost {
   createdAt       DateTime           @default(now()) @map("created_at")
 
   post            Post               @relation(fields: [postId], references: [id], onDelete: Cascade)
-  association     User               @relation(fields: [associationId], references: [id])
+  sender          User               @relation(fields: [senderId], references: [id])
   targets         BroadcastTarget[]
 
   @@map("broadcast_posts")

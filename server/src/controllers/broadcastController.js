@@ -11,12 +11,14 @@ const fs = require('fs');
 const createBroadcast = async (req, res, next) => {
     try {
         const senderType = req.user.accountType;
-        if (senderType !== 'ASSOCIATION' && senderType !== 'ADMIN') {
-            throw new AppError('Only associations and admins can create broadcasts', 403);
+        const businessTypes = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
+        
+        if (!businessTypes.includes(senderType) && senderType !== 'ADMIN') {
+            throw new AppError('Only verified businesses and admins can create broadcasts', 403);
         }
 
         // Verified access control for businesses
-        if (senderType === 'ASSOCIATION') {
+        if (businessTypes.includes(senderType)) {
             const profile = await prisma.profile.findUnique({
                 where: { userId: req.user.id },
                 include: { businessProfile: true }
@@ -98,7 +100,7 @@ const createBroadcast = async (req, res, next) => {
         const broadcast = await prisma.broadcastPost.create({
             data: {
                 postId: targetPostId,
-                associationId: req.user.id,
+                senderId: req.user.id,
                 sectorTargeting: targeting,
                 mediaUrls: mediaUrls,
                 mediaType: mediaType,
@@ -163,7 +165,7 @@ const getBroadcasts = async (req, res, next) => {
                     post: {
                         select: { id: true, title: true, description: true, videoUrl: true, thumbnailUrl: true, duration: true, postType: true },
                     },
-                    association: {
+                    author: {
                         select: {
                             id: true,
                             profile: {
@@ -213,7 +215,7 @@ const getBroadcastsForUser = async (req, res, next) => {
                         post: {
                             select: { id: true, title: true, description: true, videoUrl: true, thumbnailUrl: true, duration: true, postType: true },
                         },
-                        association: {
+                        author: {
                             select: {
                                 id: true,
                                 profile: {
@@ -235,7 +237,7 @@ const getBroadcastsForUser = async (req, res, next) => {
         const broadcasts = targets.map(t => ({
             id: t.broadcast.id,
             post: t.broadcast.post,
-            sender: t.broadcast.association,
+            sender: t.broadcast.author,
             mediaUrls: t.broadcast.mediaUrls,
             mediaType: t.broadcast.mediaType,
             viewed: t.viewed,
@@ -302,7 +304,7 @@ const getBroadcastsExplore = async (req, res, next) => {
                     post: {
                         select: { id: true, title: true, description: true, videoUrl: true, thumbnailUrl: true, duration: true, postType: true, likeCount: true, viewCount: true },
                     },
-                    association: {
+                    author: {
                         select: {
                             id: true,
                             profile: {
@@ -321,7 +323,7 @@ const getBroadcastsExplore = async (req, res, next) => {
             ...b,
             post: {
                 ...b.post,
-                author: b.association,
+                author: b.author,
                 isBroadcast: true,
                 broadcastId: b.id
             }
