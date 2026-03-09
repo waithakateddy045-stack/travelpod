@@ -31,6 +31,14 @@ import './index.css';
 function App() {
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
+      import('@capacitor/push-notifications').then(({ PushNotifications }) => {
+        PushNotifications.requestPermissions().then((result) => {
+          if (result.receive === 'granted') {
+            PushNotifications.register();
+          }
+        });
+      });
+
       CapacitorApp.addListener('appUrlOpen', (event) => {
         const url = new URL(event.url);
         if (url.protocol === 'travelpod:' && url.host === 'callback') {

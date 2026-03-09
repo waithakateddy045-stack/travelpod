@@ -1,12 +1,13 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { HiOutlinePlay, HiOutlinePause, HiOutlineSpeakerWave, HiOutlineSpeakerXMark, HiOutlineExclamationTriangle, HiOutlineArrowPath } from 'react-icons/hi2';
+import { useAuth } from '../../context/AuthContext';
 import './VideoPlayer.css';
 
-export default function VideoPlayer({ src, poster, autoPlay = false, muted = true, loop = true, onView }) {
+export default function VideoPlayer({ src, poster, autoPlay = false, loop = true, onView }) {
     const videoRef = useRef(null);
     const containerRef = useRef(null);
+    const { isMuted, setIsMuted } = useAuth();
     const [playing, setPlaying] = useState(autoPlay);
-    const [isMuted, setIsMuted] = useState(muted);
     const [progress, setProgress] = useState(0);
     const [viewCounted, setViewCounted] = useState(false);
     const [hasError, setHasError] = useState(false);
@@ -60,10 +61,7 @@ export default function VideoPlayer({ src, poster, autoPlay = false, muted = tru
 
     const toggleMute = (e) => {
         e.stopPropagation();
-        const video = videoRef.current;
-        if (!video) return;
-        video.muted = !video.muted;
-        setIsMuted(video.muted);
+        setIsMuted(!isMuted);
     };
 
     const handleError = () => {

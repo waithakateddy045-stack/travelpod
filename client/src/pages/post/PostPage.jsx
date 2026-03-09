@@ -11,6 +11,7 @@ import api from '../../services/api';
 import VideoPlayer from '../../components/video/VideoPlayer';
 import CommentItem from '../../components/post/CommentItem';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
+import AddToBoardModal from '../../components/boards/AddToBoardModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import './PostPage.css';
 
@@ -27,6 +28,7 @@ export default function PostPage() {
     const [commentText, setCommentText] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [isEnquiryModalOpen, setIsEnquiryModalOpen] = useState(false);
+    const [saveToBoardOpen, setSaveToBoardOpen] = useState(false);
     const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
     const [authorPosts, setAuthorPosts] = useState([]);
     const touchStart = useRef(0);
@@ -96,21 +98,24 @@ export default function PostPage() {
         }
     };
 
-    const handleSave = async () => {
+    const handleSave = () => {
         if (!user) {
             setAuthModal({ isOpen: true, message: 'Save videos to your trip boards' });
             return;
         }
-        try {
-            if (post.isSaved) {
-                await api.delete(`/engagement/save/${id}`);
-            } else {
-                await api.post(`/engagement/save/${id}`);
-            }
-            setPost(prev => ({ ...prev, isSaved: !prev.isSaved, saveCount: prev.saveCount + (prev.isSaved ? -1 : 1) }));
-        } catch {
-            toast.error('Failed to update save');
-        }
+        setSaveToBoardOpen(true);
+    };
+
+    const handleDownload = () => {
+        if (!post?.videoUrl) return;
+        const link = document.createElement('a');
+        link.href = post.videoUrl;
+        link.setAttribute('download', `travelpod-${id}.mp4`);
+        link.setAttribute('target', '_blank');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('Download started!');
     };
 
     const handleSubmitComment = async (e) => {
@@ -163,7 +168,7 @@ export default function PostPage() {
             <div className="post-container">
                 {/* Left: Video */}
                 <div className="post-video-section">
-                    <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} />
+                    <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} autoPlay={true} />
                 </div>
 
                 {/* Right: Details & Comments */}
@@ -232,7 +237,9 @@ export default function PostPage() {
                             title="Share"
                         >
                             <HiOutlineShare />
-                            <span>Share</span>
+                        </button>
+                        <button className="post-action-btn" onClick={handleDownload} title="Download">
+                            <HiOutlineArrowPath style={{ transform: 'rotate(90deg)' }} />
                         </button>
                         <button className={`post-action-btn ml-auto ${post.isSaved ? 'active' : ''}`} onClick={handleSave}>
                             {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
@@ -286,6 +293,13 @@ export default function PostPage() {
                     businessName={post.author.profile?.displayName}
                     isOpen={isEnquiryModalOpen}
                     onClose={() => setIsEnquiryModalOpen(false)}
+                />
+            )}
+
+            {saveToBoardOpen && (
+                <AddToBoardModal
+                    postId={id}
+                    onClose={() => setSaveToBoardOpen(false)}
                 />
             )}
 

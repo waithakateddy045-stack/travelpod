@@ -66,7 +66,10 @@ function computeScore(post, context) {
     // 7. Verified business boost
     const verifiedBoost = post.author?.profile?.businessProfile?.verificationStatus === 'APPROVED' ? 1.0 : 0;
 
-    // 8. View dedup penalty (soft — reduces score by 60%, doesn't hide)
+    // 8. Broadcast boost (latest broadcasts jump to feed)
+    const broadcastBoost = post.postType === 'BROADCAST' ? 1.5 : 0;
+
+    // 9. View dedup penalty (soft — reduces score by 60%, doesn't hide)
     const viewPenalty = viewedSet.has(post.id) ? 0.4 : 1.0;
 
     const score = (
@@ -76,7 +79,8 @@ function computeScore(post, context) {
         freshness * WEIGHTS.freshness +
         discoveryScore * WEIGHTS.discovery +
         shuffleScore * WEIGHTS.personalShuffle +
-        verifiedBoost * WEIGHTS.verifiedBoost
+        verifiedBoost * WEIGHTS.verifiedBoost +
+        broadcastBoost * 0.2 // Give it a significant bump but not overriding everything
     ) * viewPenalty;
 
     return score;

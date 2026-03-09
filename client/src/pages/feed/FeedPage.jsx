@@ -9,13 +9,14 @@ import {
     HiOutlineArrowPath, HiOutlineStar, HiOutlineEnvelope,
     HiOutlineChartBar, HiOutlineShare, HiOutlineEllipsisHorizontal,
     HiOutlineRectangleStack, HiOutlineSpeakerWave, HiOutlineSpeakerXMark,
-    HiCheckBadge
+    HiCheckBadge, HiOutlinePaperAirplane
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import VideoPlayer from '../../components/video/VideoPlayer';
 import ReportModal from '../../components/common/ReportModal';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
+import AddToBoardModal from '../../components/boards/AddToBoardModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import './FeedPage.css';
 
@@ -24,23 +25,24 @@ const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE
 
 export default function FeedPage() {
     const navigate = useNavigate();
-    const { user, loadUser, isMuted, setIsMuted } = useAuth();
+    const { user, loadUser, isMuted, setIsMuted, unreadCount } = useAuth();
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [feedMode, setFeedMode] = useState('FOR_YOU'); // 'FOR_YOU', 'FOLLOWING', 'BROADCASTS', 'BOARDS'
     const [activeChip, setActiveChip] = useState('All');
     const [hasMore, setHasMore] = useState(true);
-    const [unreadMessages, setUnreadMessages] = useState(3);
     const [refreshing, setRefreshing] = useState(false);
     const [activeVideoId, setActiveVideoId] = useState(null);
     const [showMoreMenu, setShowMoreMenu] = useState(null);
-    const [reportPostId, setReportPostId] = useState(null);
     const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
 
     const feedRef = useRef(null);
     const observer = useRef();
     const [sessionId] = useState(() => localStorage.getItem('travelpod_session_id') || Math.random().toString(36).substring(2, 11));
+    const [reportPostId, setReportPostId] = useState(null);
+    const [enquiryPost, setEnquiryPost] = useState(null);
+    const [saveToBoardPostId, setSaveToBoardPostId] = useState(null);
 
     const lastPostElementRef = useCallback(node => {
         if (loading) return;
@@ -182,24 +184,20 @@ export default function FeedPage() {
         setShowMoreMenu(null);
     };
 
-    const handleDownload = async (post) => {
+    const handleDownload = (post) => {
         if (!post.videoUrl) return;
-        try {
-            const response = await fetch(post.videoUrl);
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `travelpod-${post.id}.mp4`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            toast.success('Download started');
-        } catch (err) {
-            toast.error('Download failed');
-            window.open(post.videoUrl, '_blank');
-        }
+
+        // Try direct browser download if possible
+        const link = document.createElement('a');
+        link.href = post.videoUrl;
+        link.setAttribute('download', `travelpod-${post.id}.mp4`);
+        link.setAttribute('target', '_blank');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success('Download started!');
+        setShowMoreMenu(null);
     };
 
     const handleRecommend = (post) => {
@@ -207,18 +205,13 @@ export default function FeedPage() {
         setShowMoreMenu(null);
     };
 
-    const handleAddToBoard = async (postId) => {
+    const handleAddToBoard = (postId) => {
         if (!user) {
             setAuthModal({ isOpen: true, message: 'Log in to save to trip boards' });
             return;
         }
-        try {
-            await api.post(`/engagement/save/${postId}`);
-            toast.success('Saved to your Trip Board');
-            setShowMoreMenu(null);
-        } catch (err) {
-            toast.error('Failed to save to board');
-        }
+        setSaveToBoardPostId(postId);
+        setShowMoreMenu(null);
     };
 
     const toggleMute = (e) => {
@@ -275,6 +268,71 @@ export default function FeedPage() {
         );
     };
 
+    const renderActions = (post) => {
+        const author = post.user || post.author;
+        const isBusiness = author?.profile?.accountType === 'BUSINESS' || author?.profile?.businessProfile;
+
+        return (
+            <div className="feed-actions-vertical">
+                {isBusiness && (
+                    <button
+                        className="enquire-action-btn animate-scaleIn"
+                        onClick={(e) => { e.stopPropagation(); setEnquiryPost(post); }}
+                    >
+                        Enquire
+                    </button>
+                )}
+
+                <button
+                    className={`action-btn-vertical ${post.isLiked ? 'liked' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); handleAction('like', post); }}
+                >
+                    {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
+                    <span className="action-count">{post.likeCount || 0}</span>
+                </button>
+
+                <button
+                    className="action-btn-vertical"
+                    onClick={(e) => { e.stopPropagation(); navigate(`/post/${post.id}`); }}
+                >
+                    <HiOutlineChatBubbleOvalLeft />
+                    <span className="action-count">{post.commentCount || 0}</span>
+                </button>
+
+                <button
+                    className="action-btn-vertical"
+                    onClick={(e) => { e.stopPropagation(); handleShare(post); }}
+                >
+                    <HiOutlinePaperAirplane style={{ transform: 'rotate(-20deg) translateY(-2px)' }} />
+                </button>
+
+                <button
+                    className={`action-btn-vertical ${post.isSaved ? 'saved' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); handleAddToBoard(post.id); }}
+                >
+                    {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
+                </button>
+
+                <div className="hub-more-wrapper">
+                    <button
+                        className="action-btn-vertical"
+                        onClick={(e) => { e.stopPropagation(); setShowMoreMenu(showMoreMenu === post.id ? null : post.id); }}
+                    >
+                        <HiOutlineEllipsisHorizontal />
+                    </button>
+
+                    {showMoreMenu === post.id && (
+                        <div className="hub-more-menu glass-card animate-scaleIn">
+                            <button className="menu-item" onClick={() => handleRecommend(post)}>Recommend</button>
+                            <button className="menu-item" onClick={() => handleDownload(post)}>Download Video</button>
+                            <button className="menu-item danger" onClick={() => setReportPostId(post.id)}>Report Content</button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div
             className="feed-page"
@@ -301,7 +359,7 @@ export default function FeedPage() {
                         </button>
                         <button className="feed-nav-icon inbox-btn" onClick={() => navigate('/messages')} title="Messages">
                             <HiOutlineEnvelope />
-                            {unreadMessages > 0 && <span className="notification-badge">{unreadMessages}</span>}
+                            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
                         </button>
                         {user ? (
                             <button className="feed-nav-icon profile-btn" onClick={() => navigate(`/profile/${user.profile.handle}`)}>
@@ -344,38 +402,11 @@ export default function FeedPage() {
                             data-id={post.id}
                         >
                             {renderMedia(post)}
+                            {renderActions(post)}
 
-                            {/* Floating Travel Kit Hub - Redesigned */}
-                            <div className="feed-travel-kit shadow-glow">
-                                <button className={`hub-btn ${post.isLiked ? 'liked' : ''}`} onClick={(e) => { e.stopPropagation(); handleAction('like', post); }}>
-                                    {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
-                                    <span className="hub-count">{post.likeCount || 0}</span>
-                                </button>
-
-                                <button className="hub-btn" onClick={(e) => { e.stopPropagation(); navigate(`/post/${post.id}`); }}>
-                                    <HiOutlineChatBubbleOvalLeft />
-                                    <span className="hub-count">{post.commentCount || 0}</span>
-                                </button>
-
-                                <button className="hub-btn" onClick={(e) => { e.stopPropagation(); handleShare(post); }}>
-                                    <HiOutlineShare />
-                                </button>
-
-                                <div className="hub-more-wrapper">
-                                    <button className="hub-btn" onClick={(e) => { e.stopPropagation(); setShowMoreMenu(showMoreMenu === post.id ? null : post.id); }}>
-                                        <HiOutlineEllipsisHorizontal />
-                                    </button>
-
-                                    {showMoreMenu === post.id && (
-                                        <div className="hub-more-menu glass-card animate-scaleIn">
-                                            <button className="menu-item" onClick={() => handleRecommend(post)}>Recommend to Followers</button>
-                                            <button className="menu-item" onClick={() => handleAddToBoard(post.id)}>Add to Trip Board</button>
-                                            <button className="menu-item" onClick={() => handleDownload(post)}>Download Video</button>
-                                            <button className="menu-item danger" onClick={() => setReportPostId(post.id)}>Report Content</button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                            <button className="feed-mute-corner" onClick={toggleMute}>
+                                {isMuted ? <HiOutlineSpeakerXMark /> : <HiOutlineSpeakerWave />}
+                            </button>
 
                             {/* Info Panel Overlay */}
                             <div className="feed-info-panel">
@@ -415,6 +446,22 @@ export default function FeedPage() {
                     entityId={reportPostId}
                     entityType="POST"
                     onClose={() => setReportPostId(null)}
+                />
+            )}
+
+            {enquiryPost && (
+                <EnquiryModal
+                    isOpen={!!enquiryPost}
+                    onClose={() => setEnquiryPost(null)}
+                    businessId={enquiryPost.userId}
+                    businessName={enquiryPost.user?.profile?.displayName || 'Business'}
+                />
+            )}
+
+            {saveToBoardPostId && (
+                <AddToBoardModal
+                    postId={saveToBoardPostId}
+                    onClose={() => setSaveToBoardPostId(null)}
                 />
             )}
 

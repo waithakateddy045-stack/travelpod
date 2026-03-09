@@ -11,7 +11,7 @@ import './MessagesPage.css';
 
 export default function MessagesPage() {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, checkNotifications } = useAuth();
 
     const [conversations, setConversations] = useState([]);
     const [activeConv, setActiveConv] = useState(null);
@@ -39,8 +39,9 @@ export default function MessagesPage() {
             setLoadingMsgs(true);
             const { data } = await api.get(`/messages/${convId}`);
             setMessages(data.messages || []);
-            // Update unread count locally
+            // Update unread count locally and globally
             setConversations(prev => prev.map(c => c.id === convId ? { ...c, unreadCount: 0 } : c));
+            checkNotifications();
             requestAnimationFrame(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }));
         } catch {
             toast.error('Failed to load messages');

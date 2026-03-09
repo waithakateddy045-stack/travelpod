@@ -61,14 +61,35 @@ export const AuthProvider = ({ children }) => {
         return saved === null ? true : saved === 'true';
     });
 
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    const checkNotifications = useCallback(async () => {
+        if (!user) return;
+        try {
+            const { data } = await api.get('/notifications/unread-count');
+            setUnreadCount(data.count || 0);
+        } catch { }
+    }, [user]);
+
     useEffect(() => {
         localStorage.setItem('travelpod_is_muted', isMuted);
     }, [isMuted]);
 
+    useEffect(() => {
+        if (user) {
+            checkNotifications();
+            const interval = setInterval(checkNotifications, 30000); // Poll every 30s
+            return () => clearInterval(interval);
+        } else {
+            setUnreadCount(0);
+        }
+    }, [user, checkNotifications]);
+
     return (
         <AuthContext.Provider value={{
             user, setUser, loading, login, register, logout, loadUser,
-            isMuted, setIsMuted
+            isMuted, setIsMuted,
+            unreadCount, setUnreadCount, checkNotifications
         }}>
             {children}
         </AuthContext.Provider>
