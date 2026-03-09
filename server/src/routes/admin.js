@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, adminOnly } = require('../middleware/auth');
+const prisma = require('../utils/prisma');
 const { reportEntity, getReports, resolveReport, suspendUser, unsuspendUser, performModerationAction, getAdminLogs } = require('../controllers/moderationController');
-const { getDashboardStats, getUsers, getVerifications, reviewVerification, getBoards, deleteBoard, updateBoardStatus } = require('../controllers/adminController');
+const { getDashboardStats, getUsers, getBoards, deleteBoard, updateBoardStatus } = require('../controllers/adminController');
 const { getModerationQueue, moderatePost } = require('../controllers/postController');
 const { getAdminVerifications, approveVerification, rejectVerification } = require('../controllers/verificationController');
 const { createPromotion, getPromotions, updatePromotion, deletePromotion } = require('../controllers/promotedController');

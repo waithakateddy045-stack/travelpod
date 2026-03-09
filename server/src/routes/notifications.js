@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const prisma = require('../utils/prisma');
 const { getNotifications, markAllRead, markRead } = require('../controllers/notificationController');
 
 router.get('/', authenticate, getNotifications);
