@@ -500,28 +500,65 @@ export default function FeedPage() {
                         <div
                             key={post.id}
                             ref={isLast ? lastPostElementRef : null}
-                            className="feed-card"
+                            className="feed-card-linear"
                             data-id={post.id}
                         >
-                            {renderMedia(post)}
+                            {/* Card Header: Author Info */}
+                            <div className="feed-card-header">
+                                <Link to={`/profile/${author?.profile?.handle}`} className="feed-card-author">
+                                    <div className="feed-card-avatar">
+                                        {author?.profile?.avatarUrl ? (
+                                            <img src={author.profile.avatarUrl} alt="" />
+                                        ) : (
+                                            <HiOutlineUser />
+                                        )}
+                                    </div>
+                                    <div className="feed-card-author-info">
+                                        <div className="feed-card-name">
+                                            {author?.profile?.displayName}
+                                            {isVerified && <HiCheckBadge className="verified-badge-inline" />}
+                                        </div>
+                                        <div className="feed-card-handle">@{author?.profile?.handle}</div>
+                                    </div>
+                                </Link>
+                                <PostMoreMenu
+                                    post={post}
+                                    isOwner={user?.id === (post.user?.id || post.author?.id)}
+                                    onAction={(type) => {
+                                        if (type === 'repost') handleRepost(post);
+                                        else if (type === 'recommend') handleRecommend(post);
+                                        else if (type === 'board') handleAddToBoard(post.id);
+                                        else if (type === 'download') handleDownload(post);
+                                        else if (type === 'report') setReportPostId(post.id);
+                                        else if (type === 'delete') {
+                                            if (window.confirm('Are you sure you want to delete this post?')) {
+                                                api.delete(`/posts/${post.id}`).then(() => {
+                                                    setPosts(prev => prev.filter(p => p.id !== post.id));
+                                                    toast.success('Post deleted');
+                                                }).catch(err => toast.error('Failed to delete'));
+                                            }
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            {/* Media Section */}
+                            <div className="feed-card-media">
+                                {renderMedia(post)}
+                                <button className="feed-mute-corner" onClick={toggleMute}>
+                                    {isMuted ? <HiOutlineSpeakerXMark /> : <HiOutlineSpeakerWave />}
+                                </button>
+                            </div>
+
+                            {/* Engagement Bar */}
                             {renderActions(post)}
 
-                            <button className="feed-mute-corner" onClick={toggleMute}>
-                                {isMuted ? <HiOutlineSpeakerXMark /> : <HiOutlineSpeakerWave />}
-                            </button>
-
-                            {/* Info Panel Overlay */}
-                            <div className="feed-info-panel">
-                                <div className="feed-info-user">
-                                    @{author?.profile?.handle}
-                                    {isVerified && (
-                                        <HiCheckBadge className="verified-badge-stamp" title="Verified Business" />
-                                    )}
-                                </div>
-                                <div className="feed-info-title">{post.title}</div>
-                                {post.isBroadcast && <div className="feed-info-desc">{post.description}</div>}
-                                <div className="feed-info-music">
-                                    🎵 <div className="music-scroller">Original sound - {author?.profile?.displayName}</div>
+                            {/* Info Panel (Below Actions) */}
+                            <div className="feed-card-info">
+                                <div className="feed-card-title">{post.title}</div>
+                                {post.description && <div className="feed-card-desc">{post.description}</div>}
+                                <div className="feed-card-music">
+                                    🎵 Original sound - {author?.profile?.displayName}
                                 </div>
                             </div>
                         </div>

@@ -215,114 +215,103 @@ export default function PostPage() {
                 <div style={{ width: 40 }}></div>
             </nav>
 
-            <div className={`post-container ${(!post.videoUrl && (!post.mediaUrls || post.mediaUrls.length === 0)) ? 'text-only' : ''}`}>
-                {/* Left: Media or Text Card */}
-                <div className="post-media-section" onClick={handlePostClick}>
-                    {post.videoUrl ? (
-                        <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} autoPlay={true} muted={isMuted} />
-                    ) : (post.mediaUrls && post.mediaUrls.length > 0) ? (
-                        <div className={`post-image-grid grid-${Math.min(post.mediaUrls.length, 4)}`}>
-                            {post.mediaUrls.slice(0, 4).map((url, i) => (
-                                <img key={i} src={url} alt="" />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="post-text-card-wrapper">
-                            <div className="text-post-card glass-card">
-                                <h2 className="text-post-title">{post.title}</h2>
-                                <p className="text-post-body">{post.description}</p>
-                                {post.postTags?.length > 0 && (
-                                    <div className="text-post-tags">
-                                        {post.postTags.map(pt => (
-                                            <span key={pt.id} className="text-post-tag">#{pt.tag.name}</span>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Right: Details & Comments */}
-                <div className="post-details-section">
-                    {/* Author Info */}
-                    <Link to={`/profile/${post.author?.profile?.handle}`} className="post-author">
-                        <div className="post-author-avatar">
-                            {post.author?.profile?.avatarUrl ? (
-                                <img src={post.author.profile.avatarUrl} alt="" />
-                            ) : (
-                                <HiOutlineUser />
-                            )}
-                        </div>
-                        <div className="post-author-info">
-                            <div className="post-author-name">{post.author?.profile?.displayName}</div>
-                            <div className="post-author-handle">@{post.author?.profile?.handle}</div>
-                        </div>
-                    </Link>
-
-                    {/* Post Content */}
-                    <div className="post-content">
-                        <h2 className="post-title">{post.title}</h2>
-                        {post.description && <p className="post-desc">{post.description}</p>}
-
-                        {post.postTags?.length > 0 && (
-                            <div className="post-tags">
-                                {post.postTags.map(pt => (
-                                    <span key={pt.id} className="post-tag">#{pt.tag.name}</span>
+            <div className={`post-container-linear ${(!post.videoUrl && (!post.mediaUrls || post.mediaUrls.length === 0)) ? 'text-only' : ''}`}>
+                <div className="post-main-content">
+                    {/* Media Section */}
+                    <div className="post-media-wrapper" onClick={handlePostClick}>
+                        {post.videoUrl ? (
+                            <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} autoPlay={true} muted={isMuted} />
+                        ) : (post.mediaUrls && post.mediaUrls.length > 0) ? (
+                            <div className={`post-image-grid grid-${Math.min(post.mediaUrls.length, 4)}`}>
+                                {post.mediaUrls.slice(0, 4).map((url, i) => (
+                                    <img key={i} src={url} alt="" />
                                 ))}
                             </div>
-                        )}
-
-                        {isBusiness && post.author.id !== user?.id && (
-                            <button
-                                className="btn-primary"
-                                style={{ width: '100%', marginTop: 'var(--space-4)', display: 'block' }}
-                                onClick={() => {
-                                    if (!user) {
-                                        setAuthModal({ isOpen: true, message: 'Send booking enquiries to travel businesses' });
-                                    } else {
-                                        setIsEnquiryModalOpen(true);
-                                    }
-                                }}
-                            >
-                                Enquire Now
-                            </button>
+                        ) : (
+                            <div className="post-text-card-wrapper">
+                                <div className="text-post-card glass-card">
+                                    <h2 className="text-post-title">{post.title}</h2>
+                                    <p className="text-post-body">{post.description}</p>
+                                    {post.postTags?.length > 0 && (
+                                        <div className="text-post-tags">
+                                            {post.postTags.map(pt => (
+                                                <span key={pt.id} className="text-post-tag">#{pt.tag.name}</span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         )}
                     </div>
 
-                    {/* Engagement Bar */}
-                    <div className="post-actions-refined">
-                        <div className="actions-left">
-                            <button className={`post-action-btn-main ${post.isLiked ? 'active' : ''}`} onClick={handleLike}>
-                                {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
-                                <span className="action-count">{post.likeCount || 0}</span>
-                            </button>
-                            <div className="post-action-btn-main">
-                                <HiOutlineChatBubbleOvalLeft />
-                                <span className="action-count">{post.commentCount || 0}</span>
-                            </div>
-                            <button
-                                className="post-action-btn-main"
-                                onClick={() => {
-                                    navigator.clipboard.writeText(window.location.href);
-                                    toast.success('Link copied!');
-                                }}
-                            >
-                                <HiOutlinePaperAirplane style={{ transform: 'rotate(-20deg) translateY(-2px)' }} />
-                            </button>
+                    {/* Post Details (Below Media) */}
+                    <div className="post-info-section">
+                        {/* Author Info */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+                            <Link to={`/profile/${post.author?.profile?.handle}`} className="post-author-minimal">
+                                <div className="post-author-avatar-sm">
+                                    {post.author?.profile?.avatarUrl ? (
+                                        <img src={post.author.profile.avatarUrl} alt="" />
+                                    ) : (
+                                        <HiOutlineUser />
+                                    )}
+                                </div>
+                                <div className="post-author-text">
+                                    <div className="post-author-name-sm">{post.author?.profile?.displayName}</div>
+                                    <div className="post-author-handle-sm">@{post.author?.profile?.handle}</div>
+                                </div>
+                            </Link>
+
+                            {isBusiness && post.author.id !== user?.id && (
+                                <button
+                                    className="enquire-now-bar-btn"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!user) setAuthModal({ isOpen: true, message: 'Send booking enquiries' });
+                                        else setIsEnquiryModalOpen(true);
+                                    }}
+                                >
+                                    Enquire Now
+                                </button>
+                            )}
                         </div>
 
-                        <div className="actions-right">
-                            <button className={`post-action-btn-main ${post.isSaved ? 'active' : ''}`} onClick={handleSave}>
-                                {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
-                            </button>
+                        <div className="post-text-content">
+                            <h2 className="post-detail-title">{post.title}</h2>
+                            {post.description && <p className="post-detail-desc">{post.description}</p>}
+                        </div>
 
-                            <div className="more-menu-container">
+                        {/* Engagement Bar */}
+                        <div className="post-actions-refined-linear">
+                            <div className="actions-left">
+                                <button className={`post-action-btn-main ${post.isLiked ? 'active' : ''}`} onClick={handleLike}>
+                                    {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
+                                    <span className="action-count">{post.likeCount || 0}</span>
+                                </button>
+                                <div className="post-action-btn-main">
+                                    <HiOutlineChatBubbleOvalLeft />
+                                    <span className="action-count">{post.commentCount || 0}</span>
+                                </div>
+                                <button
+                                    className="post-action-btn-main"
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(window.location.href);
+                                        toast.success('Link copied!');
+                                    }}
+                                >
+                                    <HiOutlinePaperAirplane style={{ transform: 'rotate(-20deg) translateY(-2px)' }} />
+                                </button>
+                            </div>
+
+                            <div className="actions-right">
+                                <button className={`post-action-btn-main ${post.isSaved ? 'active' : ''}`} onClick={handleSave}>
+                                    {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
+                                </button>
                                 <PostMoreMenu
                                     post={post}
                                     isOwner={user?.id === post.author?.id}
                                     onAction={(type) => {
-                                        if (!user && type !== 'download') { // Download doesn't require auth
+                                        if (!user && type !== 'download') {
                                             setAuthModal({ isOpen: true, message: 'Log in to perform this action' });
                                             return;
                                         }
@@ -343,44 +332,44 @@ export default function PostPage() {
                                 />
                             </div>
                         </div>
-                    </div>
 
-                    {/* Comments List */}
-                    <div className="post-comments">
-                        <h3 className="comments-header">Comments ({post.commentCount || 0})</h3>
-                        <div className="comments-list">
-                            {comments.length === 0 ? (
-                                <div className="comments-empty">No comments yet. Be the first to say something!</div>
-                            ) : (
-                                comments.map(comment => (
-                                    <CommentItem
-                                        key={comment.id}
-                                        comment={comment}
-                                        user={user}
-                                        postAuthorId={post.author?.id}
-                                        onDelete={handleDeleteComment}
-                                        postId={id}
-                                    />
-                                ))
-                            )}
+                        {/* Comments List */}
+                        <div className="post-comments-section">
+                            <h3 className="comments-header-sm">Comments ({post.commentCount || 0})</h3>
+                            <div className="comments-list-sm">
+                                {comments.length === 0 ? (
+                                    <div className="comments-empty-sm">No comments yet.</div>
+                                ) : (
+                                    comments.slice(0, 10).map(comment => (
+                                        <CommentItem
+                                            key={comment.id}
+                                            comment={comment}
+                                            user={user}
+                                            postAuthorId={post.author?.id}
+                                            onDelete={handleDeleteComment}
+                                            postId={id}
+                                        />
+                                    ))
+                                )}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Comment Input */}
-                    <div className="comment-input-area">
-                        <form onSubmit={handleSubmitComment} className="comment-form">
-                            <input
-                                type="text"
-                                placeholder="Add a comment..."
-                                value={commentText}
-                                onChange={(e) => setCommentText(e.target.value)}
-                                className="comment-input"
-                                disabled={submitting}
-                            />
-                            <button type="submit" className="comment-submit" disabled={!commentText.trim() || submitting}>
-                                Post
-                            </button>
-                        </form>
+                        {/* Comment Input */}
+                        <div className="comment-input-area-linear">
+                            <form onSubmit={handleSubmitComment} className="comment-form-linear">
+                                <input
+                                    type="text"
+                                    placeholder="Add a comment..."
+                                    value={commentText}
+                                    onChange={(e) => setCommentText(e.target.value)}
+                                    className="comment-input-linear"
+                                    disabled={submitting}
+                                />
+                                <button type="submit" className="comment-submit-linear" disabled={!commentText.trim() || submitting}>
+                                    Post
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>

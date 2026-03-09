@@ -1,4 +1,4 @@
-import { HiOutlineShare, HiOutlineStar, HiOutlineFolderPlus, HiOutlineArrowPath, HiOutlineTrash, HiOutlineEllipsisHorizontal } from 'react-icons/hi2';
+import { HiOutlineShare, HiOutlineStar, HiOutlineFolderPlus, HiOutlineArrowPath, HiOutlineTrash, HiOutlineEllipsisHorizontal, HiOutlineFlag } from 'react-icons/hi2';
 import { useState, useRef, useEffect } from 'react';
 
 /**
@@ -46,7 +46,7 @@ export default function PostMoreMenu({ post, isOwner, onAction }) {
                                 <HiOutlineShare className="item-icon" /> Add to Feed
                             </button>
                             <button className="sheet-item" onClick={() => handleAction('recommend')}>
-                                <HiOutlineStar className="item-icon" /> Recommend
+                                <HiOutlineStar className="item-icon" /> Recommend to Follower
                             </button>
                         </>
                     )}

@@ -173,29 +173,78 @@
 /* ═══════════════════════════════════════
    Feed Card (The Tile)
    ═══════════════════════════════════════ */
-.feed-card {
-    position: relative;
+.feed-card-linear {
     width: 100%;
-    min-height: 50vh;
     background: #000;
-    overflow: hidden;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
     padding-bottom: var(--space-4);
 }
 
-.feed-video-container {
-    width: 100%;
-    aspect-ratio: 9/16;
-    max-height: 85vh;
+.feed-card-header {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
 }
 
-.feed-video-container video {
+.feed-card-author {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    text-decoration: none;
+}
+
+.feed-card-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #222;
+}
+
+.feed-card-avatar img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+.feed-card-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.feed-card-handle {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+}
+
+.feed-card-media {
+    width: 100%;
+    position: relative;
+    background: #000;
+}
+
+.feed-card-media .feed-mute-corner {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    z-index: 5;
 }
 
 /* ═══════════════════════════════════════
@@ -297,15 +346,11 @@
    Integrated Action Bar (IG Style)
    ═══════════════════════════════════════ */
 .feed-actions-linear-integrated {
-    position: absolute;
-    bottom: 30px;
-    left: 20px;
-    right: 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    z-index: 100;
-    pointer-events: auto;
+    padding: var(--space-3) var(--space-4);
+    background: #000;
 }
 
 .actions-left,
@@ -341,10 +386,10 @@
 }
 
 .enquire-pill-btn {
-    background: var(--color-primary);
+    background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
     color: #fff;
     border: none;
-    padding: 8px 16px;
+    padding: 8px 18px;
     border-radius: var(--radius-full);
     font-size: 0.85rem;
     font-weight: 700;
@@ -352,13 +397,13 @@
     align-items: center;
     gap: 6px;
     cursor: pointer;
-    box-shadow: 0 4px 15px rgba(108, 99, 255, 0.4);
+    box-shadow: 0 4px 15px rgba(0, 210, 255, 0.4);
     transition: all 0.2s;
 }
 
 .enquire-pill-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(108, 99, 255, 0.5);
+    box-shadow: 0 6px 20px rgba(0, 210, 255, 0.5);
 }
 
 /* Polished More Context Sheet */
@@ -451,32 +496,34 @@
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 0, 0, 0.2);
 }
 
-.feed-info-panel {
-    position: absolute;
-    bottom: 80px;
-    left: 0;
-    right: 0;
-    padding: 60px var(--space-6) 20px;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
-    pointer-events: none;
-    z-index: 40;
+.feed-card-info {
+    padding: 0 var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.feed-info-panel * {
-    pointer-events: auto;
-}
-
-.feed-title {
-    font-family: var(--font-display);
-    font-size: 1.2rem;
+.feed-card-title {
     font-weight: 700;
-    margin-bottom: 4px;
+    font-size: 0.95rem;
     color: #fff;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    line-clamp: 2;
-    overflow: hidden;
+}
+
+.feed-card-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.feed-card-music {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+}
+
+.verified-badge-inline {
+    color: #00d2ff;
+    font-size: 0.9rem;
 }
 
 .feed-desc {
@@ -670,19 +717,18 @@
 }
 
 /* Responsive fixes */
-@media (min-width: 500px) {
+@media (min-width: 600px) {
     .feed-page {
-        max-width: 500px;
-        /* Slightly wider for modern phones/monitors */
+        max-width: 680px;
         margin: 0 auto;
-        border-right: 1px solid #222;
-        border-left: 1px solid #222;
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    .feed-nav,
+    .feed-top-nav,
     .feed-header-wrap {
         left: 50%;
         transform: translateX(-50%);
-        width: 500px;
+        width: 680px;
     }
 }
