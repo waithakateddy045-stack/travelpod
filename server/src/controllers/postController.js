@@ -147,18 +147,21 @@ const createPost = async (req, res, next) => {
                 ? reviews.reduce((acc, r) => acc + r.starRating, 0) / reviews.length 
                 : 0;
             
-            await prisma.businessProfile.update({
-                where: { profile: { userId: bId } },
-                data: {
-                    starRating: avg,
-                    verifiedReviewCount: { increment: 1 }
-                }
-            }).catch(() => {}); // Profile might not have business record
-            
-            await prisma.profile.update({
-                where: { userId: bId },
-                data: { verifiedReviewCount: { increment: 1 } }
-            }).catch(() => {});
+            const targetProfile = await prisma.profile.findUnique({ where: { userId: bId } });
+            if (targetProfile) {
+                await prisma.businessProfile.update({
+                    where: { profileId: targetProfile.id },
+                    data: {
+                        starRating: avg,
+                        verifiedReviewCount: { increment: 1 }
+                    }
+                }).catch(() => {});
+                
+                await prisma.profile.update({
+                    where: { id: targetProfile.id },
+                    data: { verifiedReviewCount: { increment: 1 } }
+                }).catch(() => {});
+            }
         }
 
         res.status(201).json({

@@ -21,6 +21,7 @@ import AddToBoardModal from '../../components/boards/AddToBoardModal';
 import AuthPromptModal from '../../components/auth/AuthPromptModal';
 import EngagementBar from '../../components/post/EngagementBar';
 import PostMoreMenu from '../../components/post/PostMoreMenu';
+import VerificationDetailsModal from '../../components/verification/VerificationDetailsModal';
 import './FeedPage.css';
 
 const FILTER_CHIPS = ['All', 'Destinations', 'Hotels & Resorts', 'Safari', 'Beach', 'Adventures'];
@@ -45,6 +46,8 @@ export default function FeedPage() {
     const lastTap = useRef(0);
     const touchStart = useRef(0);
     const [sessionId] = useState(() => localStorage.getItem('travelpod_session_id') || Math.random().toString(36).substring(2, 11));
+    const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+    const [selectedBusiness, setSelectedBusiness] = useState(null);
     const [reportPostId, setReportPostId] = useState(null);
     const [enquiryPost, setEnquiryPost] = useState(null);
     const [saveToBoardPostId, setSaveToBoardPostId] = useState(null);
@@ -372,6 +375,10 @@ export default function FeedPage() {
                     else handleAddToBoard(post.id);
                 }}
                 onComment={() => navigate(`/post/${post.id}`)}
+                onReview={BUSINESS_TYPES.includes(author?.accountType) && author?.id !== user?.id ? () => {
+                    if (!user) setAuthModal({ isOpen: true, message: 'Log in to write a review' });
+                    else navigate(`/upload?linkedBusinessId=${author.id}&businessName=${encodeURIComponent(author.profile?.displayName || '')}`);
+                } : null}
                 onAction={(type) => {
                     if (!user && type !== 'download') {
                         setAuthModal({ isOpen: true, message: 'Log in to perform this action' });
@@ -493,7 +500,23 @@ export default function FeedPage() {
                                         </div>
                                         <span className="feed-card-name">
                                             {author?.profile?.displayName}
-                                            {isVerified && <HiCheckBadge className="verified-badge-inline" />}
+                                            {isVerified && (
+                                                <button 
+                                                    className="verified-badge-btn-link"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setSelectedBusiness({
+                                                            userId: author.id,
+                                                            displayName: author.profile?.displayName,
+                                                            businessProfile: author.profile?.businessProfile
+                                                        });
+                                                        setIsVerificationModalOpen(true);
+                                                    }}
+                                                >
+                                                    <HiCheckBadge className="verified-badge-inline" />
+                                                </button>
+                                            )}
                                         </span>
                                     </Link>
                                     <div className="board-card-stats">
@@ -526,7 +549,23 @@ export default function FeedPage() {
                                     <div className="feed-card-author-info">
                                         <div className="feed-card-name">
                                             {author?.profile?.displayName}
-                                            {isVerified && <HiCheckBadge className="verified-badge-inline" />}
+                                            {isVerified && (
+                                                <button 
+                                                    className="verified-badge-btn-link"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setSelectedBusiness({
+                                                            userId: author.id,
+                                                            displayName: author.profile?.displayName,
+                                                            businessProfile: author.profile?.businessProfile
+                                                        });
+                                                        setIsVerificationModalOpen(true);
+                                                    }}
+                                                >
+                                                    <HiCheckBadge className="verified-badge-inline" />
+                                                </button>
+                                            )}
                                         </div>
                                         <div className="feed-card-handle">@{author?.profile?.handle}</div>
                                     </div>
@@ -561,7 +600,7 @@ export default function FeedPage() {
                             </div>
 
                             {/* Engagement Bar */}
-                            {renderActions(post)}
+                            {renderActions(post, author)}
 
                             {/* Info Panel (Below Actions) */}
                             <div className="feed-card-info">
@@ -626,6 +665,16 @@ export default function FeedPage() {
                 onClose={() => setAuthModal({ isOpen: false, message: '' })}
                 message={authModal.message}
             />
+
+            {isVerificationModalOpen && selectedBusiness && (
+                <VerificationDetailsModal
+                    userId={selectedBusiness.userId}
+                    businessName={selectedBusiness.displayName}
+                    isOpen={isVerificationModalOpen}
+                    onClose={() => setIsVerificationModalOpen(false)}
+                    businessProfile={selectedBusiness.businessProfile}
+                />
+            )}
         </div>
     );
 }

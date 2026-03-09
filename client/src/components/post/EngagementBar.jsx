@@ -1,8 +1,8 @@
-import { HiOutlineHeart, HiHeart, HiOutlineChatBubbleOvalLeft, HiOutlineBookmark, HiBookmark, HiOutlinePaperAirplane } from 'react-icons/hi2';
+import { HiOutlineHeart, HiHeart, HiOutlineChatBubbleOvalLeft, HiOutlineBookmark, HiBookmark, HiOutlinePaperAirplane, HiOutlineStar } from 'react-icons/hi2';
 import PostMoreMenu from './PostMoreMenu';
 import { toast } from 'react-hot-toast';
 
-export default function EngagementBar({ post, onLike, onSave, onComment, isOwner, onAction }) {
+export default function EngagementBar({ post, onLike, onSave, onComment, onReview, isOwner, onAction }) {
     if (!post) return null;
 
     return (
@@ -22,6 +22,16 @@ export default function EngagementBar({ post, onLike, onSave, onComment, isOwner
                     <HiOutlineChatBubbleOvalLeft />
                     <span className="action-count">{post.commentCount || 0}</span>
                 </button>
+                {onReview && (
+                    <button 
+                        className="post-action-btn-main review-btn-linear"
+                        onClick={(e) => { e.preventDefault(); onReview(); }}
+                        title="Write a Review"
+                    >
+                        <HiOutlineStar />
+                        <span className="action-label">Review</span>
+                    </button>
+                )}
                 <button
                     className="post-action-btn-main"
                     onClick={(e) => {

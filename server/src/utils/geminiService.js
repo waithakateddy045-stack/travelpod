@@ -25,18 +25,21 @@ try {
  * @param {object} params - { fileName, fileType, duration }
  * @returns {Promise<object>} suggestions
  */
-async function generateSuggestions({ fileName, fileType, duration }) {
+async function generateSuggestions({ fileName, fileType, duration, title, description, isTextPost }) {
     if (!model) {
-        return getDefaultSuggestions(fileName);
+        return getDefaultSuggestions(fileName || title);
     }
 
     try {
         const prompt = `You are a travel content expert for Travelpod, a travel social media platform focused on African and global tourism.
 
 Based on this upload:
-- File name: ${fileName}
-- File type: ${fileType}
-- Duration: ${duration ? duration + ' seconds' : 'image/photo'}
+${fileName ? `- File name: ${fileName}` : ''}
+${fileType ? `- File type: ${fileType}` : ''}
+${duration ? `- Duration: ${duration} seconds` : ''}
+${title ? `- User Title: ${title}` : ''}
+${description ? `- User Description: ${description}` : ''}
+${isTextPost ? '- This is a TEXT post' : ''}
 
 Generate creative suggestions for this travel content post. Return ONLY valid JSON (no markdown, no code blocks) with this exact structure:
 {

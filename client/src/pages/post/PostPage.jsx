@@ -278,6 +278,10 @@ export default function PostPage() {
                             onComment={() => {
                                 document.querySelector('.comment-input-linear')?.focus();
                             }}
+                            onReview={isBusiness && post.author.id !== user?.id ? () => {
+                                if (!user) setAuthModal({ isOpen: true, message: 'Log in to write a review' });
+                                else navigate(`/upload?linkedBusinessId=${post.author.id}&businessName=${encodeURIComponent(post.author.profile?.displayName || '')}`);
+                            } : null}
                             onAction={(type) => {
                                 if (!user && type !== 'download') {
                                     setAuthModal({ isOpen: true, message: 'Log in to perform this action' });

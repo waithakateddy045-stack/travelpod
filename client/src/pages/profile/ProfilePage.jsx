@@ -583,6 +583,7 @@ export default function ProfilePage() {
             {/* Verification Details Modal */}
             <VerificationDetailsModal
                 userId={profile.userId}
+                businessName={profile.displayName}
                 isOpen={isVerificationModalOpen}
                 onClose={() => setIsVerificationModalOpen(false)}
                 businessProfile={profile.businessProfile}

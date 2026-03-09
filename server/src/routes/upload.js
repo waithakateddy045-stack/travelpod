@@ -3,11 +3,13 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { generateSuggestions, generateBroadcastContent } = require('../utils/geminiService');
 
-// POST /api/upload/suggestions — AI content suggestions
-router.post('/suggestions', authenticate, async (req, res, next) => {
+// POST /api/upload/ai-suggestions — AI content suggestions
+router.post('/ai-suggestions', authenticate, async (req, res, next) => {
     try {
-        const { fileName, fileType, duration } = req.body;
-        const suggestions = await generateSuggestions({ fileName, fileType, duration });
+        const { fileName, fileType, duration, title, description, isTextPost } = req.body;
+        const suggestions = await generateSuggestions({ 
+            fileName, fileType, duration, title, description, isTextPost 
+        });
         res.json({ success: true, suggestions });
     } catch (err) { next(err); }
 });

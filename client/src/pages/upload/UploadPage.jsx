@@ -1,5 +1,7 @@
+import { useState, useRef, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import { useLocation } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import api from '../../services/api';
 import { 
     HiOutlineCloudArrowUp, HiOutlineSparkles, HiOutlinePhoto, 
@@ -146,8 +148,12 @@ export default function UploadPage() {
 
     // ─── STEP 4: Upload ─────────────────────────────────────
     const handlePublish = async () => {
-        if (!file || !title.trim() || !agreed) {
-            toast.error('Please fill in all required fields and agree to the terms');
+        if (!isTextPost && !file) {
+            toast.error('Please select a photo or video');
+            return;
+        }
+        if (!title.trim() || !agreed) {
+            toast.error('Please fill in title and agree to the terms');
             return;
         }
 
