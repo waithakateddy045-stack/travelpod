@@ -273,6 +273,7 @@ model Post {
   chapters          Json?            @map("chapters")
   originalSize      Int?             @map("original_size")
   compressedSize    Int?             @map("compressed_size")
+  musicTitle        String?          @map("music_title") @db.VarChar(100)
   createdAt         DateTime         @default(now()) @map("created_at")
 
   author            User             @relation("PostAuthor", fields: [userId], references: [id], onDelete: Cascade)

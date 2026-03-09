@@ -234,20 +234,20 @@ export default function UploadPage() {
     };
 
     const handleFinalPublish = async () => {
-        if (!selectedThumbnail) {
+        if (!selectedThumbnail || !postId) {
             navigate('/feed');
             return;
         }
 
         try {
-            // Update the post with the selected thumbnail
-            // Assuming we have a recent post state or ID
-            // In the real logic,handleSubmit should probably save the postId
-            // Let's add [postId, setPostId] state
+            await api.patch(`/posts/${postId}`, {
+                thumbnailUrl: selectedThumbnail
+            });
             navigate('/feed');
             toast.success('Post published with custom thumbnail!');
-        } catch {
-            navigate('/feed');
+        } catch (err) {
+            console.error('Failed to save thumbnail:', err);
+            navigate('/feed'); // Still navigate, better than being stuck
         }
     };
 

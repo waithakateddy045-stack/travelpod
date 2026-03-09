@@ -8,7 +8,8 @@ const { authenticate, optionalAuth, adminOnly } = require('../middleware/auth');
 const {
     createPost, getPost, deletePost,
     getModerationQueue, moderatePost,
-    repostPost, recommendPost, checkDuplicate
+    repostPost, recommendPost, checkDuplicate,
+    updatePost
 } = require('../controllers/postController');
 const { reportEntity } = require('../controllers/moderationController');
 
@@ -39,6 +40,7 @@ router.get('/:id', getPost);
 
 // Post CRUD (Protected routes)
 router.post('/', authenticate, upload.single('video'), createPost);
+router.patch('/:id', authenticate, updatePost);
 router.delete('/:id', authenticate, deletePost);
 
 // Admin moderation

@@ -184,9 +184,6 @@ async function getActivePromotions() {
 // ============================================================
 // GET /api/feed — Personalized feed
 // ============================================================
-// ============================================================
-// GET /api/feed — Personalized feed
-// ============================================================
 const getFeed = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -307,18 +304,6 @@ const getFeed = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-// Helper: enrich posts synchronously (for sparse mode)
-function enrichPosts(posts, userId, followingSet) {
-    return posts.map(p => ({
-        ...p,
-        user: p.author,
-        category: p.category?.name || null,
-        isLiked: false,
-        isSaved: false,
-        isFollowing: followingSet.has(p.userId),
-        isPromoted: false,
-    }));
-}
 
 // Helper: enrich posts with actual like/save status
 async function enrichPostsAsync(posts, userId, followingSet) {

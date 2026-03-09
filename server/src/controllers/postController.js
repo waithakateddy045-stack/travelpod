@@ -11,7 +11,7 @@ const createPost = async (req, res, next) => {
         const userId = req.user.id;
         const {
             title, description, postType, categoryId, category, locationTag, tags, isReview, businessId, starRating,
-            startTime, endTime, thumbnailTime, chapters, perceptualHash
+            startTime, endTime, thumbnailTime, chapters, perceptualHash, musicTitle
         } = req.body;
 
         if (!title) throw new AppError('Title is required', 400);
@@ -106,6 +106,7 @@ const createPost = async (req, res, next) => {
                 chapters: finalChapters.length > 0 ? finalChapters : null,
                 originalSize: req.uploadStats?.originalSize || null,
                 compressedSize: req.uploadStats?.compressedSize || null,
+                musicTitle: musicTitle || null,
             },
         });
 
@@ -375,8 +376,36 @@ const recommendPost = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
+const updatePost = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { thumbnailUrl, title, description, categoryId, musicTitle } = req.body;
+        const userId = req.user.id;
+
+        const post = await prisma.post.findUnique({ where: { id } });
+        if (!post) throw new AppError('Post not found', 404);
+        if (post.userId !== userId && req.user.accountType !== 'ADMIN') {
+            throw new AppError('Not authorized', 403);
+        }
+
+        const updated = await prisma.post.update({
+            where: { id },
+            data: {
+                ...(thumbnailUrl && { thumbnailUrl }),
+                ...(title && { title }),
+                ...(description && { description }),
+                ...(categoryId && { categoryId }),
+                ...(musicTitle && { musicTitle }),
+            }
+        });
+
+        res.json({ success: true, post: updated });
+    } catch (err) { next(err); }
+};
+
 module.exports = {
     createPost, getPost, deletePost,
     getModerationQueue, moderatePost,
-    repostPost, recommendPost, checkDuplicate
+    repostPost, recommendPost, checkDuplicate,
+    updatePost
 };

@@ -157,7 +157,7 @@ export default function FeedPage() {
             });
         }, obsOptions);
 
-        const cards = document.querySelectorAll('.feed-card');
+        const cards = document.querySelectorAll('.feed-card-linear');
         cards.forEach(c => observer.observe(c));
         return () => observer.disconnect();
     }, [posts, sessionId]);
@@ -544,7 +544,7 @@ export default function FeedPage() {
                             </div>
 
                             {/* Media Section */}
-                            <div className="feed-card-media">
+                            <div className="feed-card-media-wrapper">
                                 {renderMedia(post)}
                                 <button className="feed-mute-corner" onClick={toggleMute}>
                                     {isMuted ? <HiOutlineSpeakerXMark /> : <HiOutlineSpeakerWave />}
@@ -559,7 +559,7 @@ export default function FeedPage() {
                                 <div className="feed-card-title">{post.title}</div>
                                 {post.description && <div className="feed-card-desc">{post.description}</div>}
                                 <div className="feed-card-music">
-                                    🎵 Original sound - {author?.profile?.displayName}
+                                    {post.musicTitle ? post.musicTitle : `🎵 Original sound - ${author?.profile?.displayName || 'Travelpod Creator'}`}
                                 </div>
                             </div>
                         </div>

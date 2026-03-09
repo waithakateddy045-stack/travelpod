@@ -224,10 +224,13 @@
     color: var(--text-tertiary);
 }
 
-.feed-card-media {
+.feed-card-media-wrapper {
     width: 100%;
     position: relative;
     background: #000;
+    min-height: 400px; /* Prevent collapse on load */
+    display: flex;
+    flex-direction: column;
 }
 
 .feed-card-media .feed-mute-corner {
