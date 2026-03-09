@@ -51,7 +51,7 @@
     height: calc(100vh - 73px);
 }
 
-.post-video-section {
+.post-media-section {
     flex: 6;
     background: #000;
     display: flex;
@@ -556,13 +556,15 @@
     .post-container {
         flex-direction: column;
         height: auto;
-        min-height: calc(100vh - 73px);
+        min-height: calc(100vh - 60px);
     }
 
-    .post-video-section {
+    .post-media-section {
         flex: none;
+        width: 100%;
         height: auto;
-        max-height: 50vh;
+        aspect-ratio: 9/16;
+        max-height: 70vh;
         border-right: none;
         border-bottom: 1px solid var(--border-primary);
         position: relative;
@@ -572,11 +574,10 @@
         flex: none;
         min-width: 100%;
         height: auto;
-        min-height: 50vh;
     }
 
     .post-comments {
-        overflow-y: visible;
-        max-height: none;
+        max-height: 400px;
+        overflow-y: auto !important;
     }
 }

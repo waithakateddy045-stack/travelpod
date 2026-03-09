@@ -14,6 +14,13 @@ export default function VideoPlayer({ src, poster, autoPlay = false, loop = true
     const [isLoading, setIsLoading] = useState(true);
     const [retryCount, setRetryCount] = useState(0);
 
+    // Sync muted state
+    useEffect(() => {
+        if (videoRef.current) {
+            videoRef.current.muted = isMuted;
+        }
+    }, [isMuted]);
+
     // Intersection Observer — autoplay/pause when scrolling in/out of view
     useEffect(() => {
         const video = videoRef.current;

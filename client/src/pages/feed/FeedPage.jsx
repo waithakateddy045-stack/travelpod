@@ -40,6 +40,8 @@ export default function FeedPage() {
 
     const feedRef = useRef(null);
     const observer = useRef();
+    const lastTap = useRef(0);
+    const touchStart = useRef(0);
     const [sessionId] = useState(() => localStorage.getItem('travelpod_session_id') || Math.random().toString(36).substring(2, 11));
     const [reportPostId, setReportPostId] = useState(null);
     const [enquiryPost, setEnquiryPost] = useState(null);
@@ -59,7 +61,6 @@ export default function FeedPage() {
     }, [loading, hasMore]);
 
     // Pull to refresh detection
-    const touchStart = useRef(0);
     const handleTouchStart = (e) => {
         if (feedRef.current?.scrollTop === 0) {
             touchStart.current = e.touches[0].clientY;
@@ -99,9 +100,9 @@ export default function FeedPage() {
             const category = activeChip !== 'All' && feedMode === 'FOR_YOU' ? `&category=${encodeURIComponent(activeChip)}` : '';
             const { data } = await api.get(`${endpoint}${category}`);
 
-            const items = data.posts ||
-                data.boards?.map(b => ({ ...b, isBoard: true })) ||
-                data.broadcasts?.map(b => ({
+            let items = [];
+            if (feedMode === 'BROADCASTS') {
+                items = (data.broadcasts || []).map(b => ({
                     ...(b.post || {}),
                     author: b.sender,
                     isBroadcast: true,
@@ -109,7 +110,12 @@ export default function FeedPage() {
                     mediaUrls: b.mediaUrls || [],
                     mediaType: b.mediaType || 'TEXT',
                     viewed: b.viewed
-                })) || [];
+                }));
+            } else if (feedMode === 'BOARDS') {
+                items = (data.boards || []).map(b => ({ ...b, isBoard: true }));
+            } else {
+                items = data.posts || [];
+            }
 
             if (items.length < 10) setHasMore(false);
             setPosts(prev => isRefresh ? items : [...prev, ...items]);
@@ -240,6 +246,35 @@ export default function FeedPage() {
         setShowMoreMenu(null);
     };
 
+    const handlePostClick = (e, post) => {
+        const now = Date.now();
+        const DOUBLE_TAP_DELAY = 300;
+        if (now - lastTap.current < DOUBLE_TAP_DELAY) {
+            // Double tap detected
+            if (!post.isLiked) {
+                handleLike(post.id);
+                // Visual feedback (optional but good for "IG meets X")
+                const heart = document.createElement('div');
+                heart.className = 'double-tap-heart';
+                heart.innerHTML = '❤️';
+                heart.style.position = 'absolute';
+                heart.style.top = '50%';
+                heart.style.left = '50%';
+                heart.style.transform = 'translate(-50%, -50%) scale(0)';
+                heart.style.fontSize = '80px';
+                heart.style.zIndex = '1000';
+                heart.style.pointerEvents = 'none';
+                heart.style.animation = 'heart-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
+                e.currentTarget.appendChild(heart);
+                setTimeout(() => heart.remove(), 700);
+            }
+        } else {
+            // Single tap: toggle mute
+            toggleMute(e);
+        }
+        lastTap.current = now;
+    };
+
     const toggleMute = (e) => {
         e?.stopPropagation();
         setIsMuted(prev => !prev);
@@ -253,7 +288,7 @@ export default function FeedPage() {
         // CASE 1: Text-Only Post (X-Style)
         if (!hasVideo && mediaUrls.length === 0) {
             return (
-                <div className="feed-text-post-container">
+                <div className="feed-text-post-container" onClick={(e) => handlePostClick(e, post)}>
                     <div className="text-post-card glass-card animate-scaleIn">
                         <div className="text-post-header">
                             <div className="text-post-avatar">
@@ -283,7 +318,7 @@ export default function FeedPage() {
         // CASE 2: Standard Post (Video)
         if (!post.isBroadcast) {
             return (
-                <div className="feed-video-container" onClick={toggleMute}>
+                <div className="feed-video-container" onClick={(e) => handlePostClick(e, post)}>
                     <VideoPlayer
                         src={post.videoUrl}
                         poster={post.thumbnailUrl}
@@ -297,7 +332,7 @@ export default function FeedPage() {
 
         // CASE 3: Broadcast (Mixed Media)
         return (
-            <div className="feed-broadcast-layer" onClick={toggleMute}>
+            <div className="feed-broadcast-layer" onClick={(e) => handlePostClick(e, post)}>
                 {hasVideo && (
                     <div className="broadcast-video-wrap" style={{ height: mediaUrls.length > 0 ? '55%' : '100%', width: '100%' }}>
                         <VideoPlayer

@@ -253,7 +253,7 @@ export default function SettingsPage() {
                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
                                         <div style={{ position: 'relative', width: 100, height: 100, borderRadius: '50%', overflow: 'hidden', border: '3px solid var(--border-primary)', backgroundColor: 'var(--bg-elevated)', cursor: 'pointer' }} onClick={() => document.getElementById('avatar-input').click()}>
                                             {avatarPreview ? (
-                                                <img src={avatarPreview} alt="Avatar Preview" style={{ width: '100%', height: '100%', objectFit: cover }} />
+                                                <img src={avatarPreview} alt="Avatar Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                             ) : (
                                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '2rem' }}>
                                                     <HiOutlineUser />

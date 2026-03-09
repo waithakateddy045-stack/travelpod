@@ -22,7 +22,7 @@ const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE
 export default function PostPage() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, isMuted, setIsMuted } = useAuth();
 
     const [post, setPost] = useState(null);
     const [comments, setComments] = useState([]);
@@ -36,6 +36,7 @@ export default function PostPage() {
     const [showMoreMenu, setShowMoreMenu] = useState(false);
     const [reposting, setReposting] = useState(false);
     const [recommendPost, setRecommendPost] = useState(null);
+    const lastTap = useRef(0);
     const touchStart = useRef(0);
 
     const isBusiness = post && BUSINESS_TYPES.includes(post.author?.accountType);
@@ -180,6 +181,37 @@ export default function PostPage() {
         setShowMoreMenu(false);
     };
 
+    const toggleMute = (e) => {
+        e?.stopPropagation();
+        setIsMuted(prev => !prev);
+    };
+
+    const handlePostClick = (e) => {
+        const now = Date.now();
+        const DOUBLE_TAP_DELAY = 300;
+        if (now - lastTap.current < DOUBLE_TAP_DELAY) {
+            if (!post.isLiked) {
+                handleLike();
+                const heart = document.createElement('div');
+                heart.className = 'double-tap-heart';
+                heart.innerHTML = '❤️';
+                heart.style.position = 'absolute';
+                heart.style.top = '50%';
+                heart.style.left = '50%';
+                heart.style.transform = 'translate(-50%, -50%) scale(0)';
+                heart.style.fontSize = '80px';
+                heart.style.zIndex = '1000';
+                heart.style.pointerEvents = 'none';
+                heart.style.animation = 'heart-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
+                e.currentTarget.appendChild(heart);
+                setTimeout(() => heart.remove(), 700);
+            }
+        } else {
+            toggleMute(e);
+        }
+        lastTap.current = now;
+    };
+
     if (loading) return <div className="post-page-loading"><div className="spinner"></div></div>;
     if (!post) return null;
 
@@ -196,9 +228,9 @@ export default function PostPage() {
 
             <div className={`post-container ${(!post.videoUrl && (!post.mediaUrls || post.mediaUrls.length === 0)) ? 'text-only' : ''}`}>
                 {/* Left: Media or Text Card */}
-                <div className="post-media-section">
+                <div className="post-media-section" onClick={handlePostClick}>
                     {post.videoUrl ? (
-                        <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} autoPlay={true} />
+                        <VideoPlayer src={post.videoUrl} poster={post.thumbnailUrl} autoPlay={true} muted={isMuted} />
                     ) : (post.mediaUrls && post.mediaUrls.length > 0) ? (
                         <div className={`post-image-grid grid-${Math.min(post.mediaUrls.length, 4)}`}>
                             {post.mediaUrls.slice(0, 4).map((url, i) => (

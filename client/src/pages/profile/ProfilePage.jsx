@@ -373,23 +373,17 @@ export default function ProfilePage() {
                     <div className="post-grid">
                         {(activeTab === 'posts' ? posts : savedPosts).length > 0 ? (
                             (activeTab === 'posts' ? posts : savedPosts).map(post => (
-                                <Link key={post.id} to={`/post/${post.id}`} className="post-grid-item" style={{ textDecoration: 'none', color: 'inherit' }}>
+                                <Link key={post.id} to={`/post/${post.id}`} className={`post-grid-item ${!post.thumbnailUrl && !post.videoUrl ? 'text-only' : ''}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                                     {post.thumbnailUrl ? (
                                         <img src={post.thumbnailUrl} alt={post.title} />
+                                    ) : post.videoUrl ? (
+                                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+                                            <HiOutlinePlayCircle style={{ fontSize: '2rem', color: 'rgba(255,255,255,0.5)' }} />
+                                        </div>
                                     ) : (
-                                        <div style={{
-                                            width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
-                                            alignItems: 'center', justifyContent: 'center', background: 'var(--bg-elevated)',
-                                            padding: '12px', textAlign: 'center', overflow: 'hidden'
-                                        }}>
-                                            <span style={{
-                                                fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)',
-                                                display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical',
-                                                overflow: 'hidden', wordBreak: 'break-word', marginBottom: 8
-                                            }}>
-                                                {post.title || post.content || 'Video Post'}
-                                            </span>
-                                            <HiOutlinePlayCircle style={{ fontSize: '1.2rem', color: 'var(--text-tertiary)' }} />
+                                        <div className="text-preview">
+                                            <HiOutlineChatBubbleLeft className="text-icon" />
+                                            <p>{post.title || post.description}</p>
                                         </div>
                                     )}
                                     <div className="post-grid-overlay">
