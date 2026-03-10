@@ -20,12 +20,9 @@ const httpServer = createServer(app);
 // Socket.io setup
 const io = new Server(httpServer, {
     cors: {
-        origin: [
-            process.env.CLIENT_URL || 'http://localhost:5173',
-            'http://localhost:5174',
-            'http://localhost:5175'
-        ],
-        methods: ['GET', 'POST']
+        origin: true,
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
     }
 });
 
@@ -34,12 +31,7 @@ app.set('io', io);
 
 // CORS
 app.use(cors({
-    origin: [
-        process.env.CLIENT_URL || 'http://localhost:5173',
-        'http://localhost:5174',
-        'http://localhost:5175',
-        'https://travelpod-liard.vercel.app'
-    ],
+    origin: true,
     credentials: true
 }));
 
