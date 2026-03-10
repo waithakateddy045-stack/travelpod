@@ -5,13 +5,17 @@ const { authenticate, optionalAuth } = require('../middleware/auth');
 
 // Public Routes — optionalAuth so logged-in users get engagement status
 router.get('/feed', optionalAuth, boardController.getBoardsFeed);
+
+// Protected: must come BEFORE /:id wildcard
+router.get('/user/me', authenticate, boardController.getMyBoards);
+
+// Public with handle param
 router.get('/user/:handle', boardController.getUserBoards);
 router.get('/:id', optionalAuth, boardController.getBoard);
 router.get('/:id/comments', boardController.getComments);
 
 // Protected Routes
 router.use(authenticate);
-router.get('/user/me', boardController.getMyBoards);
 router.post('/', boardController.createBoard);
 router.put('/:id', boardController.updateBoard);
 router.delete('/:id', boardController.deleteBoard);

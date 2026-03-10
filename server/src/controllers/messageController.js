@@ -116,4 +116,25 @@ const sendMessage = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-module.exports = { getConversations, getMessages, sendMessage };
+const getUnreadMessageCount = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        const conversations = await prisma.conversation.findMany({
+            where: {
+                OR: [
+                    { participant1Id: userId, unreadCountP1: { gt: 0 } },
+                    { participant2Id: userId, unreadCountP2: { gt: 0 } }
+                ]
+            },
+            select: { participant1Id: true, unreadCountP1: true, unreadCountP2: true }
+        });
+
+        const totalUnread = conversations.reduce((acc, c) => {
+            return acc + (c.participant1Id === userId ? c.unreadCountP1 : c.unreadCountP2);
+        }, 0);
+
+        res.json({ success: true, count: totalUnread });
+    } catch (err) { next(err); }
+};
+
+module.exports = { getConversations, getMessages, sendMessage, getUnreadMessageCount };

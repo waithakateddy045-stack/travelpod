@@ -261,18 +261,29 @@ const getUserBoards = async (req, res, next) => {
         const profile = await prisma.profile.findUnique({ where: { handle }, select: { userId: true } });
         if (!profile) throw new AppError('User not found', 404);
 
-        const boards = await prisma.tripBoard.findMany({
-            where: { userId: profile.userId, isPublic: true },
-            orderBy: { createdAt: 'desc' },
-            include: {
-                user: { select: { id: true, accountType: true, profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true } } } } } },
-                videos: { take: 1, orderBy: { sortOrder: 'asc' }, include: { post: { select: { thumbnailUrl: true } } } },
-            },
-        });
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 12;
+
+        const [boards, total] = await Promise.all([
+            prisma.tripBoard.findMany({
+                where: { userId: profile.userId, isPublic: true },
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    user: { select: { id: true, accountType: true, profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true } } } } } },
+                    videos: { take: 1, orderBy: { sortOrder: 'asc' }, include: { post: { select: { thumbnailUrl: true } } } },
+                },
+                skip: (page - 1) * limit,
+                take: limit,
+            }),
+            prisma.tripBoard.count({ where: { userId: profile.userId, isPublic: true } })
+        ]);
 
         res.json({
             success: true,
             boards: boards.map(b => ({ ...b, coverImage: b.coverImage || b.videos?.[0]?.post?.thumbnailUrl || null })),
+            total,
+            page,
+            totalPages: Math.ceil(total / limit)
         });
     } catch (err) { next(err); }
 };
@@ -391,20 +402,34 @@ const deleteComment = async (req, res, next) => {
 const getMyBoards = async (req, res, next) => {
     try {
         const userId = req.user.id;
-        const boards = await prisma.tripBoard.findMany({
-            where: { userId },
-            orderBy: { updatedAt: 'desc' },
-            include: {
-                _count: { select: { videos: true } }
-            }
-        });
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 12;
+
+        const [boards, total] = await Promise.all([
+            prisma.tripBoard.findMany({
+                where: { userId },
+                orderBy: { updatedAt: 'desc' },
+                include: {
+                    _count: { select: { videos: true } }
+                },
+                skip: (page - 1) * limit,
+                take: limit,
+            }),
+            prisma.tripBoard.count({ where: { userId } })
+        ]);
 
         const mapped = boards.map(b => ({
             ...b,
             videoCount: b._count.videos
         }));
 
-        res.json({ success: true, boards: mapped });
+        res.json({
+            success: true,
+            boards: mapped,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit)
+        });
     } catch (err) { next(err); }
 };
 

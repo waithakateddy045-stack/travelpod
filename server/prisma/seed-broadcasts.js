@@ -1,136 +1,176 @@
+/**
+ * seed-broadcasts.js
+ * Seeds BroadcastPost records so the Broadcasts tab in the feed has content.
+ * Run: node prisma/seed-broadcasts.js
+ */
+
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-const OFFICIAL_EMAIL = 'official@travelpod.com';
-
-const TEXT_BROADCASTS = [
-    { title: 'New Feature: AI Copilot! ✨', content: 'We just launched the Travelpod AI Copilot! Your personal travel assistant is now live. Chat with it in the bottom right corner for trip planning and content help.' },
-    { title: 'Exploring Zanzibar 🏖️', content: 'Zanzibar is calling! From Stone Town to the white sands of Nungwi, discover the spice island like never before on Travelpod.' },
-    { title: 'Sustainable Travel Tips 🌿', content: 'Did you know? Choosing eco-friendly stays can reduce your travel footprint by 40%. Check out our new "Eco-Resorts" category.' },
-    { title: 'South African Safari 🦁', content: 'The Big Five are waiting. Book your Kruger National Park experience directly through verified agencies on Travelpod today.' },
-    { title: 'Community Guidelines Update 🛡️', content: 'We\'ve updated our safety features to keep your travel reviews authentic and helpful. Read more in our Copyright page.' },
-    { title: 'Hidden Gems in Nairobi 🇰🇪', content: 'Beyond the park, discover Nairobi\'s vibrant coffee culture and art scene. Tap the location tag to see more.' },
-    { title: 'Travelpod for Businesses 🏢', content: 'Are you a verified business? Use the new Network Broadcast feature to reach thousands of travelers instantly.' },
-    { title: 'Packing for the Sahara 🏜️', content: 'Light layers, plenty of water, and a good camera. What\'s your must-have desert travel item?' },
-    { title: 'Direct Booking Enquiries ✉️', content: 'Skip the middleman. Send an enquiry directly to hotels and destinations from their profile. It\'s fast and free!' },
-    { title: 'Video Review Contest! 🎬', content: 'Post your best 60-second travel review this month for a chance to be featured on our official Board!' },
-    { title: 'Visit Victoria Falls 🌊', content: 'The Smoke that Thunders. Experience the majesty of the world\'s largest waterfall with our top-rated guides.' },
-    { title: 'Traveler Badges live! 🏅', content: 'Are you an "Explorer" or a "Reviewer"? Check your profile to see your earning progress.' },
-    { title: 'Moroccan Oasis 🇲🇦', content: 'Lose yourself in the blue streets of Chefchaouen. Authentic Moroccan experiences are just a scroll away.' },
-    { title: 'Safety First in Travel 🛑', content: 'Always check local travel advisories. Travelpod helps you connect with locals for the most up-to-date info.' },
-    { title: 'Join the Travelpod Community! 🤝', content: 'Follow your favorite creators and build your own Trip Boards to plan your dream vacation.' }
-];
-
-const IMAGE_BROADCASTS = [
+const BROADCASTS = [
     {
-        title: 'Luxurious Stay in Cape Town 🏨',
-        content: 'Experience world-class luxury with views of Table Mountain. Our verified partners offer exclusive rates for Travelpod members.',
-        images: [
-            'https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&q=80&w=800',
-            'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=800',
-            'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&q=80&w=800'
-        ]
+        title: '🌍 Discover Africa Like Never Before',
+        message: 'From the sweeping plains of the Serengeti to the white sand beaches of Zanzibar — Africa is calling. Our curated travel packages include guided safaris, beach retreats, and cultural deep-dives. Book now and experience the continent of wonder.',
+        videoUrl: 'https://videos.pexels.com/video-files/3571264/3571264-hd_1280_720_30fps.mp4',
+        thumbnailUrl: 'https://images.pexels.com/photos/247502/pexels-photo-247502.jpeg',
+        sectorTargeting: ['TRAVELER'],
     },
     {
-        title: 'Adventures in the Atlas Mountains ⛰️',
-        content: 'Trek through Berber villages and breathtaking peaks. These slides show the raw beauty of Morocco.',
-        images: [
-            'https://images.unsplash.com/photo-1489447068241-b3490214e8f5?auto=format&fit=crop&q=80&w=800',
-            'https://images.unsplash.com/photo-1539650116574-8efeb43e2750?auto=format&fit=crop&q=80&w=800'
-        ]
+        title: '✈️ Exclusive Flight Deals: Save Up to 40%',
+        message: 'Limited-time flash sale on international routes. Fly from Nairobi, Lagos, Cairo, and Johannesburg to top destinations in Europe, Asia, and the Americas. Book through Travelpod partner airlines and unlock exclusive app-only discounts.',
+        videoUrl: 'https://videos.pexels.com/video-files/2169880/2169880-hd_1920_1080_25fps.mp4',
+        thumbnailUrl: 'https://images.pexels.com/photos/1309644/pexels-photo-1309644.jpeg',
+        sectorTargeting: ['TRAVELER', 'TRAVEL_AGENCY'],
     },
     {
-        title: 'Seychelles Paradise 🇸🇨',
-        content: 'The ultimate beach getaway. Swipe to see the crystal clear waters and granite boulders of La Digue.',
-        images: [
-            'https://images.unsplash.com/photo-1473445733995-860ccda960ea?auto=format&fit=crop&q=80&w=800',
-            'https://images.unsplash.com/photo-1589553416260-178fa415956c?auto=format&fit=crop&q=80&w=800',
-            'https://images.unsplash.com/photo-1544735716-e9259469e574?auto=format&fit=crop&q=80&w=800'
-        ]
+        title: '🏨 5-Star Beach Resorts: Maldives & Seychelles',
+        message: 'Overwater bungalows, crystal clear lagoons, and world-class dining. We have secured special rates for our Travelpod community at award-winning beach resorts across the Indian Ocean. Paradise is closer than you think.',
+        videoUrl: 'https://videos.pexels.com/video-files/1562476/1562476-hd_1920_1080_30fps.mp4',
+        thumbnailUrl: 'https://images.pexels.com/photos/1268855/pexels-photo-1268855.jpeg',
+        sectorTargeting: ['TRAVELER'],
     },
     {
-        title: 'Cairo: History Reimagined 🇪🇬',
-        content: 'Visit the Giza Pyramids and the new Grand Egyptian Museum. History comes alive on Travelpod.',
-        images: [
-            'https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?auto=format&fit=crop&q=80&w=800',
-            'https://images.unsplash.com/photo-1539768942823-28b1a96eaa39?auto=format&fit=crop&q=80&w=800',
-            'https://images.unsplash.com/photo-1572204090538-406c7e974e3e?auto=format&fit=crop&q=80&w=800'
-        ]
-    }
+        title: '🦁 Safari Season Alert: Wildebeest Migration',
+        message: 'The Great Wildebeest Migration is in full swing. Over 1.5 million animals crossing the Mara River — a truly once-in-a-lifetime spectacle. Our partner lodges in the Masai Mara still have limited availability for this season.',
+        videoUrl: 'https://videos.pexels.com/video-files/4763824/4763824-hd_1920_1080_24fps.mp4',
+        thumbnailUrl: 'https://images.pexels.com/photos/631292/pexels-photo-631292.jpeg',
+        sectorTargeting: ['TRAVELER'],
+    },
+    {
+        title: '🗺️ New Feature: Trip Boards Are Here!',
+        message: 'You can now save videos to curated Trip Boards — plan your dream trip by collecting travel videos from different destinations, hotels, and experiences into one shareable board. Tap "Save to Board" on any video to get started!',
+        videoUrl: 'https://videos.pexels.com/video-files/3015481/3015481-hd_1920_1080_30fps.mp4',
+        thumbnailUrl: 'https://images.pexels.com/photos/2108813/pexels-photo-2108813.jpeg',
+        sectorTargeting: [],
+    },
+    {
+        title: '🏔️ Himalayan Trek: Nepal Adventure Packages',
+        message: 'Experience the roof of the world. Our certified Nepal adventure guides offer Everest Base Camp treks, Annapurna Circuit, and Langtang Valley hikes. All inclusive packages with accommodation, permits, and porter services included.',
+        videoUrl: 'https://videos.pexels.com/video-files/2097972/2097972-hd_1280_720_30fps.mp4',
+        thumbnailUrl: 'https://images.pexels.com/photos/1365425/pexels-photo-1365425.jpeg',
+        sectorTargeting: ['TRAVELER'],
+    },
+    {
+        title: '🍜 Street Food Tours: Southeast Asia',
+        message: 'Bangkok night markets, Hanoi pho stalls, Singapore hawker centres, and Penang's legendary food scene. Our culinary travel experts have mapped the best street food routes across Southeast Asia for the ultimate foodie adventure.',
+        videoUrl: 'https://videos.pexels.com/video-files/2499611/2499611-hd_1920_1080_30fps.mp4',
+        thumbnailUrl: 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg',
+        sectorTargeting: ['TRAVELER'],
+    },
+    {
+        title: '💼 Business Travel Perks for Verified Members',
+        message: 'Travelpod verified businesses now enjoy priority lounge access, dedicated account managers, and bulk booking discounts. Apply for business verification today to unlock exclusive corporate travel benefits for your team.',
+        videoUrl: 'https://videos.pexels.com/video-files/1737012/1737012-hd_1920_1080_25fps.mp4',
+        thumbnailUrl: 'https://images.pexels.com/photos/1181406/pexels-photo-1181406.jpeg',
+        sectorTargeting: ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'AIRLINE', 'ASSOCIATION'],
+    },
+    {
+        title: '🌊 Ocean Escapes: Caribbean Island Hopping',
+        message: 'Jamaica, Barbados, St. Lucia, Trinidad — the Caribbean archipelago is a treasure chest of beaches, rum shacks, and reggae vibes. Our island hopping packages let you explore multiple destinations in one epic trip.',
+        videoUrl: 'https://videos.pexels.com/video-files/4215047/4215047-hd_1920_1080_25fps.mp4',
+        thumbnailUrl: 'https://images.pexels.com/photos/994605/pexels-photo-994605.jpeg',
+        sectorTargeting: ['TRAVELER'],
+    },
+    {
+        title: '🎭 Cultural Immersion: Europe Heritage Tours',
+        message: 'From the ancient ruins of Rome to the medieval old town of Prague, from Parisian cafés to Amsterdam canal houses. Our slow travel heritage tours give you time to absorb the history and culture of Europe's most iconic cities.',
+        videoUrl: 'https://videos.pexels.com/video-files/2878378/2878378-hd_1920_1080_30fps.mp4',
+        thumbnailUrl: 'https://images.pexels.com/photos/161853/eiffel-tower-paris-france-161853.jpeg',
+        sectorTargeting: ['TRAVELER'],
+    },
 ];
 
 async function seed() {
-    console.log('🌱 Seeding Broadcast Data...');
+    console.log('🌱 Seeding broadcasts...');
 
-    const officialUser = await prisma.user.findUnique({
-        where: { email: OFFICIAL_EMAIL }
+    // Find the admin user to be the sender
+    let sender = await prisma.user.findFirst({
+        where: { accountType: 'ADMIN' },
+        select: { id: true },
     });
 
-    if (!officialUser) {
-        console.error('❌ Official user not found. Please run seed-official.js first.');
-        process.exit(1);
-    }
-
-    // Clear existing broadcasts to avoid duplicates during testing if needed
-    // await prisma.broadcastPost.deleteMany({ where: { senderId: officialUser.id } });
-
-    console.log(`  👤 Using sender: @travelpod (${officialUser.id})`);
-
-    // 1. Seed Text Broadcasts
-    for (const b of TEXT_BROADCASTS) {
-        const post = await prisma.post.create({
-            data: {
-                userId: officialUser.id,
-                title: b.title,
-                description: b.content,
-                postType: 'BROADCAST',
-                moderationStatus: 'APPROVED',
-            }
-        });
-
-        await prisma.broadcastPost.create({
-            data: {
-                postId: post.id,
-                senderId: officialUser.id,
-                mediaType: 'TEXT',
-                sectorTargeting: ['Traveler'],
-                mediaUrls: []
-            }
+    // If no admin, find a business account
+    if (!sender) {
+        sender = await prisma.user.findFirst({
+            where: { accountType: { in: ['TRAVEL_AGENCY', 'AIRLINE', 'DESTINATION'] } },
+            select: { id: true },
         });
     }
-    console.log(`  ✅ Seeded ${TEXT_BROADCASTS.length} text broadcasts`);
 
-    // 2. Seed Image Slide Broadcasts
-    for (const b of IMAGE_BROADCASTS) {
-        const post = await prisma.post.create({
-            data: {
-                userId: officialUser.id,
-                title: b.title,
-                description: b.content,
-                postType: 'BROADCAST',
-                moderationStatus: 'APPROVED',
-                thumbnailUrl: b.images[0]
-            }
-        });
-
-        await prisma.broadcastPost.create({
-            data: {
-                postId: post.id,
-                senderId: officialUser.id,
-                mediaType: 'IMAGE',
-                sectorTargeting: ['Traveler'],
-                mediaUrls: b.images
-            }
-        });
+    if (!sender) {
+        console.error('❌ No suitable sender found. Please ensure an admin or business account exists.');
+        return;
     }
-    console.log(`  ✅ Seeded ${IMAGE_BROADCASTS.length} image broadcasts`);
 
-    console.log('\n🎉 Finished seeding broadcast data!');
-    await prisma.$disconnect();
+    console.log(`   Using sender ID: ${sender.id}`);
+
+    // Get all target users
+    const allUsers = await prisma.user.findMany({
+        where: { isSuspended: false, isDeleted: false },
+        select: { id: true, accountType: true },
+    });
+
+    let created = 0;
+    for (const bc of BROADCASTS) {
+        try {
+            // Create backing post
+            const post = await prisma.post.create({
+                data: {
+                    userId: sender.id,
+                    title: bc.title,
+                    description: bc.message,
+                    videoUrl: bc.videoUrl,
+                    thumbnailUrl: bc.thumbnailUrl,
+                    duration: 30,
+                    postType: 'BROADCAST',
+                    moderationStatus: 'APPROVED',
+                },
+            });
+
+            // Create broadcast record
+            const broadcast = await prisma.broadcastPost.create({
+                data: {
+                    postId: post.id,
+                    senderId: sender.id,
+                    sectorTargeting: bc.sectorTargeting,
+                    mediaUrls: [bc.videoUrl],
+                    mediaType: 'VIDEO',
+                },
+            });
+
+            // Target users — all users or filtered by sector
+            let targets = allUsers;
+            if (bc.sectorTargeting.length > 0) {
+                targets = allUsers.filter(u => bc.sectorTargeting.includes(u.accountType) || u.accountType === 'TRAVELER');
+            }
+
+            // Create broadcast targets
+            await prisma.broadcastTarget.createMany({
+                data: targets
+                    .filter(u => u.id !== sender.id)
+                    .map(u => ({
+                        broadcastId: broadcast.id,
+                        targetUserId: u.id,
+                    })),
+                skipDuplicates: true,
+            });
+
+            // Update reach count
+            await prisma.broadcastPost.update({
+                where: { id: broadcast.id },
+                data: { reachCount: targets.length },
+            });
+
+            created++;
+            console.log(`   ✅ Created broadcast: "${bc.title}"`);
+        } catch (err) {
+            console.error(`   ❌ Failed: "${bc.title}" —`, err.message);
+        }
+    }
+
+    console.log(`\n🎉 Done! Created ${created} broadcasts out of ${BROADCASTS.length}.`);
 }
 
-seed().catch(e => {
-    console.error(e);
-    prisma.$disconnect();
-    process.exit(1);
-});
+seed()
+    .catch(console.error)
+    .finally(() => prisma.$disconnect());

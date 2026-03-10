@@ -5,6 +5,7 @@ const {
     likePost, unlikePost,
     savePost, unsavePost,
     addComment, getComments, getReplies, deleteComment,
+    getSavedPosts
 } = require('../controllers/engagementController');
 
 // Likes
@@ -12,6 +13,7 @@ router.post('/like/:postId', authenticate, likePost);
 router.delete('/like/:postId', authenticate, unlikePost);
 
 // Saves
+router.get('/saves', authenticate, getSavedPosts);
 router.post('/save/:postId', authenticate, savePost);
 router.delete('/save/:postId', authenticate, unsavePost);
 

@@ -22,9 +22,9 @@ const chatWithCopilot = async (req, res, next) => {
         if (!message) return res.status(400).json({ error: 'Message is required' });
 
         if (!model) {
-            return res.json({ 
-                success: true, 
-                reply: "I'm currently offline running some updates, but I'll be back soon to help you with your travel plans!" 
+            return res.json({
+                success: true,
+                reply: "I'm currently offline running some updates, but I'll be back soon to help you with your travel plans!"
             });
         }
 
@@ -34,7 +34,8 @@ const chatWithCopilot = async (req, res, next) => {
             history = [
                 {
                     role: 'user',
-                    parts: [{ text: `You are the Travelpod AI Copilot. You are a highly intelligent, sturdy, and professional travel assistant built specifically for Travelpod—a video-first travel platform linking African and global tourism. 
+                    parts: [{
+                        text: `You are the Travelpod AI Copilot. You are a highly intelligent, sturdy, and professional travel assistant built specifically for Travelpod—a video-first travel platform linking African and global tourism. 
                     Be highly critical but helpful. Act like an authoritative travel expert and content creation guru. You assist travelers with finding destinations, and businesses with writing compelling posts and broadcasts. Keep your responses concise and well-formatted. Do not use markdown blocks unless specifically asked for code.` }]
                 },
                 {
@@ -76,4 +77,28 @@ const clearChatHistory = async (req, res, next) => {
     }
 };
 
-module.exports = { chatWithCopilot, clearChatHistory };
+const generatePostDetails = async (req, res, next) => {
+    try {
+        const { type, context } = req.body;
+        if (!model) return res.status(503).json({ error: 'AI Service Unavailable' });
+
+        const prompt = `Generate travel post details for a ${type} post. 
+        Context: ${context || 'Travel experience'}
+        Return JSON format: { "title": "...", "description": "...", "tags": ["tag1", "tag2"], "category": "..." }
+        Keep it professional and inspiring. Limit title to 50 chars and description to 200 chars.`;
+
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+
+        // Extract JSON from potential markdown blocks
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const data = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+
+        res.json({ success: true, data });
+    } catch (err) {
+        console.error('AI Detail Gen Error:', err.message);
+        res.status(500).json({ error: 'Failed to generate details' });
+    }
+};
+
+module.exports = { chatWithCopilot, clearChatHistory, generatePostDetails };

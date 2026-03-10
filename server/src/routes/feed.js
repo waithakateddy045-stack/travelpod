@@ -13,4 +13,7 @@ router.get('/following', authenticate, getFollowingFeed);
 // Track promoted post impressions
 router.post('/impression', optionalAuth, recordImpression);
 
+// Destinations discovery
+router.get('/destinations', optionalAuth, require('../controllers/feedController').getDestinations);
+
 module.exports = router;

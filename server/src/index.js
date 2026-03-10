@@ -12,6 +12,7 @@ const routes = require('./routes');
 const { errorHandler } = require('./middleware/errorHandler');
 require('./services/passportSetup'); // Initialize Google OAuth strategy
 const passport = require('passport');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 const httpServer = createServer(app);
@@ -49,6 +50,7 @@ app.use('/api/', limiter);
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // CORS
 app.use(cors({

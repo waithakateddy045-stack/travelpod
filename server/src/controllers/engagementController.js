@@ -20,6 +20,19 @@ const likePost = async (req, res, next) => {
         await prisma.like.create({ data: { userId, postId } });
         await prisma.post.update({ where: { id: postId }, data: { likeCount: { increment: 1 } } });
 
+        // Trigger Notification
+        const { createNotification } = require('./notificationController');
+        if (post.userId !== userId) {
+            createNotification({
+                userId: post.userId,
+                type: 'post_liked',
+                title: 'Post Liked!',
+                body: `${req.user.profile?.displayName || 'Someone'} liked your post.`,
+                relatedEntityId: postId,
+                relatedEntityType: 'post'
+            }).catch(() => { });
+        }
+
         res.status(201).json({ success: true, message: 'Post liked' });
     } catch (err) { next(err); }
 };
@@ -94,6 +107,33 @@ const addComment = async (req, res, next) => {
                 where: { id: parentId },
                 data: { replyCount: { increment: 1 } }
             });
+            // Notify parent comment author
+            const parentComment = await prisma.comment.findUnique({ where: { id: parentId } });
+            if (parentComment && parentComment.userId !== userId) {
+                const { createNotification } = require('./notificationController');
+                createNotification({
+                    userId: parentComment.userId,
+                    type: 'post_commented',
+                    title: 'New Reply!',
+                    body: `${req.user.profile?.displayName || 'Someone'} replied to your comment.`,
+                    relatedEntityId: postId,
+                    relatedEntityType: 'post'
+                }).catch(() => { });
+            }
+        } else {
+            // Notify post author
+            const post = await prisma.post.findUnique({ where: { id: postId } });
+            if (post && post.userId !== userId) {
+                const { createNotification } = require('./notificationController');
+                createNotification({
+                    userId: post.userId,
+                    type: 'post_commented',
+                    title: 'New Comment!',
+                    body: `${req.user.profile?.displayName || 'Someone'} commented on your post.`,
+                    relatedEntityId: postId,
+                    relatedEntityType: 'post'
+                }).catch(() => { });
+            }
         }
 
         res.status(201).json({ success: true, comment });
@@ -175,4 +215,42 @@ const deleteComment = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-module.exports = { likePost, unlikePost, savePost, unsavePost, addComment, getComments, getReplies, deleteComment };
+const getSavedPosts = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 12;
+
+        const [saves, total] = await Promise.all([
+            prisma.save.findMany({
+                where: { userId },
+                include: {
+                    post: {
+                        include: {
+                            author: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } } }
+                        }
+                    }
+                },
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit
+            }),
+            prisma.save.count({ where: { userId } })
+        ]);
+
+        const posts = saves.map(s => ({
+            ...s.post,
+            isSaved: true
+        }));
+
+        res.json({
+            success: true,
+            posts,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit)
+        });
+    } catch (err) { next(err); }
+};
+
+module.exports = { likePost, unlikePost, savePost, unsavePost, addComment, getComments, getReplies, deleteComment, getSavedPosts };

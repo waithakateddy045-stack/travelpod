@@ -10,6 +10,8 @@ const {
     resetPassword,
     verifyEmail,
     me,
+    getSessions,
+    deleteSession
 } = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth');
 
@@ -29,6 +31,10 @@ router.get('/verify-email/:token', verifyEmail);
 // Authenticated user info
 router.get('/me', authenticate, me);
 
+// Session management
+router.get('/sessions', authenticate, getSessions);
+router.delete('/sessions/:id', authenticate, deleteSession);
+
 // Google OAuth
 router.get('/google', (req, res, next) => {
     passport.authenticate('google', {
@@ -41,15 +47,23 @@ router.get('/google', (req, res, next) => {
 router.get('/google/callback',
     passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL}/auth/login?error=oauth_failed` }),
     (req, res) => {
-        const { accessToken, refreshToken } = req.user;
+        const { accessToken, refreshToken, sessionToken, onboardingComplete } = req.user;
         const source = req.query.state;
 
         if (source === 'app') {
-            res.redirect(`travelpod://callback?accessToken=${accessToken}&refreshToken=${refreshToken}&onboarding=${req.user.onboardingComplete}`);
+            res.redirect(`travelpod://callback?accessToken=${accessToken}&refreshToken=${refreshToken}&sessionToken=${sessionToken}&onboarding=${onboardingComplete}`);
         } else {
+            // Set HttpOnly cookie for web
+            res.cookie('travelpod_session', sessionToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+            });
+
             // Redirect to frontend with tokens in query (frontend stores them)
             res.redirect(
-                `${process.env.CLIENT_URL}/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}&onboarding=${req.user.onboardingComplete}`
+                `${process.env.CLIENT_URL}/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}&sessionToken=${sessionToken}&onboarding=${onboardingComplete}`
             );
         }
     }

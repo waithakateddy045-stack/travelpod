@@ -10,68 +10,48 @@ const createPost = async (req, res, next) => {
     try {
         const userId = req.user.id;
         const {
-            title, description, postType, categoryId, category, locationTag, tags, isReview, businessId, starRating,
-            isTextPost, linkedBusinessId,
-            startTime, endTime, thumbnailTime, chapters, perceptualHash, musicTitle
+            title, description, postType, categoryId, category, locationTag, tags,
+            isReview, businessId, starRating, reviewOfId,
+            textContent, musicTitle,
+            thumbnailTime, perceptualHash
         } = req.body;
 
-        if (!title) throw new AppError('Title is required', 400);
+        if (!title && postType !== 'TEXT') throw new AppError('Title is required', 400);
 
-        // Duplicate check
-        if (perceptualHash) {
-            const duplicate = await prisma.post.findFirst({
-                where: { perceptualHash, moderationStatus: { not: 'REMOVED' } }
-            });
-            if (duplicate) {
-                return res.status(409).json({ success: false, error: 'Duplicate video detected', postId: duplicate.id });
-            }
-        }
-
-        if (postType === 'BROADCAST' && !['ASSOCIATION', 'ADMIN'].includes(req.user.accountType)) {
-            throw new AppError('Only associations and admins can create broadcast posts', 403);
-        }
-
+        // 1. Process Media
         let videoUrl = null;
         let thumbnailUrl = null;
-        let duration = null;
-        const isActuallyText = isTextPost === 'true';
+        let mediaUrls = [];
+        let duration = 0;
+        let uploadStats = null;
 
-        if (req.file) {
-            try {
-                const originalSize = req.file.size;
-                const transformations = [];
-                if (startTime !== undefined || endTime !== undefined) {
-                    transformations.push({
-                        start_offset: startTime || 0,
-                        end_offset: endTime || undefined
-                    });
-                }
+        // Video Upload
+        if (postType === 'VIDEO' && req.file) {
+            const originalSize = req.file.size;
+            const cloudResult = await uploadVideo(req.file.path);
+            videoUrl = cloudResult.secure_url;
+            duration = Math.round(cloudResult.duration || 0);
+            thumbnailUrl = getVideoThumbnail(cloudResult.public_id, thumbnailTime || 0);
 
-                const cloudResult = await uploadVideo(req.file.path, { transformations });
-                videoUrl = cloudResult.secure_url;
-                duration = Math.round(cloudResult.duration || 0);
-
-                // Use selected thumbnail time or default to 0
-                thumbnailUrl = getVideoThumbnail(cloudResult.public_id, thumbnailTime || 0);
-
-                const stats = {
-                    originalSize,
-                    compressedSize: cloudResult.bytes,
-                    compressionRatio: ((1 - (cloudResult.bytes / originalSize)) * 100).toFixed(1) + '%'
-                };
-                req.uploadStats = stats;
-                req.smartThumbnails = generateSmartThumbnails(cloudResult.public_id, cloudResult.duration);
-            } catch (uploadErr) {
-                console.error('Cloudinary upload failed:', uploadErr.message);
-                throw new AppError('Video upload failed. Please try again.', 500);
-            } finally {
-                if (req.file.path && fs.existsSync(req.file.path)) {
-                    fs.unlinkSync(req.file.path);
-                }
-            }
+            uploadStats = {
+                originalSize,
+                compressedSize: cloudResult.bytes,
+                compressionRatio: ((1 - (cloudResult.bytes / originalSize)) * 100).toFixed(1) + '%'
+            };
+            if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         }
 
-        // Resolve category name to categoryId if needed
+        // Photo Upload (Multiple)
+        if (postType === 'PHOTO' && req.files && req.files.length > 0) {
+            for (const file of req.files) {
+                const result = await uploadImage(file.path, 'posts/photos');
+                mediaUrls.push(result.secure_url);
+                if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+            }
+            thumbnailUrl = mediaUrls[0]; // First photo as cover
+        }
+
+        // 2. Resolve Category
         let resolvedCategoryId = categoryId || null;
         if (!resolvedCategoryId && category) {
             const slug = category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -83,40 +63,34 @@ const createPost = async (req, res, next) => {
             resolvedCategoryId = cat.id;
         }
 
-        // Auto Chapter Generation for long videos
-        let finalChapters = chapters ? (typeof chapters === 'string' ? JSON.parse(chapters) : chapters) : [];
-        if (finalChapters.length === 0 && duration > 60) {
-            // Generate simple chapters every 30 seconds
-            for (let t = 0; t < duration; t += 30) {
-                finalChapters.push({ time: t, title: t === 0 ? 'Introduction' : `Part ${Math.floor(t / 30) + 1}` });
-            }
-        }
-
+        // 3. Create Main Post
         const post = await prisma.post.create({
             data: {
                 userId,
-                title,
+                title: title || (postType === 'TEXT' ? textContent.substring(0, 50) : 'Untitled'),
                 description: description || null,
+                postType: postType || 'STANDARD',
                 videoUrl,
                 thumbnailUrl,
-                duration: duration || 0,
-                postType: isActuallyText ? 'TEXT' : (postType || (linkedBusinessId ? 'REVIEW' : 'STANDARD')),
+                mediaUrls: mediaUrls.length > 0 ? mediaUrls : null,
+                textContent: textContent || null,
+                duration,
                 categoryId: resolvedCategoryId,
                 locationTag: locationTag || null,
                 moderationStatus: 'APPROVED',
                 perceptualHash: perceptualHash || null,
-                chapters: finalChapters.length > 0 ? finalChapters : null,
-                originalSize: req.uploadStats?.originalSize || null,
-                compressedSize: req.uploadStats?.compressedSize || null,
                 musicTitle: musicTitle || null,
-                isReview: isActuallyText && linkedBusinessId ? true : (isReview === 'true'),
-                linkedBusinessId: linkedBusinessId || businessId || null,
+                isReview: postType === 'REVIEW' || isReview === true || isReview === 'true',
+                starRating: starRating ? parseInt(starRating, 10) : null,
+                reviewOfId: reviewOfId || null,
+                originalSize: uploadStats?.originalSize || null,
+                compressedSize: uploadStats?.compressedSize || null,
             },
         });
 
-        // Attach tags via PostTag
+        // 4. Handle Tags
         if (tags) {
-            const tagList = Array.isArray(tags) ? tags : tags.split(',').map(t => t.trim());
+            const tagList = Array.isArray(tags) ? tags : String(tags).split(',').map(t => t.trim());
             for (const tagName of tagList) {
                 const tag = await prisma.tag.upsert({
                     where: { name: tagName },
@@ -127,49 +101,37 @@ const createPost = async (req, res, next) => {
             }
         }
 
-        if ((isReview === 'true' || (isActuallyText && linkedBusinessId)) && (linkedBusinessId || businessId)) {
-            const bId = linkedBusinessId || businessId;
-            await prisma.videoReview.upsert({
-                where: { postId: post.id },
-                update: {},
-                create: {
-                    postId: post.id,
-                    reviewerId: userId,
-                    businessId: bId,
-                    starRating: starRating ? parseInt(starRating, 10) : 5,
-                    caption: title,
-                },
-            });
-
-            // Update business review count and average rating
-            const reviews = await prisma.videoReview.findMany({ where: { businessId: bId }, select: { starRating: true } });
-            const avg = reviews.length > 0 
-                ? reviews.reduce((acc, r) => acc + r.starRating, 0) / reviews.length 
-                : 0;
-            
-            const targetProfile = await prisma.profile.findUnique({ where: { userId: bId } });
-            if (targetProfile) {
-                await prisma.businessProfile.update({
-                    where: { profileId: targetProfile.id },
+        // 5. Mirrored Review Logic (If Repost/Review)
+        if (postType === 'REVIEW' && reviewOfId) {
+            const originalPost = await prisma.post.findUnique({ where: { id: reviewOfId } });
+            if (originalPost) {
+                await prisma.comment.create({
                     data: {
-                        starRating: avg,
-                        verifiedReviewCount: { increment: 1 }
+                        postId: reviewOfId,
+                        userId,
+                        content: textContent || description || `Reviewed this post!`,
+                        commentType: 'REVIEW',
+                        linkedPostId: post.id
                     }
-                }).catch(() => {});
-                
-                await prisma.profile.update({
-                    where: { id: targetProfile.id },
-                    data: { verifiedReviewCount: { increment: 1 } }
-                }).catch(() => {});
+                });
+                await prisma.post.update({ where: { id: reviewOfId }, data: { commentCount: { increment: 1 } } });
             }
         }
 
-        res.status(201).json({
-            success: true,
-            post,
-            compressionStats: req.uploadStats,
-            smartThumbnails: req.smartThumbnails
-        });
+        // 6. Business Review Integration (Legacy)
+        if ((postType === 'REVIEW' || isReview === 'true') && businessId) {
+            await prisma.videoReview.create({
+                data: {
+                    postId: post.id,
+                    reviewerId: userId,
+                    businessId,
+                    starRating: starRating ? parseInt(starRating, 10) : 5,
+                    caption: title || 'Review',
+                }
+            }).catch(() => { });
+        }
+
+        res.status(201).json({ success: true, post, compressionStats: uploadStats });
     } catch (err) { next(err); }
 };
 

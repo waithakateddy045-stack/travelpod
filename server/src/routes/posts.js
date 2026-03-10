@@ -28,9 +28,9 @@ const upload = multer({
     storage,
     limits: { fileSize: 200 * 1024 * 1024 }, // 200MB
     fileFilter: (req, file, cb) => {
-        const allowed = /mp4|mov|avi|webm|mkv/;
+        const allowed = /mp4|mov|avi|webm|mkv|jpg|jpeg|png|webp/;
         const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-        cb(ext ? null : new Error('Only video files (MP4, MOV, AVI, WebM, MKV) are allowed'), ext);
+        cb(ext ? null : new Error('Only video files or images are allowed'), ext);
     },
 });
 
@@ -39,7 +39,7 @@ router.get('/check-duplicate', checkDuplicate);
 router.get('/:id', getPost);
 
 // Post CRUD (Protected routes)
-router.post('/', authenticate, upload.single('video'), createPost);
+router.post('/', authenticate, upload.any(), createPost);
 router.patch('/:id', authenticate, updatePost);
 router.delete('/:id', authenticate, deletePost);
 

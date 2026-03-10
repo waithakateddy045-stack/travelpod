@@ -232,21 +232,16 @@ const getFeed = async (req, res, next) => {
         const userId = req.user?.id;
         const sessionId = req.query.sessionId || null;
 
-        // Build user context
-        const [followsList, categoryAffinityMap, viewedIds, locationAffinityMap] = await Promise.all([
-            userId ? prisma.follow.findMany({ where: { followerId: userId }, select: { followingId: true } }) : [],
-            buildCategoryAffinity(userId),
-            getViewedIds(userId, sessionId),
-            buildLocationAffinity(userId),
-        ]);
-        const followingSet = new Set(followsList.map(f => f.followingId));
+        // 1. Get viewed post IDs to ensure "View-Once" logic
+        const viewedIds = await getViewedIds(userId, sessionId);
         const viewedSet = new Set(viewedIds);
 
-        // 1. Fetch Candidate Pool
-        // Instead of strict "notIn", we fetch a large pool of fresh content
-        // and a small pool of trending content (even if seen) to ensure feed is NEVER empty.
+        // 2. Fetch Candidate Pool (Strictly excluding viewed)
+        const where = {
+            moderationStatus: 'APPROVED',
+            id: { notIn: viewedIds }
+        };
 
-        const where = { moderationStatus: 'APPROVED' };
         if (categoryFilter && categoryFilter !== 'All') {
             const cat = await prisma.category.findFirst({
                 where: { name: { contains: categoryFilter, mode: 'insensitive' } },
@@ -254,56 +249,24 @@ const getFeed = async (req, res, next) => {
             if (cat) where.categoryId = cat.id;
         }
 
-        const [freshPool, qualityPool] = await Promise.all([
-            // Fresh pool: Latest posts (limit to 400 for performance)
-            prisma.post.findMany({
-                where: { ...where, createdAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) } }, // Last 14 days
-                orderBy: { createdAt: 'desc' },
-                take: 400,
-                include: {
-                    author: { select: { id: true, accountType: true, profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true } } } } } },
-                    category: true,
-                    postTags: { include: { tag: true } },
-                }
-            }),
-            // Quality pool: High engagement (limit to 100)
-            prisma.post.findMany({
-                where,
-                orderBy: { likeCount: 'desc' },
-                take: 100,
-                include: {
-                    author: { select: { id: true, accountType: true, profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true } } } } } },
-                    category: true,
-                    postTags: { include: { tag: true } },
-                }
-            })
-        ]);
-
-        // Merge and unique
-        const poolMap = new Map();
-        [...freshPool, ...qualityPool].forEach(p => poolMap.set(p.id, p));
-        let posts = Array.from(poolMap.values());
-
-        // 2. Score and Sort
-        const now = Date.now();
-        const context = { followingSet, categoryAffinityMap, now, userId, viewedSet, locationAffinityMap };
-        const scored = posts.map(p => ({ ...p, _score: computeScore(p, context) }));
-
-        // Sort by score
-        scored.sort((a, b) => b._score - a._score);
+        // Fetch deterministic pool
+        const posts = await prisma.post.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            take: 200, // Limit candidate pool for performance
+            include: {
+                author: { select: { id: true, accountType: true, profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true } } } } } },
+                category: true,
+                postTags: { include: { tag: true } },
+            }
+        });
 
         // 3. Paginate
         const start = (page - 1) * limit;
-        const paged = scored.slice(start, start + limit);
-        let finalPosts = paged.length > 0 ? [...paged] : [];
+        const paged = posts.slice(start, start + limit);
 
-        if (finalPosts.length === 0 && posts.length > 0) {
-            // Exhausted scored pages — provide random quality posts as fallback
-            const fallback = posts.sort(() => Math.random() - 0.5).slice(0, limit);
-            finalPosts = fallback;
-        }
-
-        // 4. Inject promoted posts (1 per 5 organic)
+        // 4. Inject promoted posts (only on page 1)
+        let finalPosts = [...paged];
         if (page === 1) {
             const promotions = await getActivePromotions();
             if (promotions.length > 0) {
@@ -312,12 +275,12 @@ const getFeed = async (req, res, next) => {
                 for (const slot of promoSlots) {
                     if (promoIdx < promotions.length && slot <= finalPosts.length) {
                         const promo = promotions[promoIdx];
-                        if (!finalPosts.find(p => p.id === promo.post.id)) {
+                        // Only inject if user hasn't seen it recently (promotions can be repeated but let's be gentle)
+                        if (!viewedSet.has(promo.post.id) && !finalPosts.find(p => p.id === promo.post.id)) {
                             finalPosts.splice(slot, 0, {
                                 ...promo.post,
                                 isPromoted: true,
-                                promotionId: promo.id,
-                                _score: 999,
+                                promotionId: promo.id
                             });
                             prisma.featuredPlacement.update({
                                 where: { id: promo.id },
@@ -330,59 +293,19 @@ const getFeed = async (req, res, next) => {
             }
         }
 
-        // 5. Enrich
-        const enriched = await enrichPostsAsync(finalPosts, userId, followingSet);
-        enriched.forEach(p => { delete p._score; });
+        // 5. Enrich (likes/saves/follows)
+        const enriched = await enrichPostsAsync(finalPosts, userId, new Set());
 
         res.json({
             success: true,
             posts: enriched,
-            total: posts.length,
+            totalCount: posts.length,
             page,
             totalPages: Math.ceil(posts.length / limit) || 1
         });
     } catch (err) { next(err); }
 };
 
-
-// Helper: enrich posts with actual like/save status
-async function enrichPostsAsync(posts, userId, followingSet) {
-    let enriched = posts.map(p => ({
-        ...p,
-        user: p.author,
-        category: p.category?.name || null,
-        isPromoted: p.isPromoted || false,
-        promotionId: p.promotionId || null,
-    }));
-
-    if (userId) {
-        const postIds = posts.map(p => p.id).filter(Boolean);
-        const [likes, saves] = await Promise.all([
-            prisma.like.findMany({ where: { userId, postId: { in: postIds } } }),
-            prisma.save.findMany({ where: { userId, postId: { in: postIds } } }),
-        ]);
-        const likedSet = new Set(likes.map(l => l.postId));
-        const savedSet = new Set(saves.map(s => s.postId));
-
-        enriched = enriched.map(p => ({
-            ...p,
-            isLiked: likedSet.has(p.id),
-            isSaved: savedSet.has(p.id),
-            isFollowing: followingSet.has(p.userId),
-        }));
-    } else {
-        enriched = enriched.map(p => ({
-            ...p,
-            isLiked: false,
-            isSaved: false,
-            isFollowing: false,
-        }));
-    }
-
-    return enriched;
-}
-
-// GET /api/feed/following — Only posts from users the current user follows
 const getFollowingFeed = async (req, res, next) => {
     try {
         const userId = req.user.id;
@@ -396,21 +319,20 @@ const getFollowingFeed = async (req, res, next) => {
             getViewedIds(userId, sessionId)
         ]);
         const followingIds = follows.map(f => f.followingId);
-        const viewedSet = new Set(viewedIds);
 
         if (followingIds.length === 0) {
-            return res.json({ success: true, posts: [], total: 0, page, totalPages: 0 });
+            return res.json({ success: true, posts: [], totalCount: 0, page, totalPages: 0 });
         }
 
-        // 2. Fetch all candidates from following (larger pool for sorting)
-        const poolSize = page === 1 ? 500 : limit * 10;
         const posts = await prisma.post.findMany({
             where: {
                 userId: { in: followingIds },
-                moderationStatus: 'APPROVED'
+                moderationStatus: 'APPROVED',
+                id: { notIn: viewedIds }
             },
             orderBy: { createdAt: 'desc' },
-            take: poolSize,
+            skip: (page - 1) * limit,
+            take: limit,
             include: {
                 author: { select: { id: true, accountType: true, profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true } } } } } },
                 category: true,
@@ -418,27 +340,73 @@ const getFollowingFeed = async (req, res, next) => {
             }
         });
 
-        // 3. Score and Sort (Soft Dedupe)
-        // For following feed, scoring is mostly Recency + Unseen
-        const processed = posts.map(p => {
-            let score = new Date(p.createdAt).getTime();
-            if (viewedSet.has(p.id)) score -= (1000 * 60 * 60 * 24 * 7); // Penalize by 1 week in time for read posts
-            return { ...p, _score: score };
+        const total = await prisma.post.count({
+            where: {
+                userId: { in: followingIds },
+                moderationStatus: 'APPROVED',
+                id: { notIn: viewedIds }
+            }
         });
-        processed.sort((a, b) => b._score - a._score);
 
-        // 4. Paginate
-        const paged = processed.slice((page - 1) * limit, page * limit);
-        const enriched = await enrichPostsAsync(paged, userId, new Set(followingIds));
+        const enriched = await enrichPostsAsync(posts, userId, new Set(followingIds));
 
         res.json({
             success: true,
             posts: enriched,
-            total: posts.length,
+            totalCount: total,
             page,
-            totalPages: Math.ceil(posts.length / limit) || 1
+            totalPages: Math.ceil(total / limit) || 1
         });
     } catch (err) { next(err); }
 };
 
-module.exports = { getFeed, getFollowingFeed };
+// ============================================================
+// GET /api/feed/destinations — Dynamic discovery list
+// ============================================================
+const getDestinations = async (req, res, next) => {
+    try {
+        const posts = await prisma.post.findMany({
+            where: {
+                locationTag: { not: null },
+                moderationStatus: 'APPROVED'
+            },
+            select: { locationTag: true },
+            distinct: ['locationTag'],
+            take: 50
+        });
+
+        const destinations = posts.map(p => p.locationTag).filter(Boolean);
+        res.json({ success: true, destinations });
+    } catch (err) { next(err); }
+};
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+async function enrichPostsAsync(posts, userId, followingSet = new Set()) {
+    if (posts.length === 0) return [];
+
+    const postIds = posts.map(p => p.id);
+
+    let userLikes = new Set();
+    let userSaves = new Set();
+
+    if (userId) {
+        const [likes, saves] = await Promise.all([
+            prisma.like.findMany({ where: { userId, postId: { in: postIds } }, select: { postId: true } }),
+            prisma.save.findMany({ where: { userId, postId: { in: postIds } }, select: { postId: true } })
+        ]);
+        userLikes = new Set(likes.map(l => l.postId));
+        userSaves = new Set(saves.map(s => s.postId));
+    }
+
+    return posts.map(p => ({
+        ...p,
+        isLiked: userLikes.has(p.id),
+        isSaved: userSaves.has(p.id),
+        isFollowing: followingSet.has(p.userId)
+    }));
+}
+
+module.exports = { getFeed, getFollowingFeed, getDestinations };

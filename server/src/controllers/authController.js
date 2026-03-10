@@ -65,14 +65,24 @@ const generateAccessToken = (user) => {
 const generateRefreshToken = () => uuidv4();
 
 /**
- * Store refresh token in DB with expiry
+ * Store session in DB with token and device tracking
  */
-const storeRefreshToken = async (userId, token) => {
+const storeSession = async (userId, refreshToken, deviceType = 'WEB') => {
+    const token = uuidv4(); // Opaque session token for every request
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
-    await prisma.session.create({
-        data: { userId, refreshToken: token, expiresAt },
+    expiresAt.setDate(expiresAt.getDate() + 30); // 30 day fixed expiry, but middleware updates lastActiveAt
+
+    const session = await prisma.session.create({
+        data: { 
+            userId, 
+            refreshToken, 
+            token, 
+            deviceType, 
+            expiresAt 
+        },
     });
+    
+    return session;
 };
 
 /**
@@ -142,7 +152,10 @@ const register = async (req, res, next) => {
         // Generate tokens
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken();
-        await storeRefreshToken(user.id, refreshToken);
+        
+        // Handle device type from headers
+        const deviceType = req.headers['x-device-type']?.toUpperCase() === 'ANDROID' ? 'ANDROID' : 'WEB';
+        const session = await storeSession(user.id, refreshToken, deviceType);
 
         // In-app Welcome Notification
         const { createNotification } = require('./notificationController');
@@ -153,11 +166,40 @@ const register = async (req, res, next) => {
             body: 'We are thrilled to have you. Please complete your profile to start connecting and sharing.',
         }).catch(() => { });
 
+        // Auto-follow official account
+        try {
+            const adminUser = await prisma.user.findFirst({
+                where: { profile: { handle: 'travelpod' } }, // Re-audit find: should be travelpod per checklist
+                select: { id: true }
+            });
+            if (adminUser) {
+                await prisma.follow.create({
+                    data: {
+                        followerId: user.id,
+                        followingId: adminUser.id
+                    }
+                }).catch(() => {});
+            }
+        } catch (e) {
+            console.error('Auto-follow failed:', e);
+        }
+
+        // Set HttpOnly cookie for web
+        if (deviceType === 'WEB') {
+            res.cookie('travelpod_session', session.token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+            });
+        }
+
         res.status(201).json({
             success: true,
             message: 'Account created successfully. Please verify your email.',
             accessToken,
             refreshToken,
+            sessionToken: session.token, // Return for mobile storage
             user: {
                 id: user.id,
                 email: user.email,
@@ -208,12 +250,26 @@ const login = async (req, res, next) => {
 
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken();
-        await storeRefreshToken(user.id, refreshToken);
+        
+        // Handle device type from headers
+        const deviceType = req.headers['x-device-type']?.toUpperCase() === 'ANDROID' ? 'ANDROID' : 'WEB';
+        const session = await storeSession(user.id, refreshToken, deviceType);
+
+        // Set HttpOnly cookie for web
+        if (deviceType === 'WEB') {
+            res.cookie('travelpod_session', session.token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+            });
+        }
 
         res.json({
             success: true,
             accessToken,
             refreshToken,
+            sessionToken: session.token, // Return for mobile storage
             user: {
                 id: user.id,
                 email: user.email,
@@ -233,11 +289,16 @@ const login = async (req, res, next) => {
 const logout = async (req, res, next) => {
     try {
         const { refreshToken } = req.body;
+        const sessionToken = req.headers.authorization?.split(' ')[1] || req.cookies?.travelpod_session;
 
-        if (refreshToken) {
-            await prisma.session.updateMany({
+        if (sessionToken) {
+            await prisma.session.deleteMany({
+                where: { token: sessionToken },
+            });
+            res.clearCookie('travelpod_session');
+        } else if (refreshToken) {
+            await prisma.session.deleteMany({
                 where: { refreshToken },
-                data: { isRevoked: true },
             });
         }
 
@@ -276,14 +337,24 @@ const refresh = async (req, res, next) => {
         }
 
         // Rotate refresh token
-        await prisma.session.update({
+        await prisma.session.delete({
             where: { id: session.id },
-            data: { isRevoked: true },
         });
 
         const newRefreshToken = generateRefreshToken();
-        await storeRefreshToken(session.userId, newRefreshToken);
+        const deviceType = session.deviceType;
+        const newSession = await storeSession(session.userId, newRefreshToken, deviceType);
         const accessToken = generateAccessToken(session.user);
+
+        // Set HttpOnly cookie for web
+        if (deviceType === 'WEB') {
+            res.cookie('travelpod_session', newSession.token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+            });
+        }
 
         res.json({
             success: true,
@@ -444,4 +515,56 @@ const me = async (req, res, next) => {
     }
 };
 
-module.exports = { register, login, logout, refresh, forgotPassword, resetPassword, verifyEmail, me };
+// ============================================================
+// GET /api/auth/sessions
+// ============================================================
+const getSessions = async (req, res, next) => {
+    try {
+        const sessions = await prisma.session.findMany({
+            where: { 
+                userId: req.user.id,
+                expiresAt: { gt: new Date() }
+            },
+            select: {
+                id: true,
+                deviceType: true,
+                lastActiveAt: true,
+                createdAt: true
+            },
+            orderBy: { lastActiveAt: 'desc' }
+        });
+
+        res.json({ success: true, sessions });
+    } catch (err) { next(err); }
+};
+
+// ============================================================
+// DELETE /api/auth/sessions/:id
+// ============================================================
+const deleteSession = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const session = await prisma.session.findUnique({ where: { id } });
+
+        if (!session || session.userId !== req.user.id) {
+            throw new AppError('Session not found', 404);
+        }
+
+        await prisma.session.delete({ where: { id } });
+
+        res.json({ success: true, message: 'Session terminated' });
+    } catch (err) { next(err); }
+};
+
+module.exports = { 
+    register, 
+    login, 
+    logout, 
+    refresh, 
+    forgotPassword, 
+    resetPassword, 
+    verifyEmail, 
+    me,
+    getSessions,
+    deleteSession
+};

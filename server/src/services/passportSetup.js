@@ -11,10 +11,18 @@ const generateAccessToken = (user) =>
         { expiresIn: process.env.JWT_EXPIRY || '7d' }
     );
 
-const storeRefreshToken = async (userId, token) => {
+const storeRefreshToken = async (userId, refreshToken) => {
+    const token = uuidv4();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
-    await prisma.session.create({ data: { userId, refreshToken: token, expiresAt } });
+    return await prisma.session.create({
+        data: {
+            userId,
+            refreshToken,
+            token,
+            expiresAt
+        }
+    });
 };
 
 passport.use(
@@ -58,11 +66,13 @@ passport.use(
 
                 const jwtAccessToken = generateAccessToken(user);
                 const refreshToken = uuidv4();
-                await storeRefreshToken(user.id, refreshToken);
+                const session = await storeRefreshToken(user.id, refreshToken);
+                const sessionToken = session.token;
 
                 return done(null, {
                     accessToken: jwtAccessToken,
                     refreshToken,
+                    sessionToken,
                     onboardingComplete: user.onboardingComplete,
                 });
             } catch (err) {

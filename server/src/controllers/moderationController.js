@@ -22,48 +22,36 @@ const reportEntity = async (req, res, next) => {
             },
         });
 
-        // ─── Self-Moderation Feedback Loop ──────────────────────────
-        // Notify the creator that their content was reported
+        // ─── Admin Feedback to Reporter ──────────────────────────────
         try {
-            let authorId = null;
-            let entityLabel = entityType.toLowerCase();
+            const adminUser = await prisma.user.findFirst({
+                where: { accountType: 'ADMIN' },
+                select: { id: true }
+            });
 
-            if (entityType === 'POST') {
-                const post = await prisma.post.findUnique({ where: { id: entityId }, select: { userId: true } });
-                authorId = post?.userId;
-            } else if (entityType === 'COMMENT') {
-                const comment = await prisma.comment.findUnique({ where: { id: entityId }, select: { userId: true } });
-                authorId = comment?.userId;
-            } else if (entityType === 'USER') {
-                authorId = entityId;
-            }
+            if (adminUser && adminUser.id !== req.user.id) {
+                const reporterId = req.user.id;
+                const adminId = adminUser.id;
 
-            if (authorId && authorId !== req.user.id) {
-                // Find or Create conversation with System (or designated safety bot)
-                // For simplicity, we use a fixed ID or the reporter with a "System" prefix
-                const systemMessage = `Hello! One of your ${entityLabel}s was recently reported for: ${reason}. \n\nWe encourage you to review your post and consider deleting it if it doesn't align with our guidelines. This helps keep Travelpod a positive space for everyone!`;
-
-                // Create a direct message (or a notification if we have that system)
-                // Using the messaging system for now as requested ("open a message")
-                const p1 = req.user.id < authorId ? req.user.id : authorId;
-                const p2 = req.user.id < authorId ? authorId : req.user.id;
+                const p1 = adminId < reporterId ? adminId : reporterId;
+                const p2 = adminId < reporterId ? reporterId : adminId;
 
                 const convo = await prisma.conversation.upsert({
                     where: { participant1Id_participant2Id: { participant1Id: p1, participant2Id: p2 } },
-                    update: { lastMessagePreview: `[Report Alert]: ${systemMessage.substring(0, 30)}...`, lastMessageAt: new Date() },
-                    create: { participant1Id: p1, participant2Id: p2, lastMessagePreview: `[Report Alert]: ${systemMessage.substring(0, 30)}...` }
+                    update: { lastMessagePreview: "Hello! We have received your report...", lastMessageAt: new Date() },
+                    create: { participant1Id: p1, participant2Id: p2, lastMessagePreview: "Hello! We have received your report..." }
                 });
 
                 await prisma.directMessage.create({
                     data: {
                         conversationId: convo.id,
-                        senderId: req.user.id, // Better if it was a system user, but this works
-                        content: `[SYSTEM NOTICE]: ${systemMessage}`
+                        senderId: adminId,
+                        content: "Hello! We have received your report. We will investigate and after review an update be sent."
                     }
                 });
             }
         } catch (notifyErr) {
-            console.error('Failed to send report notification message:', notifyErr);
+            console.error('Failed to send reporter notification message:', notifyErr);
         }
 
         res.status(201).json({ success: true, report });
@@ -141,6 +129,30 @@ const resolveReport = async (req, res, next) => {
             })
         ]);
 
+        // Notify Reporter
+        try {
+            const adminId = req.user.id;
+            const reporterId = report.reporterId;
+            if (adminId !== reporterId) {
+                const p1 = adminId < reporterId ? adminId : reporterId;
+                const p2 = adminId < reporterId ? reporterId : adminId;
+
+                const convo = await prisma.conversation.upsert({
+                    where: { participant1Id_participant2Id: { participant1Id: p1, participant2Id: p2 } },
+                    update: { lastMessagePreview: "Report Resolution: Found okay.", lastMessageAt: new Date() },
+                    create: { participant1Id: p1, participant2Id: p2, lastMessagePreview: "Report Resolution: Found okay." }
+                });
+
+                await prisma.directMessage.create({
+                    data: {
+                        conversationId: convo.id,
+                        senderId: adminId,
+                        content: "Hello! After review your report, we found the content was within our community guidelines. Thanks for helping keep Travelpod safe."
+                    }
+                });
+            }
+        } catch (e) { console.error('Notify reporter resolved failed', e); }
+
         res.json({ success: true, message: 'Report resolved' });
     } catch (err) { next(err); }
 };
@@ -217,6 +229,30 @@ const performModerationAction = async (req, res, next) => {
                     durationDays: durationDays || null
                 }
             });
+
+            // Notify Reporter
+            try {
+                const adminId = req.user.id;
+                const reporterId = report.reporterId;
+                if (adminId !== reporterId) {
+                    const p1 = adminId < reporterId ? adminId : reporterId;
+                    const p2 = adminId < reporterId ? reporterId : adminId;
+
+                    const convo = await tx.conversation.upsert({
+                        where: { participant1Id_participant2Id: { participant1Id: p1, participant2Id: p2 } },
+                        update: { lastMessagePreview: "Report Resolution: Action Taken.", lastMessageAt: new Date() },
+                        create: { participant1Id: p1, participant2Id: p2, lastMessagePreview: "Report Resolution: Action Taken." }
+                    });
+
+                    await tx.directMessage.create({
+                        data: {
+                            conversationId: convo.id,
+                            senderId: adminId,
+                            content: "Hello! We have reviewed your report and taken necessary action. Thank you for your feedback."
+                        }
+                    });
+                }
+            } catch (e) { console.error('Notify reporter action failed', e); }
         });
 
         res.json({ success: true, message: `Action ${action} performed successfully` });
