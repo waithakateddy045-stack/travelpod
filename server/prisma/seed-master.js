@@ -37,8 +37,8 @@ const CATEGORIES = ["Adventure", "Safari", "Beach", "City", "Culture", "Food", "
 async function main() {
     console.log("🚀 Starting Nuclear Seed...");
 
-    const passwordHash = await bcrypt.hash("Admin1234", 10);
-    const userPasswordHash = await bcrypt.hash("User1234", 10);
+    const passwordHash = await bcrypt.hash("Admin1234", 12);
+    const userPasswordHash = await bcrypt.hash("Pass1234!", 12);
 
     // 1. CREATE ADMIN USER
     console.log("Creating Admin...");
@@ -166,17 +166,24 @@ async function main() {
             data: {
                 userId: verifiedUsers[i].id,
                 businessRegistrationNumber: `BR-${Math.floor(Math.random() * 900000) + 100000}`,
+                businessRegistrationDocument: "https://res.cloudinary.com/demo/image/upload/sample.jpg",
+                associationName: i % 2 === 0 ? "Kenya Tourism Federation" : null,
+                associationMembershipNumber: i % 2 === 0 ? `KTF-${Math.floor(Math.random() * 90000) + 10000}` : null,
+                associationListingUrl: i % 2 === 0 ? "https://example.com/members" : null,
                 registeredWebsite: `https://${verifiedUsers[i].username}.com`,
+                contactEmail: `${verifiedUsers[i].username}@example.com`,
+                contactPhone: i % 3 === 0 ? "+254700000000" : null,
+                physicalAddress: i % 3 === 0 ? "Nairobi, Kenya" : null,
                 status: "APPROVED",
                 verifiedAt: new Date()
             }
         });
     }
 
-    // 4. CREATE 400 POSTS
-    console.log("Creating 400 Posts...");
+    // 4. CREATE 1200 POSTS
+    console.log("Creating 1200 Posts...");
     const posts = [];
-    for (let i = 0; i < 400; i++) {
+    for (let i = 0; i < 1200; i++) {
         const creator = users[i % users.length];
         const videoUrl = PEXELS_VIDEOS[i % PEXELS_VIDEOS.length];
         const location = LOCATIONS[i % LOCATIONS.length];

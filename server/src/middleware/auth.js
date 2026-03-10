@@ -25,20 +25,28 @@ const authenticate = async (req, res, next) => {
             throw new AppError('Authentication required', 401);
         }
 
-        // 1. Try Session Validation (Opaque Token / Server-side)
+        // 1. Verify JWT access token signature
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (jwtErr) {
+            throw new AppError('Session expired or invalid token', 401);
+        }
+
+        // 2. Validate token against Session table (server-side)
         const prisma = require('../utils/prisma');
         const session = await prisma.session.findUnique({
             where: { token },
-            include: { user: { select: { id: true, isSuspended: true, isDeleted: true, accountType: true, email: true } } }
+            include: { user: { select: { id: true, email: true, username: true, displayName: true, avatarUrl: true, accountType: true, isAdmin: true, isVerified: true, isSuspended: true, onboardingComplete: true } } }
         });
 
         if (session) {
-            if (session.isRevoked || session.expiresAt < new Date()) {
+            if (session.expiresAt < new Date() || session.userId !== decoded.id) {
                 throw new AppError('Session expired or invalid', 401);
             }
 
             const user = session.user;
-            if (!user || user.isSuspended || user.isDeleted) {
+            if (!user || user.isSuspended) {
                 throw new AppError('Account access denied', 403);
             }
 
@@ -51,34 +59,21 @@ const authenticate = async (req, res, next) => {
             req.user = {
                 id: user.id,
                 email: user.email,
+                username: user.username,
+                displayName: user.displayName,
+                avatarUrl: user.avatarUrl,
                 accountType: user.accountType,
+                isAdmin: user.isAdmin,
+                isVerified: user.isVerified,
                 isSuspended: user.isSuspended,
+                onboardingComplete: user.onboardingComplete,
                 sessionId: session.id
             };
             return next();
         }
 
-        // 2. Fallback to JWT (Legacy or direct stateless API usage)
-        try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            const user = await prisma.user.findUnique({
-                where: { id: decoded.id },
-                select: { id: true, isSuspended: true, isDeleted: true, accountType: true, email: true }
-            });
-
-            if (!user || user.isSuspended || user.isDeleted) {
-                throw new AppError('Account access denied', 403);
-            }
-
-            req.user = {
-                id: user.id,
-                email: user.email,
-                accountType: user.accountType
-            };
-            next();
-        } catch (jwtErr) {
-            throw new AppError('Session expired or invalid token', 401);
-        }
+        // JWT is valid but not present in Session table
+        throw new AppError('Session expired or invalid', 401);
     } catch (error) {
         next(error);
     }
@@ -124,32 +119,35 @@ const optionalAuth = async (req, res, next) => {
             token = cookieToken;
         }
 
-        if (token) {
-            const prisma = require('../utils/prisma');
-            // Try session first
-            const session = await prisma.session.findUnique({
-                where: { token },
-                select: { userId: true, user: { select: { accountType: true, email: true } } }
-            });
-
-            if (session) {
-                req.user = {
-                    id: session.userId,
-                    email: session.user.email,
-                    accountType: session.user.accountType
-                };
-            } else {
-                // Try JWT fallback
+            if (token) {
+                let decoded;
                 try {
-                    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                    decoded = jwt.verify(token, process.env.JWT_SECRET);
+                } catch {
+                    return next();
+                }
+
+                const prisma = require('../utils/prisma');
+                const session = await prisma.session.findUnique({
+                    where: { token },
+                    select: { userId: true, expiresAt: true, user: { select: { email: true, username: true, displayName: true, avatarUrl: true, accountType: true, isAdmin: true, isVerified: true, isSuspended: true, onboardingComplete: true } } }
+                });
+
+                if (session && session.userId === decoded.id && session.expiresAt > new Date()) {
                     req.user = {
-                        id: decoded.id,
-                        email: decoded.email,
-                        accountType: decoded.accountType
+                        id: session.userId,
+                        email: session.user.email,
+                        username: session.user.username,
+                        displayName: session.user.displayName,
+                        avatarUrl: session.user.avatarUrl,
+                        accountType: session.user.accountType,
+                        isAdmin: session.user.isAdmin,
+                        isVerified: session.user.isVerified,
+                        isSuspended: session.user.isSuspended,
+                        onboardingComplete: session.user.onboardingComplete
                     };
-                } catch { }
+                }
             }
-        }
     } catch { }
     next();
 };

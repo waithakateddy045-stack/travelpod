@@ -107,14 +107,12 @@ export default function CommentItem({
                     <p className="comment-text">{comment.content}</p>
 
                     <div className="comment-footer">
-                        {level === 0 && (
-                            <button
-                                className="comment-footer-btn"
-                                onClick={() => setIsReplying(!isReplying)}
-                            >
-                                <HiOutlineChatBubbleOvalLeft /> Reply
-                            </button>
-                        )}
+                        <button
+                            className="comment-footer-btn"
+                            onClick={() => setIsReplying(!isReplying)}
+                        >
+                            <HiOutlineChatBubbleOvalLeft /> Reply
+                        </button>
 
                         <button className="comment-footer-btn" onClick={() => setIsReporting(true)}>
                             <HiOutlineFlag /> Report
@@ -159,7 +157,7 @@ export default function CommentItem({
                         </div>
                     )}
 
-                    {replyCount > 0 && level === 0 && (
+                    {replyCount > 0 && (
                         <button className="view-replies-btn" onClick={handleToggleReplies}>
                             {loadingReplies ? (
                                 'Loading replies...'

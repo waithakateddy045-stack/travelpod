@@ -1,0 +1,140 @@
+.create-choice-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 2000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.create-choice-sheet {
+    width: 100%;
+    max-width: 500px;
+    background: var(--bg-elevated);
+    border-radius: 32px 32px 0 0;
+    padding: 24px;
+    padding-bottom: 40px;
+    box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.choice-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+
+.choice-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.close-btn {
+    background: var(--bg-soft);
+    border: none;
+    color: var(--text-primary);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.close-btn:hover {
+    background: var(--bg-hover);
+}
+
+.choice-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.choice-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px;
+    border-radius: 20px;
+    border: 1px solid var(--border-primary);
+    background: var(--bg-soft);
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
+}
+
+.choice-card:hover {
+    transform: scale(1.02);
+    border-color: var(--accent-primary);
+    background: var(--bg-elevated);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.icon-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    color: white;
+}
+
+.choice-card.video .icon-wrap {
+    background: linear-gradient(135deg, #ff4d4d, #f012be);
+}
+
+.choice-card.photo .icon-wrap {
+    background: linear-gradient(135deg, #007aff, #00c6ff);
+}
+
+.choice-card.text .icon-wrap {
+    background: linear-gradient(135deg, #af52de, #5856d6);
+}
+
+.choice-text h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.choice-text p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+    .create-choice-sheet {
+        border-radius: 24px 24px 0 0;
+    }
+}

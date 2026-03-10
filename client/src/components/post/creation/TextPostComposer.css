@@ -1,0 +1,238 @@
+.composer-container {
+    padding: 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.composer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.composer-header h2 {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.publish-btn-sm {
+    background: var(--accent-primary);
+    color: white;
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: none;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.publish-btn-sm:disabled {
+    opacity: 0.5;
+}
+
+.composer-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-text-area {
+    width: 100%;
+    min-height: 150px;
+    background: transparent;
+    border: none;
+    resize: none;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    outline: none;
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+.composer-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-top: 1px solid var(--border-soft);
+}
+
+.tool-btn {
+    background: var(--bg-soft);
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tool-btn:hover {
+    background: var(--bg-hover);
+}
+
+.tool-btn.active {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+}
+
+.tool-spacer {
+    flex: 1;
+}
+
+.review-extension {
+    background: var(--bg-soft);
+    border-radius: 16px;
+    padding: 16px;
+    margin-top: 12px;
+    border: 1px solid var(--border-primary);
+    animation: slideDown 0.3s ease-out;
+}
+
+.rating-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.rating-row span {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+.rating-row button {
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    cursor: pointer;
+    color: var(--text-tertiary);
+}
+
+.business-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: var(--bg-main);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    padding: 0 12px;
+}
+
+.business-search-wrap input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 10px;
+    color: var(--text-primary);
+    outline: none;
+}
+
+.search-dropdown {
+    position: absolute;
+    top: 110%;
+    left: 0;
+    right: 0;
+    background: var(--bg-elevated);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    z-index: 10;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border-primary);
+}
+
+.search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    cursor: pointer;
+}
+
+.search-result-item:hover {
+    background: var(--bg-hover);
+}
+
+.search-result-item img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+
+.res-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.res-info span {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.res-info small {
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
+}
+
+.selected-business-pill {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(var(--accent-primary-rgb), 0.1);
+    color: var(--accent-primary);
+    padding: 10px 16px;
+    border-radius: 12px;
+}
+
+.meta-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.tag-section-composer {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-soft);
+}
+
+.composer-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 1;
+}
+
+.composer-tags input {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    padding: 2px;
+    outline: none;
+    min-width: 100px;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

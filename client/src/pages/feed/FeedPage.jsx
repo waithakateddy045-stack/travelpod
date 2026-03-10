@@ -18,10 +18,11 @@ import VideoPlayer from '../../components/video/VideoPlayer';
 import ReportModal from '../../components/common/ReportModal';
 import EnquiryModal from '../../components/enquiry/EnquiryModal';
 import AddToBoardModal from '../../components/boards/AddToBoardModal';
-import AuthPromptModal from '../../components/auth/AuthPromptModal';
+import CollaborationRequestModal from '../../components/collaborations/CollaborationRequestModal';
 import EngagementBar from '../../components/post/EngagementBar';
 import PostMoreMenu from '../../components/post/PostMoreMenu';
 import VerificationDetailsModal from '../../components/verification/VerificationDetailsModal';
+import CreateReviewModal from '../../components/post/creation/CreateReviewModal';
 import './FeedPage.css';
 
 const FILTER_CHIPS = ['All', 'Destinations', 'Hotels & Resorts', 'Safari', 'Beach', 'Adventures'];
@@ -29,7 +30,7 @@ const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE
 
 export default function FeedPage() {
     const navigate = useNavigate();
-    const { user, isMuted, setIsMuted, unreadCount } = useAuth();
+    const { user, isMuted, setIsMuted, notificationCount, messageCount, showAuthPrompt } = useAuth();
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
@@ -39,7 +40,7 @@ export default function FeedPage() {
     const [refreshing, setRefreshing] = useState(false);
     const [activeVideoId, setActiveVideoId] = useState(null);
     const [showMoreMenu, setShowMoreMenu] = useState(null);
-    const [authModal, setAuthModal] = useState({ isOpen: false, message: '' });
+    const [collabModal, setCollabModal] = useState({ isOpen: false, receiverId: null, receiverName: '', postId: null });
 
     const feedRef = useRef(null);
     const observer = useRef();
@@ -48,6 +49,7 @@ export default function FeedPage() {
     const [sessionId] = useState(() => localStorage.getItem('travelpod_session_id') || Math.random().toString(36).substring(2, 11));
     const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
     const [selectedBusiness, setSelectedBusiness] = useState(null);
+    const [reviewPost, setReviewPost] = useState(null);
     const [reportPostId, setReportPostId] = useState(null);
     const [enquiryPost, setEnquiryPost] = useState(null);
     const [saveToBoardPostId, setSaveToBoardPostId] = useState(null);
@@ -172,9 +174,27 @@ export default function FeedPage() {
                 like: 'Log in to like videos and save your favourites',
                 save: 'Save this spot to your trip boards',
                 follow: 'Follow creators to see more of their content',
-                comment: 'Join the conversation on Travelpod'
+                comment: 'Join the conversation on Travelpod',
+                enquiry: 'Sign in to send an enquiry',
+                collab: 'Log in to propose a collaboration'
             };
-            setAuthModal({ isOpen: true, message: msgs[type] || 'Join Travelpod to interact' });
+            showAuthPrompt(msgs[type] || 'Join Travelpod to interact', () => handleAction(type, post));
+            return;
+        }
+
+        if (type === 'enquiry') {
+            setSelectedBusiness({ id: post.userId, name: author?.profile?.displayName || 'Business' });
+            setIsEnquiryModalOpen(true);
+            return;
+        }
+
+        if (type === 'collab') {
+            setCollabModal({
+                isOpen: true,
+                receiverId: post.userId,
+                receiverName: author?.profile?.displayName || 'Creator',
+                postId: post.id
+            });
             return;
         }
 
@@ -218,7 +238,7 @@ export default function FeedPage() {
 
     const handleRecommend = (post) => {
         if (!user) {
-            setAuthModal({ isOpen: true, message: 'Log in to recommend posts' });
+            showAuthPrompt('Log in to recommend posts', () => handleRecommend(post));
             return;
         }
         setRecommendPost(post);
@@ -227,7 +247,7 @@ export default function FeedPage() {
 
     const handleRepost = async (post) => {
         if (!user) {
-            setAuthModal({ isOpen: true, message: 'Log in to add to your feed' });
+            showAuthPrompt('Log in to add to your feed', () => handleRepost(post));
             return;
         }
         setReposting(post.id);
@@ -244,7 +264,7 @@ export default function FeedPage() {
 
     const handleAddToBoard = (postId) => {
         if (!user) {
-            setAuthModal({ isOpen: true, message: 'Log in to save to trip boards' });
+            showAuthPrompt('Log in to save to trip boards', () => handleAddToBoard(postId));
             return;
         }
         setSaveToBoardPostId(postId);
@@ -320,7 +340,25 @@ export default function FeedPage() {
             );
         }
 
-        // CASE 2: Standard Post (Video)
+        // CASE 2: Photo Carousel
+        if (post.postType === 'PHOTO' || (mediaUrls.length > 0 && !hasVideo && !post.isBroadcast)) {
+            return (
+                <div className="feed-photo-carousel-container" onClick={(e) => handlePostClick(e, post)}>
+                    <div className="photo-carousel-wrapper">
+                        {mediaUrls.map((url, i) => (
+                            <img key={i} src={url} alt="" className="carousel-img" loading="lazy" />
+                        ))}
+                    </div>
+                    {mediaUrls.length > 1 && (
+                        <div className="carousel-indicator">
+                            {mediaUrls.map((_, i) => <div key={i} className="dot" />)}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // CASE 3: Standard Post (Video)
         if (!post.isBroadcast) {
             return (
                 <div className="feed-video-container" onClick={(e) => handlePostClick(e, post)}>
@@ -363,21 +401,16 @@ export default function FeedPage() {
     const renderActions = (post) => {
         const author = post.user || post.author;
         return (
-            <EngagementBar 
+            <EngagementBar
                 post={post}
                 isOwner={user?.id === author?.id}
-                onLike={() => {
-                    if (!user) setAuthModal({ isOpen: true, message: 'Like videos and save your favourites' });
-                    else handleAction('like', post);
-                }}
-                onSave={() => {
-                    if (!user) setAuthModal({ isOpen: true, message: 'Save videos to your trip boards' });
-                    else handleAddToBoard(post.id);
-                }}
+                onLike={() => handleAction('like', post)}
+                onSave={() => handleAddToBoard(post.id)}
                 onComment={() => navigate(`/post/${post.id}`)}
                 onReview={BUSINESS_TYPES.includes(author?.accountType) && author?.id !== user?.id ? () => {
-                    if (!user) setAuthModal({ isOpen: true, message: 'Log in to write a review' });
-                    else navigate(`/upload?linkedBusinessId=${author.id}&businessName=${encodeURIComponent(author.profile?.displayName || '')}`);
+                    const action = () => setReviewPost(post);
+                    if (!user) showAuthPrompt('Log in to write a review', action);
+                    else action();
                 } : null}
                 onAction={(type) => {
                     if (!user && type !== 'download') {
@@ -420,15 +453,28 @@ export default function FeedPage() {
                 <div className="feed-nav-upper">
                     <span className="feed-nav-logo">travelpod</span>
                     <div className="feed-nav-icons">
-                        <button className="feed-nav-icon" onClick={() => navigate('/upload')} title="Post">
+                        <button className="feed-nav-icon" onClick={() => {
+                            if (!user) showAuthPrompt('Sign in to post your travel videos', () => navigate('/upload'));
+                            else navigate('/upload');
+                        }} title="Post">
                             <HiOutlinePlusCircle />
                         </button>
                         <button className="feed-nav-icon" onClick={() => navigate('/explore')} title="Search">
                             <HiOutlineMagnifyingGlass />
                         </button>
-                        <button className="feed-nav-icon inbox-btn" onClick={() => navigate('/messages')} title="Messages">
+                        <button className="feed-nav-icon" onClick={() => {
+                            if (!user) showAuthPrompt('Sign in to see your notifications', () => navigate('/notifications'));
+                            else navigate('/notifications');
+                        }} title="Notifications">
+                            <HiOutlineBell />
+                            {notificationCount > 0 && <span className="notification-badge">{notificationCount}</span>}
+                        </button>
+                        <button className="feed-nav-icon inbox-btn" onClick={() => {
+                            if (!user) showAuthPrompt('Log in to message creators', () => navigate('/messages'));
+                            else navigate('/messages');
+                        }} title="Messages">
                             <HiOutlineEnvelope />
-                            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+                            {messageCount > 0 && <span className="notification-badge">{messageCount}</span>}
                         </button>
                         {user ? (
                             <button className="feed-nav-icon profile-btn" onClick={() => navigate(`/profile/${user.profile.handle}`)}>
@@ -444,15 +490,15 @@ export default function FeedPage() {
                     <div className="feed-tabs">
                         <button className={feedMode === 'FOR_YOU' ? 'feed-tab active' : 'feed-tab'} onClick={() => setFeedMode('FOR_YOU')}>Discover</button>
                         <button className={feedMode === 'FOLLOWING' ? 'feed-tab active' : 'feed-tab'} onClick={() => {
-                            if (!user) setAuthModal({ isOpen: true, message: 'Follow creators to see their latest posts here' });
+                            if (!user) showAuthPrompt('Follow creators to see their latest posts here', () => setFeedMode('FOLLOWING'));
                             else setFeedMode('FOLLOWING');
                         }}>Following</button>
                         <button className={feedMode === 'BROADCASTS' ? 'feed-tab active' : 'feed-tab'} onClick={() => {
-                            if (!user) setAuthModal({ isOpen: true, message: 'Log in to see exclusive travel broadcasts' });
+                            if (!user) showAuthPrompt('Log in to see exclusive travel broadcasts', () => setFeedMode('BROADCASTS'));
                             else setFeedMode('BROADCASTS');
                         }}>Broadcasts</button>
                         <button className={feedMode === 'BOARDS' ? 'feed-tab active' : 'feed-tab'} onClick={() => {
-                            if (!user) setAuthModal({ isOpen: true, message: 'Save videos to your trip boards' });
+                            if (!user) showAuthPrompt('Save videos to your trip boards', () => setFeedMode('BOARDS'));
                             else setFeedMode('BOARDS');
                         }}>Trip Boards</button>
                     </div>
@@ -501,7 +547,7 @@ export default function FeedPage() {
                                         <span className="feed-card-name">
                                             {author?.profile?.displayName}
                                             {isVerified && (
-                                                <button 
+                                                <button
                                                     className="verified-badge-btn-link"
                                                     onClick={(e) => {
                                                         e.preventDefault();
@@ -550,7 +596,7 @@ export default function FeedPage() {
                                         <div className="feed-card-name">
                                             {author?.profile?.displayName}
                                             {isVerified && (
-                                                <button 
+                                                <button
                                                     className="verified-badge-btn-link"
                                                     onClick={(e) => {
                                                         e.preventDefault();
@@ -637,12 +683,22 @@ export default function FeedPage() {
                 />
             )}
 
-            {enquiryPost && (
+            {isEnquiryModalOpen && selectedBusiness && (
                 <EnquiryModal
-                    isOpen={!!enquiryPost}
-                    onClose={() => setEnquiryPost(null)}
-                    businessId={enquiryPost.userId}
-                    businessName={enquiryPost.user?.profile?.displayName || 'Business'}
+                    isOpen={isEnquiryModalOpen}
+                    onClose={() => setIsEnquiryModalOpen(false)}
+                    businessId={selectedBusiness.id}
+                    businessName={selectedBusiness.name}
+                />
+            )}
+
+            {collabModal.isOpen && (
+                <CollaborationRequestModal
+                    isOpen={collabModal.isOpen}
+                    onClose={() => setCollabModal(prev => ({ ...prev, isOpen: false }))}
+                    receiverId={collabModal.receiverId}
+                    receiverName={collabModal.receiverName}
+                    postId={collabModal.postId}
                 />
             )}
 
@@ -660,11 +716,6 @@ export default function FeedPage() {
                 />
             )}
 
-            <AuthPromptModal
-                isOpen={authModal.isOpen}
-                onClose={() => setAuthModal({ isOpen: false, message: '' })}
-                message={authModal.message}
-            />
 
             {isVerificationModalOpen && selectedBusiness && (
                 <VerificationDetailsModal
@@ -673,6 +724,17 @@ export default function FeedPage() {
                     isOpen={isVerificationModalOpen}
                     onClose={() => setIsVerificationModalOpen(false)}
                     businessProfile={selectedBusiness.businessProfile}
+                />
+            )}
+
+            {reviewPost && (
+                <CreateReviewModal
+                    post={reviewPost}
+                    onClose={() => setReviewPost(null)}
+                    onComplete={(newPost) => {
+                        setPosts(prev => [newPost, ...prev]);
+                        setReviewPost(null);
+                    }}
                 />
             )}
         </div>

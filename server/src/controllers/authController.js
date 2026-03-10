@@ -1,267 +1,142 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
-const nodemailer = require('nodemailer');
 const prisma = require('../utils/prisma');
 const { AppError } = require('../middleware/errorHandler');
 
-// ── Email helper ──────────────────────────────────────────────
-const sendWelcomeEmail = async (toEmail) => {
-    try {
-        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return; // skip if not configured
-        const transporter = nodemailer.createTransport({
-            host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-            port: parseInt(process.env.EMAIL_PORT || '587'),
-            secure: false,
-            auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-        });
-        await transporter.sendMail({
-            from: `"Travelpod" <${process.env.EMAIL_USER}>`,
-            to: toEmail,
-            subject: '✈️ Welcome to Travelpod!',
-            html: `
-                <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#0A0A0F;color:#F5F5F7;padding:40px;border-radius:16px;">
-                    <div style="font-size:2rem;margin-bottom:12px;">✈️</div>
-                    <h1 style="font-size:1.5rem;margin-bottom:8px;">Welcome to Travelpod!</h1>
-                    <p style="color:#A0A0B0;line-height:1.6;margin-bottom:24px;">
-                        You're now part of the world's first video-first travel community. Discover honest travel videos, connect with businesses, and share your adventures.
-                    </p>
-                    <a href="${process.env.CLIENT_URL || 'https://travelpod-liard.vercel.app'}/feed"
-                       style="display:inline-block;padding:12px 28px;background:linear-gradient(135deg,#6C63FF,#06D6A0);color:white;border-radius:999px;font-weight:700;text-decoration:none;">
-                        Start Exploring →
-                    </a>
-                    <p style="color:#6B6B7B;font-size:0.8rem;margin-top:32px;">
-                        You're receiving this because you created an account at Travelpod.
-                    </p>
-                </div>
-            `,
-        });
-    } catch (e) {
-        console.warn('Welcome email failed (non-critical):', e.message);
-    }
-};
-
-
 const SALT_ROUNDS = 12;
 
-/**
- * Generate JWT access token (7 days)
- */
-const generateAccessToken = (user) => {
+const buildDicebearAvatar = (seed) =>
+    `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(seed)}`;
+
+const sanitizeEmail = (email) => String(email || '').trim().toLowerCase();
+
+const validatePassword = (password) => {
+    if (!password || password.length < 8) throw new AppError('Password must be at least 8 characters', 400);
+};
+
+const generateAccessToken = (user, sessionId) => {
     return jwt.sign(
-        {
-            id: user.id,
-            email: user.email,
-            accountType: user.accountType,
-        },
+        { id: user.id, email: user.email, accountType: user.accountType, sid: sessionId },
         process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRY || '365d' }
+        { expiresIn: process.env.JWT_EXPIRY || '7d' }
     );
 };
 
-/**
- * Generate refresh token (30 days)
- */
-const generateRefreshToken = () => uuidv4();
-
-/**
- * Store session in DB with token and device tracking
- */
-const storeSession = async (userId, refreshToken, deviceType = 'WEB') => {
-    const token = uuidv4(); // Opaque session token for every request
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30); // 30 day fixed expiry, but middleware updates lastActiveAt
-
-    const session = await prisma.session.create({
-        data: { 
-            userId, 
-            refreshToken, 
-            token, 
-            deviceType, 
-            expiresAt 
-        },
-    });
-    
-    return session;
+const generateRefreshToken = (user, sessionId) => {
+    return jwt.sign(
+        { id: user.id, sid: sessionId },
+        process.env.JWT_REFRESH_SECRET,
+        { expiresIn: process.env.JWT_REFRESH_EXPIRY || '30d' }
+    );
 };
 
-/**
- * Validate password strength
- * Min 8 chars, at least one number
- */
-const validatePassword = (password) => {
-    if (!password || password.length < 8) {
-        throw new AppError('Password must be at least 8 characters', 400);
-    }
-    if (!/\d/.test(password)) {
-        throw new AppError('Password must contain at least one number', 400);
-    }
-};
+const getDeviceType = (req) => (req.headers['x-device-type']?.toUpperCase() === 'ANDROID' ? 'ANDROID' : 'WEB');
 
-// ============================================================
 // POST /api/auth/register
-// ============================================================
 const register = async (req, res, next) => {
     try {
-        const { email, password, accountType } = req.body;
+        const email = sanitizeEmail(req.body.email);
+        const password = req.body.password;
 
-        if (!email || !password || !accountType) {
-            throw new AppError('Email, password, and account type are required', 400);
-        }
-
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            throw new AppError('Invalid email address', 400);
-        }
-
-        // Validate password strength
+        if (!email || !password) throw new AppError('Email and password are required', 400);
         validatePassword(password);
 
-        // Valid account types
-        const validTypes = ['TRAVELER', 'TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
-        if (!validTypes.includes(accountType)) {
-            throw new AppError('Invalid account type', 400);
+        const existing = await prisma.user.findUnique({ where: { email } });
+        if (existing) throw new AppError('An account with this email already exists', 409);
+
+        const emailPrefix = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16) || 'traveler';
+        const usernameBase = emailPrefix.toLowerCase();
+        let username = usernameBase;
+        for (let i = 0; i < 5; i++) {
+            // eslint-disable-next-line no-await-in-loop
+            const taken = await prisma.user.findUnique({ where: { username } });
+            if (!taken) break;
+            username = `${usernameBase}${Math.floor(Math.random() * 9000 + 1000)}`;
         }
 
-        // Check for duplicate email
-        const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-        if (existing) {
-            throw new AppError('An account with this email already exists', 409);
-        }
-
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-
-        // Email verification token
-        const emailVerifyToken = uuidv4();
-
-        // Create user
+        const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
         const user = await prisma.user.create({
             data: {
-                email: email.toLowerCase(),
-                hashedPassword,
-                accountType,
-                emailVerifyToken,
+                email,
+                password: passwordHash,
+                username,
+                displayName: null,
+                avatarUrl: buildDicebearAvatar(username),
+                accountType: 'TRAVELER',
+                onboardingComplete: false,
             },
+            select: { id: true, email: true, username: true, displayName: true, avatarUrl: true, accountType: true, onboardingComplete: true, isVerified: true, isAdmin: true },
         });
 
-        // Send welcome email (non-blocking — failure won't affect registration)
-        sendWelcomeEmail(user.email).catch(() => { });
+        const deviceType = getDeviceType(req);
+        const session = await prisma.session.create({
+            data: {
+                userId: user.id,
+                token: `PENDING-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                deviceType,
+                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                lastActiveAt: new Date(),
+            },
+            select: { id: true },
+        });
 
-        // Generate tokens
-        const accessToken = generateAccessToken(user);
-        const refreshToken = generateRefreshToken();
-        
-        // Handle device type from headers
-        const deviceType = req.headers['x-device-type']?.toUpperCase() === 'ANDROID' ? 'ANDROID' : 'WEB';
-        const session = await storeSession(user.id, refreshToken, deviceType);
+        const accessToken = generateAccessToken(user, session.id);
+        const refreshToken = generateRefreshToken(user, session.id);
 
-        // In-app Welcome Notification
-        const { createNotification } = require('./notificationController');
-        createNotification({
-            userId: user.id,
-            type: 'welcome_profile_setup',
-            title: 'Welcome to Travelpod! 👋',
-            body: 'We are thrilled to have you. Please complete your profile to start connecting and sharing.',
-        }).catch(() => { });
+        await prisma.session.update({ where: { id: session.id }, data: { token: accessToken } });
 
-        // Auto-follow official account
-        try {
-            const adminUser = await prisma.user.findFirst({
-                where: { profile: { handle: 'travelpod' } }, // Re-audit find: should be travelpod per checklist
-                select: { id: true }
-            });
-            if (adminUser) {
-                await prisma.follow.create({
-                    data: {
-                        followerId: user.id,
-                        followingId: adminUser.id
-                    }
-                }).catch(() => {});
-            }
-        } catch (e) {
-            console.error('Auto-follow failed:', e);
-        }
-
-        // Set HttpOnly cookie for web
         if (deviceType === 'WEB') {
-            res.cookie('travelpod_session', session.token, {
+            res.cookie('travelpod_session', accessToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'strict',
-                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+                maxAge: 30 * 24 * 60 * 60 * 1000,
             });
         }
 
-        res.status(201).json({
-            success: true,
-            message: 'Account created successfully. Please verify your email.',
-            accessToken,
-            refreshToken,
-            sessionToken: session.token, // Return for mobile storage
-            user: {
-                id: user.id,
-                email: user.email,
-                accountType: user.accountType,
-                onboardingComplete: user.onboardingComplete,
-                emailVerified: user.emailVerified,
-            },
-        });
+        res.status(201).json({ success: true, accessToken, refreshToken, user });
     } catch (err) {
         next(err);
     }
 };
 
-// ============================================================
 // POST /api/auth/login
-// ============================================================
 const login = async (req, res, next) => {
     try {
-        const { email, password } = req.body;
+        const email = sanitizeEmail(req.body.email);
+        const password = req.body.password;
+        if (!email || !password) throw new AppError('Email and password are required', 400);
 
-        if (!email || !password) {
-            throw new AppError('Email and password are required', 400);
-        }
+        const user = await prisma.user.findUnique({ where: { email } });
+        const GENERIC = 'Invalid email or password';
+        if (!user || !user.password) throw new AppError(GENERIC, 401);
+        if (user.isSuspended) throw new AppError('This account has been suspended', 403);
 
-        // Find user — use generic error to avoid leaking which field is wrong
-        const user = await prisma.user.findUnique({
-            where: { email: email.toLowerCase() },
+        const ok = await bcrypt.compare(password, user.password);
+        if (!ok) throw new AppError(GENERIC, 401);
+
+        const deviceType = getDeviceType(req);
+        const session = await prisma.session.create({
+            data: {
+                userId: user.id,
+                token: `PENDING-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                deviceType,
+                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                lastActiveAt: new Date(),
+            },
+            select: { id: true },
         });
 
-        const GENERIC_AUTH_ERROR = 'Invalid email or password';
+        const accessToken = generateAccessToken(user, session.id);
+        const refreshToken = generateRefreshToken(user, session.id);
+        await prisma.session.update({ where: { id: session.id }, data: { token: accessToken } });
 
-        if (!user || !user.hashedPassword) {
-            throw new AppError(GENERIC_AUTH_ERROR, 401);
-        }
-
-        if (user.isDeleted) {
-            throw new AppError(GENERIC_AUTH_ERROR, 401);
-        }
-
-        if (user.isSuspended) {
-            throw new AppError('This account has been suspended. Contact support for assistance.', 403);
-        }
-
-        const passwordMatch = await bcrypt.compare(password, user.hashedPassword);
-        if (!passwordMatch) {
-            throw new AppError(GENERIC_AUTH_ERROR, 401);
-        }
-
-        const accessToken = generateAccessToken(user);
-        const refreshToken = generateRefreshToken();
-        
-        // Handle device type from headers
-        const deviceType = req.headers['x-device-type']?.toUpperCase() === 'ANDROID' ? 'ANDROID' : 'WEB';
-        const session = await storeSession(user.id, refreshToken, deviceType);
-
-        // Set HttpOnly cookie for web
         if (deviceType === 'WEB') {
-            res.cookie('travelpod_session', session.token, {
+            res.cookie('travelpod_session', accessToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'strict',
-                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+                maxAge: 30 * 24 * 60 * 60 * 1000,
             });
         }
 
@@ -269,13 +144,16 @@ const login = async (req, res, next) => {
             success: true,
             accessToken,
             refreshToken,
-            sessionToken: session.token, // Return for mobile storage
             user: {
                 id: user.id,
                 email: user.email,
+                username: user.username,
+                displayName: user.displayName,
+                avatarUrl: user.avatarUrl,
                 accountType: user.accountType,
                 onboardingComplete: user.onboardingComplete,
-                emailVerified: user.emailVerified,
+                isVerified: user.isVerified,
+                isAdmin: user.isAdmin,
             },
         });
     } catch (err) {
@@ -283,233 +161,140 @@ const login = async (req, res, next) => {
     }
 };
 
-// ============================================================
 // POST /api/auth/logout
-// ============================================================
 const logout = async (req, res, next) => {
     try {
-        const { refreshToken } = req.body;
-        const sessionToken = req.headers.authorization?.split(' ')[1] || req.cookies?.travelpod_session;
+        const token = req.headers.authorization?.startsWith('Bearer ')
+            ? req.headers.authorization.split(' ')[1]
+            : req.cookies?.travelpod_session;
 
-        if (sessionToken) {
-            await prisma.session.deleteMany({
-                where: { token: sessionToken },
-            });
+        if (token) {
+            await prisma.session.deleteMany({ where: { token } });
             res.clearCookie('travelpod_session');
-        } else if (refreshToken) {
-            await prisma.session.deleteMany({
-                where: { refreshToken },
-            });
         }
 
-        res.json({ success: true, message: 'Logged out successfully' });
+        res.json({ success: true });
     } catch (err) {
         next(err);
     }
 };
 
-// ============================================================
 // POST /api/auth/refresh
-// ============================================================
 const refresh = async (req, res, next) => {
     try {
         const { refreshToken } = req.body;
+        if (!refreshToken) throw new AppError('Refresh token required', 400);
 
-        if (!refreshToken) {
-            throw new AppError('Refresh token required', 400);
-        }
-
-        const session = await prisma.session.findFirst({
-            where: {
-                refreshToken,
-                isRevoked: false,
-                expiresAt: { gt: new Date() },
-            },
-            include: { user: true },
-        });
-
-        if (!session) {
+        let decoded;
+        try {
+            decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        } catch {
             throw new AppError('Invalid or expired refresh token', 401);
         }
 
-        if (session.user.isSuspended || session.user.isDeleted) {
-            throw new AppError('Account access denied', 403);
-        }
+        const session = await prisma.session.findUnique({
+            where: { id: decoded.sid },
+            include: { user: true },
+        });
+        if (!session || session.userId !== decoded.id) throw new AppError('Invalid session', 401);
+        if (session.expiresAt < new Date()) throw new AppError('Session expired', 401);
+        if (session.user.isSuspended) throw new AppError('Account access denied', 403);
 
-        // Rotate refresh token
-        await prisma.session.delete({
+        const accessToken = generateAccessToken(session.user, session.id);
+        await prisma.session.update({
             where: { id: session.id },
+            data: { token: accessToken, lastActiveAt: new Date(), expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
         });
 
-        const newRefreshToken = generateRefreshToken();
-        const deviceType = session.deviceType;
-        const newSession = await storeSession(session.userId, newRefreshToken, deviceType);
-        const accessToken = generateAccessToken(session.user);
-
-        // Set HttpOnly cookie for web
-        if (deviceType === 'WEB') {
-            res.cookie('travelpod_session', newSession.token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-            });
-        }
-
-        res.json({
-            success: true,
-            accessToken,
-            refreshToken: newRefreshToken,
-        });
+        res.json({ success: true, accessToken });
     } catch (err) {
         next(err);
     }
 };
 
-// ============================================================
 // POST /api/auth/forgot-password
-// ============================================================
 const forgotPassword = async (req, res, next) => {
     try {
-        const { email } = req.body;
+        const email = sanitizeEmail(req.body.email);
+        if (!email) throw new AppError('Email is required', 400);
 
-        if (!email) {
-            throw new AppError('Email is required', 400);
-        }
-
-        const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-
-        // Always return success — don't reveal if email exists
-        if (user && !user.isDeleted) {
-            const resetToken = uuidv4();
-            const expiry = new Date();
-            expiry.setHours(expiry.getHours() + 1); // 1 hour expiry
-
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (user) {
+            const token = jwt.sign({ id: user.id, email }, process.env.JWT_REFRESH_SECRET, { expiresIn: '1h' });
             await prisma.user.update({
                 where: { id: user.id },
-                data: {
-                    passwordResetToken: resetToken,
-                    passwordResetExpiry: expiry,
-                },
+                data: { passwordResetToken: token, passwordResetExpiresAt: new Date(Date.now() + 60 * 60 * 1000) },
             });
-
-            // TODO: send reset email — Phase email service
-            // await emailService.sendPasswordReset(user.email, resetToken);
+            // Email delivery is intentionally omitted here; integrate Resend in production.
         }
 
-        res.json({
-            success: true,
-            message: 'If an account exists with this email, a reset link has been sent.',
-        });
+        res.json({ success: true, message: 'If an account exists with this email, a reset link has been sent.' });
     } catch (err) {
         next(err);
     }
 };
 
-// ============================================================
 // POST /api/auth/reset-password
-// ============================================================
 const resetPassword = async (req, res, next) => {
     try {
         const { token, password } = req.body;
-
-        if (!token || !password) {
-            throw new AppError('Token and new password are required', 400);
-        }
-
+        if (!token || !password) throw new AppError('Token and new password are required', 400);
         validatePassword(password);
 
         const user = await prisma.user.findFirst({
-            where: {
-                passwordResetToken: token,
-                passwordResetExpiry: { gt: new Date() },
-                isDeleted: false,
-            },
+            where: { passwordResetToken: token, passwordResetExpiresAt: { gt: new Date() } },
         });
+        if (!user) throw new AppError('Invalid or expired reset token', 400);
 
-        if (!user) {
-            throw new AppError('Invalid or expired reset token', 400);
-        }
-
-        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-
+        const hash = await bcrypt.hash(password, SALT_ROUNDS);
         await prisma.user.update({
             where: { id: user.id },
-            data: {
-                hashedPassword,
-                passwordResetToken: null,
-                passwordResetExpiry: null,
-            },
+            data: { password: hash, passwordResetToken: null, passwordResetExpiresAt: null },
         });
 
-        // Revoke all sessions
-        await prisma.session.updateMany({
-            where: { userId: user.id },
-            data: { isRevoked: true },
-        });
-
-        res.json({ success: true, message: 'Password reset successfully. Please log in.' });
+        await prisma.session.deleteMany({ where: { userId: user.id } });
+        res.json({ success: true });
     } catch (err) {
         next(err);
     }
 };
 
-// ============================================================
-// GET /api/auth/verify-email/:token
-// ============================================================
-const verifyEmail = async (req, res, next) => {
-    try {
-        const { token } = req.params;
-
-        const user = await prisma.user.findFirst({
-            where: { emailVerifyToken: token, isDeleted: false },
-        });
-
-        if (!user) {
-            throw new AppError('Invalid verification token', 400);
-        }
-
-        await prisma.user.update({
-            where: { id: user.id },
-            data: { emailVerified: true, emailVerifyToken: null },
-        });
-
-        res.json({ success: true, message: 'Email verified successfully.' });
-    } catch (err) {
-        next(err);
-    }
+// GET /api/auth/verify-email/:token (not used in PRD v3.0)
+const verifyEmail = async (_req, res) => {
+    res.json({ success: true });
 };
 
-// ============================================================
 // GET /api/auth/me
-// ============================================================
 const me = async (req, res, next) => {
     try {
         const user = await prisma.user.findUnique({
             where: { id: req.user.id },
-            include: {
-                profile: {
-                    include: { businessProfile: true },
-                },
+            select: {
+                id: true,
+                email: true,
+                username: true,
+                displayName: true,
+                bio: true,
+                avatarUrl: true,
+                websiteUrl: true,
+                accountType: true,
+                isVerified: true,
+                isAdmin: true,
+                isSuspended: true,
+                onboardingComplete: true,
+                personalityTags: true,
+                preferredRegions: true,
+                followerCount: true,
+                followingCount: true,
+                totalLikes: true,
+                parentAccountId: true,
+                isManagedBusinessPage: true,
+                createdAt: true,
+                updatedAt: true,
             },
         });
-
-        if (!user || user.isDeleted) {
-            throw new AppError('User not found', 404);
-        }
-
-        res.json({
-            success: true,
-            user: {
-                id: user.id,
-                email: user.email,
-                accountType: user.accountType,
-                onboardingComplete: user.onboardingComplete,
-                emailVerified: user.emailVerified,
-                isSuspended: user.isSuspended,
-                profile: user.profile,
-            },
-        });
+        if (!user) throw new AppError('User not found', 404);
+        res.json({ success: true, user });
     } catch (err) {
         next(err);
     }

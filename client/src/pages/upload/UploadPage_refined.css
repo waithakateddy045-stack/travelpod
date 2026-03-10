@@ -1,0 +1,25 @@
+.upload-page-refined {
+    min-height: 100vh;
+    background: var(--bg-main);
+    display: flex;
+    flex-direction: column;
+}
+
+@media (min-width: 601px) {
+    .upload-page-refined {
+        align-items: center;
+        padding: 40px 0;
+    }
+
+    .wizard-container,
+    .composer-container {
+        width: 100%;
+        max-width: 500px;
+        background: var(--bg-elevated);
+        border-radius: 32px;
+        border: 1px solid var(--border-primary);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        height: auto;
+        min-height: 600px;
+    }
+}

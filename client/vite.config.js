@@ -1,8 +1,19 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      'react-icons/hi2': path.resolve(__dirname, 'src/icons/react-icons-hi2.jsx'),
+      'react-icons/hi': path.resolve(__dirname, 'src/icons/react-icons-hi.jsx'),
+    },
+  },
   server: {
     port: 5173,
     proxy: {

@@ -13,6 +13,8 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [authModal, setAuthModal] = useState({ isOpen: false, message: '', type: null });
+    const [pendingAction, setPendingAction] = useState(null);
 
     const loadUser = useCallback(async () => {
         const token = await secureStorage.getItem('travelpod_token');
@@ -34,17 +36,41 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         const { data } = await api.post('/auth/login', { email, password });
-        await secureStorage.setItem('travelpod_token', data.accessToken);
+        if (data.sessionToken) {
+            await secureStorage.setItem('travelpod_token', data.sessionToken);
+        }
+        await secureStorage.setItem('travelpod_access', data.accessToken);
         await secureStorage.setItem('travelpod_refresh', data.refreshToken);
         setUser(data.user);
+
+        // Auto-replay pending action
+        if (pendingAction) {
+            setTimeout(() => {
+                pendingAction();
+                setPendingAction(null);
+            }, 500);
+        }
+
         return data.user;
     };
 
     const register = async (email, password, accountType) => {
         const { data } = await api.post('/auth/register', { email, password, accountType });
-        await secureStorage.setItem('travelpod_token', data.accessToken);
+        if (data.sessionToken) {
+            await secureStorage.setItem('travelpod_token', data.sessionToken);
+        }
+        await secureStorage.setItem('travelpod_access', data.accessToken);
         await secureStorage.setItem('travelpod_refresh', data.refreshToken);
         setUser(data.user);
+
+        // Auto-replay pending action
+        if (pendingAction) {
+            setTimeout(() => {
+                pendingAction();
+                setPendingAction(null);
+            }, 500);
+        }
+
         return data.user;
     };
 
@@ -52,22 +78,40 @@ export const AuthProvider = ({ children }) => {
         const refreshToken = await secureStorage.getItem('travelpod_refresh');
         try { await api.post('/auth/logout', { refreshToken }); } catch { }
         await secureStorage.removeItem('travelpod_token');
+        await secureStorage.removeItem('travelpod_access');
         await secureStorage.removeItem('travelpod_refresh');
         setUser(null);
     };
+
+    /**
+     * Helper to gate interactions. Shows AuthPromptModal if not logged in.
+     */
+    const showAuthPrompt = useCallback((message, action = null) => {
+        if (user) {
+            if (action) action();
+            return;
+        }
+        setPendingAction(() => action);
+        setAuthModal({ isOpen: true, message, type: 'INTERACTION' });
+    }, [user]);
 
     const [isMuted, setIsMuted] = useState(() => {
         const saved = localStorage.getItem('travelpod_is_muted');
         return saved === null ? true : saved === 'true';
     });
 
-    const [unreadCount, setUnreadCount] = useState(0);
+    const [notificationCount, setNotificationCount] = useState(0);
+    const [messageCount, setMessageCount] = useState(0);
 
-    const checkNotifications = useCallback(async () => {
+    const checkCounts = useCallback(async () => {
         if (!user) return;
         try {
-            const { data } = await api.get('/notifications/unread-count');
-            setUnreadCount(data.count || 0);
+            const [notifRes, msgRes] = await Promise.all([
+                api.get('/notifications/unread-count'),
+                api.get('/messages/unread-count')
+            ]);
+            setNotificationCount(notifRes.data.count || 0);
+            setMessageCount(msgRes.data.count || 0);
         } catch { }
     }, [user]);
 
@@ -77,21 +121,34 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         if (user) {
-            checkNotifications();
-            const interval = setInterval(checkNotifications, 30000); // Poll every 30s
+            checkCounts();
+            const interval = setInterval(checkCounts, 30000); // Poll every 30s
             return () => clearInterval(interval);
         } else {
-            setUnreadCount(0);
+            setNotificationCount(0);
+            setMessageCount(0);
         }
-    }, [user, checkNotifications]);
+    }, [user, checkCounts]);
 
     return (
         <AuthContext.Provider value={{
             user, setUser, loading, login, register, logout, loadUser,
             isMuted, setIsMuted,
-            unreadCount, setUnreadCount, checkNotifications
+            notificationCount, setNotificationCount,
+            messageCount, setMessageCount,
+            checkCounts,
+            authModal, setAuthModal, showAuthPrompt, pendingAction
         }}>
             {children}
+            {/* Global Auth Prompt Modal */}
+            <AuthPromptModal
+                isOpen={authModal.isOpen}
+                onClose={() => setAuthModal(prev => ({ ...prev, isOpen: false }))}
+                message={authModal.message}
+            />
         </AuthContext.Provider>
     );
 };
+
+// Import component here to avoid circular dependency if it was in components
+import AuthPromptModal from '../components/auth/AuthPromptModal';

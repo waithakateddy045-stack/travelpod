@@ -1,4 +1,4 @@
-import { HiOutlineHeart, HiHeart, HiOutlineChatBubbleOvalLeft, HiOutlineBookmark, HiBookmark, HiOutlinePaperAirplane, HiOutlineStar } from 'react-icons/hi2';
+import { Heart, MessageCircle, Bookmark, Send, Star } from 'lucide-react';
 import PostMoreMenu from './PostMoreMenu';
 import { toast } from 'react-hot-toast';
 
@@ -12,14 +12,14 @@ export default function EngagementBar({ post, onLike, onSave, onComment, onRevie
                     className={`post-action-btn-main ${post.isLiked ? 'active' : ''}`} 
                     onClick={(e) => { e.preventDefault(); onLike(); }}
                 >
-                    {post.isLiked ? <HiHeart /> : <HiOutlineHeart />}
+                    <Heart fill={post.isLiked ? 'currentColor' : 'none'} />
                     <span className="action-count">{post.likeCount || 0}</span>
                 </button>
                 <button 
                     className="post-action-btn-main"
                     onClick={(e) => { e.preventDefault(); onComment?.(); }}
                 >
-                    <HiOutlineChatBubbleOvalLeft />
+                    <MessageCircle />
                     <span className="action-count">{post.commentCount || 0}</span>
                 </button>
                 {onReview && (
@@ -28,7 +28,7 @@ export default function EngagementBar({ post, onLike, onSave, onComment, onRevie
                         onClick={(e) => { e.preventDefault(); onReview(); }}
                         title="Write a Review"
                     >
-                        <HiOutlineStar />
+                        <Star />
                         <span className="action-label">Review</span>
                     </button>
                 )}
@@ -36,11 +36,10 @@ export default function EngagementBar({ post, onLike, onSave, onComment, onRevie
                     className="post-action-btn-main"
                     onClick={(e) => {
                         e.preventDefault();
-                        navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
-                        toast.success('Link copied!');
+                        onAction?.('share');
                     }}
                 >
-                    <HiOutlinePaperAirplane style={{ transform: 'rotate(-20deg) translateY(-2px)' }} />
+                    <Send style={{ transform: 'rotate(-20deg) translateY(-2px)' }} />
                 </button>
             </div>
 
@@ -49,7 +48,7 @@ export default function EngagementBar({ post, onLike, onSave, onComment, onRevie
                     className={`post-action-btn-main ${post.isSaved ? 'active' : ''}`} 
                     onClick={(e) => { e.preventDefault(); onSave(); }}
                 >
-                    {post.isSaved ? <HiBookmark /> : <HiOutlineBookmark />}
+                    <Bookmark fill={post.isSaved ? 'currentColor' : 'none'} />
                 </button>
                 <PostMoreMenu
                     post={post}

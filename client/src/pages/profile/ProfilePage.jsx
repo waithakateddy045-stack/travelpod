@@ -49,11 +49,39 @@ export default function ProfilePage() {
     const [reportPostId, setReportPostId] = useState(null);
     const [isCollabModalOpen, setIsCollabModalOpen] = useState(false);
 
+    // Pagination states
+    const [postsPage, setPostsPage] = useState(1);
+    const [postsHasMore, setPostsHasMore] = useState(true);
+    const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+
+    const [savedPage, setSavedPage] = useState(1);
+    const [savedHasMore, setSavedHasMore] = useState(true);
+    const [loadingMoreSaved, setLoadingMoreSaved] = useState(false);
+
+    const [boardsPage, setBoardsPage] = useState(1);
+    const [boardsHasMore, setBoardsHasMore] = useState(true);
+    const [loadingMoreBoards, setLoadingMoreBoards] = useState(false);
+
+    const observer = useRef();
+    const lastElementRef = useCallback(node => {
+        if (loading || loadingMorePosts || loadingMoreSaved || loadingMoreBoards) return;
+        if (observer.current) observer.current.disconnect();
+        observer.current = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting) {
+                if (activeTab === 'posts' && postsHasMore && !loadingMorePosts) setPostsPage(prev => prev + 1);
+                if (activeTab === 'saved' && savedHasMore && !loadingMoreSaved) setSavedPage(prev => prev + 1);
+                if (activeTab === 'boards' && boardsHasMore && !loadingMoreBoards) setBoardsPage(prev => prev + 1);
+            }
+        });
+        if (node) observer.current.observe(node);
+    }, [loading, loadingMorePosts, loadingMoreSaved, loadingMoreBoards, activeTab, postsHasMore, savedHasMore, boardsHasMore]);
+
     const { enabled: gamificationEnabled } = useFeatureFlag('gamification');
     const { enabled: collabEnabled } = useFeatureFlag('collaborations');
 
     const isOwn = user && profile && user.id === profile.userId;
     const isBusiness = profile && BUSINESS_TYPES.includes(profile.accountType);
+    const isVerified = profile?.businessProfile?.verificationStatus === 'APPROVED' || profile?.verificationStatus === 'APPROVED';
 
     const loadProfile = useCallback(async () => {
         try {
@@ -64,20 +92,52 @@ export default function ProfilePage() {
         }
     }, [handle]);
 
-    const loadPosts = useCallback(async () => {
+    const loadPosts = useCallback(async (isRefresh = false) => {
+        const page = isRefresh ? 1 : postsPage;
         try {
-            const { data } = await api.get(`/profile/${handle}/posts`);
-            setPosts(data.posts);
-        } catch { } // Error silently, profile might just have no posts
-    }, [handle]);
+            if (isRefresh) {
+                setLoading(true);
+                setPostsHasMore(true);
+            } else {
+                setLoadingMorePosts(true);
+            }
 
-    const loadSavedPosts = useCallback(async () => {
+            const { data } = await api.get(`/profile/${handle}/posts?page=${page}&limit=12`);
+            const items = data.posts || [];
+            
+            if (items.length < 12) setPostsHasMore(false);
+            setPosts(prev => isRefresh ? items : [...prev, ...items]);
+        } catch { 
+            setPostsHasMore(false);
+        } finally {
+            setLoading(false);
+            setLoadingMorePosts(false);
+        }
+    }, [handle, postsPage]);
+
+    const loadSavedPosts = useCallback(async (isRefresh = false) => {
         if (!isOwn) return;
+        const page = isRefresh ? 1 : savedPage;
         try {
-            const { data } = await api.get('/engagement/saves');
-            setSavedPosts(data.saved?.map(s => s.post) || []);
-        } catch { }
-    }, [isOwn]);
+            if (isRefresh) {
+                setLoading(true);
+                setSavedHasMore(true);
+            } else {
+                setLoadingMoreSaved(true);
+            }
+
+            const { data } = await api.get(`/engagement/saves?page=${page}&limit=12`);
+            const items = data.posts || [];
+            
+            if (items.length < 12) setSavedHasMore(false);
+            setSavedPosts(prev => isRefresh ? items : [...prev, ...items]);
+        } catch {
+            setSavedHasMore(false);
+        } finally {
+            setLoading(false);
+            setLoadingMoreSaved(false);
+        }
+    }, [isOwn, savedPage]);
 
     const loadBadges = useCallback(async () => {
         if (!user) return;
@@ -87,17 +147,41 @@ export default function ProfilePage() {
         } catch { }
     }, [user]);
 
-    const loadBoards = useCallback(async () => {
+    const loadBoards = useCallback(async (isRefresh = false) => {
+        const page = isRefresh ? 1 : boardsPage;
         try {
-            const { data } = await api.get(`/boards/user/${handle}`);
-            setBoards(data.boards || []);
-        } catch { }
-    }, [handle]);
+            if (isRefresh) {
+                setLoading(true);
+                setBoardsHasMore(true);
+            } else {
+                setLoadingMoreBoards(true);
+            }
+
+            const endpoint = isOwn ? '/boards/user/me' : `/boards/user/${handle}`;
+            const { data } = await api.get(`${endpoint}?page=${page}&limit=12`);
+            const items = data.boards || [];
+            
+            if (items.length < 12) setBoardsHasMore(false);
+            setBoards(prev => isRefresh ? items : [...prev, ...items]);
+        } catch {
+            setBoardsHasMore(false);
+        } finally {
+            setLoading(false);
+            setLoadingMoreBoards(false);
+        }
+    }, [handle, isOwn, boardsPage]);
 
     useEffect(() => {
-        setLoading(true);
-        Promise.all([loadProfile(), loadPosts(), loadSavedPosts(), loadBadges(), loadBoards()]).finally(() => setLoading(false));
-    }, [loadProfile, loadPosts, loadSavedPosts, loadBadges, loadBoards]);
+        loadProfile();
+        loadPosts(true);
+        loadSavedPosts(true);
+        loadBoards(true);
+        loadBadges();
+    }, [handle, isOwn]);
+
+    useEffect(() => { if (postsPage > 1) loadPosts(); }, [postsPage]);
+    useEffect(() => { if (savedPage > 1) loadSavedPosts(); }, [savedPage]);
+    useEffect(() => { if (boardsPage > 1) loadBoards(); }, [boardsPage]);
 
     const handleFollow = async () => {
         if (!user) {
@@ -403,8 +487,14 @@ export default function ProfilePage() {
                 {(activeTab === 'posts' || activeTab === 'saved') && (
                     <div className="post-grid">
                         {(activeTab === 'posts' ? posts : savedPosts).length > 0 ? (
-                            (activeTab === 'posts' ? posts : savedPosts).map(post => (
-                                <Link key={post.id} to={`/post/${post.id}`} className={`post-grid-item ${!post.thumbnailUrl && !post.videoUrl ? 'text-only' : ''}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                            (activeTab === 'posts' ? posts : savedPosts).map((post, index, array) => (
+                                <Link 
+                                    key={post.id} 
+                                    to={`/post/${post.id}`} 
+                                    className={`post-grid-item ${!post.thumbnailUrl && !post.videoUrl ? 'text-only' : ''}`} 
+                                    style={{ textDecoration: 'none', color: 'inherit' }}
+                                    ref={index === array.length - 1 ? lastElementRef : null}
+                                >
                                     {post.thumbnailUrl ? (
                                         <img src={post.thumbnailUrl} alt={post.title} />
                                     ) : post.videoUrl ? (
@@ -470,6 +560,11 @@ export default function ProfilePage() {
                                 </p>
                             </div>
                         )}
+                        {(loadingMorePosts || loadingMoreSaved) && (
+                            <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', padding: '20px' }}>
+                                <div style={{ width: 24, height: 24, border: '2px solid var(--border-primary)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                            </div>
+                        )}
                     </div>
                 )}
                 
@@ -515,8 +610,14 @@ export default function ProfilePage() {
                 {/* Boards Grid */}
                 {activeTab === 'boards' && (
                     <div className="post-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
-                        {boards.length > 0 ? boards.map(board => (
-                            <Link key={board.id} to={`/boards/${board.id}`} className="post-grid-item" style={{ textDecoration: 'none', height: 200 }}>
+                        {boards.length > 0 ? boards.map((board, index, array) => (
+                            <Link 
+                                key={board.id} 
+                                to={`/boards/${board.id}`} 
+                                className="post-grid-item" 
+                                style={{ textDecoration: 'none', height: 200 }}
+                                ref={index === array.length - 1 ? lastElementRef : null}
+                            >
                                 {board.coverImage ? (
                                     <img src={board.coverImage} alt={board.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 ) : (
@@ -557,9 +658,44 @@ export default function ProfilePage() {
                                 <p>{isOwn ? "You haven't created any boards yet" : 'No boards yet'}</p>
                             </div>
                         )}
+                        {loadingMoreBoards && (
+                            <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center', padding: '20px' }}>
+                                <div style={{ width: 24, height: 24, border: '2px solid var(--border-primary)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
+
+            {/* Edit Profile Modal */}
+            {isEditModalOpen && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: 'var(--bg-secondary)', padding: 'var(--space-6)', borderRadius: 'var(--radius-lg)', width: '90%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Edit Profile</h2>
+                            <button className="action-btn-main" onClick={() => setIsEditModalOpen(false)}>✕</button>
+                        </div>
+                        <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>Make changes to your public profile.</p>
+
+                        <div className="form-field">
+                            <label className="form-label">Display Name</label>
+                            <input className="form-input" defaultValue={profile.displayName} />
+                        </div>
+
+                        {isBusiness && profile.businessProfile && (
+                            <div className="form-field">
+                                <label className="form-label">Description</label>
+                                <textarea className="form-input" defaultValue={profile.businessProfile.description} />
+                            </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-6)' }}>
+                            <button className="onboarding-btn secondary" onClick={() => setIsEditModalOpen(false)} style={{ flex: 1 }}>Cancel</button>
+                            <button className="onboarding-btn primary" onClick={() => { setIsEditModalOpen(false); toast.success('Profile updated'); }} style={{ flex: 1 }}>Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Edit Profile Modal Placeholder */}
             {isEditModalOpen && (

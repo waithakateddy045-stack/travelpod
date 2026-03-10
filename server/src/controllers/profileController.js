@@ -1,283 +1,267 @@
 const prisma = require('../utils/prisma');
 const { AppError } = require('../middleware/errorHandler');
 
-// ============================================================
-// Helper: Parse safely (handles seed scripts that inserted JSON strings)
-// ============================================================
-const safeParseArray = (val) => {
-    if (!val) return [];
-    if (typeof val === 'string') {
-        try { return JSON.parse(val); } catch { return []; }
-    }
-    return Array.isArray(val) ? val : [];
+const publicUserSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  bio: true,
+  avatarUrl: true,
+  websiteUrl: true,
+  accountType: true,
+  isVerified: true,
+  followerCount: true,
+  followingCount: true,
+  totalLikes: true,
+  personalityTags: true,
+  preferredRegions: true,
+  parentAccountId: true,
+  isManagedBusinessPage: true,
+  createdAt: true,
 };
 
-// ============================================================
-// GET /api/profile/:handle  — Public profile view
-// ============================================================
+// GET /api/profile/:handle — handle is username
 const getProfileByHandle = async (req, res, next) => {
-    try {
-        const { handle } = req.params;
-        const profile = await prisma.profile.findUnique({
-            where: { handle },
-            include: {
-                user: { select: { id: true, accountType: true, isSuspended: true, isDeleted: true, createdAt: true } },
-                businessProfile: true,
-            },
-        });
+  try {
+    const { handle } = req.params;
+    const user = await prisma.user.findUnique({
+      where: { username: handle },
+      select: publicUserSelect,
+    });
+    if (!user || user.isSuspended) throw new AppError('Profile not found', 404);
 
-        if (!profile || profile.user.isDeleted || profile.user.isSuspended) {
-            throw new AppError('Profile not found', 404);
-        }
+    const postCount = await prisma.post.count({
+      where: { userId: user.id, moderationStatus: 'APPROVED' },
+    });
 
-        // Count posts
-        const postCount = await prisma.post.count({
-            where: { userId: profile.userId, moderationStatus: 'APPROVED' },
-        });
-
-        // Check if requesting user follows this profile
-        let isFollowing = false;
-        if (req.user) {
-            const follow = await prisma.follow.findUnique({
-                where: { followerId_followingId: { followerId: req.user.id, followingId: profile.userId } },
-            });
-            isFollowing = !!follow;
-        }
-
-        res.json({
-            success: true,
-            profile: {
-                id: profile.id,
-                userId: profile.userId,
-                displayName: profile.displayName,
-                handle: profile.handle,
-                avatarUrl: profile.avatarUrl,
-                personalityTags: safeParseArray(profile.personalityTags),
-                preferredRegions: safeParseArray(profile.preferredRegions),
-                followerCount: profile.followerCount,
-                followingCount: profile.followingCount,
-                verifiedReviewCount: profile.verifiedReviewCount,
-                accountType: profile.user.accountType,
-                joinedAt: profile.user.createdAt,
-                postCount,
-                isFollowing,
-                isVerified: profile.businessProfile?.verificationStatus === 'APPROVED',
-                businessProfile: profile.businessProfile ? {
-                    logoUrl: profile.businessProfile.logoUrl,
-                    country: profile.businessProfile.country,
-                    description: profile.businessProfile.description,
-                    websiteUrl: profile.businessProfile.websiteUrl,
-                    verificationStatus: profile.businessProfile.verificationStatus,
-                    starRating: profile.businessProfile.starRating,
-                    verifiedReviewCount: profile.businessProfile.verifiedReviewCount,
-                    responseRate: profile.businessProfile.responseRate,
-                    avgResponseTimeMinutes: profile.businessProfile.avgResponseTimeMinutes,
-                } : null,
-            },
-        });
-    } catch (err) {
-        next(err);
+    let isFollowing = false;
+    if (req.user) {
+      const follow = await prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: req.user.id, followingId: user.id } },
+      });
+      isFollowing = !!follow;
     }
+
+    const verification = await prisma.businessVerification.findUnique({
+      where: { userId: user.id },
+    }).catch(() => null);
+
+    res.json({
+      success: true,
+      profile: {
+        ...user,
+        personalityTags: user.personalityTags || [],
+        preferredRegions: user.preferredRegions || [],
+        postCount,
+        isFollowing,
+        verification,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 };
 
-// ============================================================
-// GET /api/profile/:handle/posts — Profile's posts
-// ============================================================
+// GET /api/profile/:handle/posts
 const getProfilePosts = async (req, res, next) => {
-    try {
-        const { handle } = req.params;
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 12;
+  try {
+    const { handle } = req.params;
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 12, 1), 60);
 
-        const profile = await prisma.profile.findUnique({ where: { handle } });
-        if (!profile) throw new AppError('Profile not found', 404);
+    const user = await prisma.user.findUnique({ where: { username: handle }, select: { id: true } });
+    if (!user) throw new AppError('Profile not found', 404);
 
-        const [posts, total] = await Promise.all([
-            prisma.post.findMany({
-                where: { userId: profile.userId, moderationStatus: 'APPROVED' },
-                orderBy: { createdAt: 'desc' },
-                skip: (page - 1) * limit,
-                take: limit,
-                select: {
-                    id: true, title: true, thumbnailUrl: true, videoUrl: true,
-                    duration: true, viewCount: true, likeCount: true, createdAt: true,
-                    postType: true, isReview: true,
-                },
-            }),
-            prisma.post.count({ where: { userId: profile.userId, moderationStatus: 'APPROVED' } }),
-        ]);
+    const [posts, total] = await Promise.all([
+      prisma.post.findMany({
+        where: { userId: user.id, moderationStatus: 'APPROVED' },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          title: true,
+          thumbnailUrl: true,
+          videoUrl: true,
+          duration: true,
+          viewCount: true,
+          likeCount: true,
+          createdAt: true,
+          postType: true,
+          isReview: true,
+        },
+      }),
+      prisma.post.count({ where: { userId: user.id, moderationStatus: 'APPROVED' } }),
+    ]);
 
-        res.json({ success: true, posts, total, page, totalPages: Math.ceil(total / limit) });
-    } catch (err) {
-        next(err);
-    }
+    res.json({ success: true, posts, total, page, totalPages: Math.ceil(total / limit) });
+  } catch (err) {
+    next(err);
+  }
 };
 
-// ============================================================
-// GET /api/profile/:handle/reviews — Reviews received (business)
-// ============================================================
+// GET /api/profile/:handle/reviews — reviews as Posts with isReview=true
 const getProfileReviews = async (req, res, next) => {
-    try {
-        const { handle } = req.params;
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
+  try {
+    const { handle } = req.params;
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 50);
 
-        const profile = await prisma.profile.findUnique({ where: { handle } });
-        if (!profile) throw new AppError('Profile not found', 404);
+    const user = await prisma.user.findUnique({ where: { username: handle }, select: { id: true } });
+    if (!user) throw new AppError('Profile not found', 404);
 
-        const [reviews, total] = await Promise.all([
-            prisma.videoReview.findMany({
-                where: { businessId: profile.userId, moderationStatus: 'APPROVED' },
-                orderBy: { createdAt: 'desc' },
-                skip: (page - 1) * limit,
-                take: limit,
-                include: {
-                    post: { select: { id: true, title: true, thumbnailUrl: true, videoUrl: true, duration: true } },
-                    reviewer: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } } },
-                    reviewResponse: true,
-                },
-            }),
-            prisma.videoReview.count({ where: { businessId: profile.userId, moderationStatus: 'APPROVED' } }),
-        ]);
+    const [reviews, total] = await Promise.all([
+      prisma.post.findMany({
+        where: { userId: user.id, isReview: true, moderationStatus: 'APPROVED' },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.post.count({ where: { userId: user.id, isReview: true, moderationStatus: 'APPROVED' } }),
+    ]);
 
-        res.json({ success: true, reviews, total, page, totalPages: Math.ceil(total / limit) });
-    } catch (err) {
-        next(err);
-    }
+    res.json({ success: true, reviews, total, page, totalPages: Math.ceil(total / limit) });
+  } catch (err) {
+    next(err);
+  }
 };
 
-// ============================================================
-// PUT /api/profile/me — Update own profile
-// ============================================================
+// PUT /api/profile/me — update User fields
 const updateMyProfile = async (req, res, next) => {
-    try {
-        const userId = req.user.id;
-        const { displayName, handle, avatarUrl, personalityTags, preferredRegions, contentPreferences } = req.body;
+  try {
+    const userId = req.user.id;
+    const { displayName, username, avatarUrl, bio, websiteUrl, personalityTags, preferredRegions } = req.body;
 
-        const safeTags = safeParseArray(personalityTags);
-        const safeRegions = safeParseArray(preferredRegions);
-        const safePrefs = safeParseArray(contentPreferences);
+    const data = {};
+    if (displayName !== undefined) data.displayName = displayName;
+    if (username !== undefined) data.username = username;
+    if (avatarUrl !== undefined) data.avatarUrl = avatarUrl;
+    if (bio !== undefined) data.bio = bio;
+    if (websiteUrl !== undefined) data.websiteUrl = websiteUrl;
+    if (personalityTags !== undefined) data.personalityTags = Array.isArray(personalityTags) ? personalityTags : [];
+    if (preferredRegions !== undefined) data.preferredRegions = Array.isArray(preferredRegions) ? preferredRegions : [];
 
-        const profile = await prisma.profile.update({
-            where: { userId },
-            data: {
-                ...(displayName && { displayName }),
-                ...(handle && { handle }),
-                ...(avatarUrl && { avatarUrl }),
-                ...(personalityTags && { personalityTags: safeTags }),
-                ...(preferredRegions && { preferredRegions: safeRegions }),
-                ...(contentPreferences && { contentPreferences: safePrefs }),
-            },
-        });
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data,
+      select: publicUserSelect,
+    });
 
-        res.json({ success: true, profile });
-    } catch (err) {
-        next(err);
+    res.json({ success: true, profile: user });
+  } catch (err) {
+    if (err.code === 'P2002' && err.meta?.target?.includes('username')) {
+      return next(new AppError('Username is already taken', 409));
     }
+    next(err);
+  }
 };
 
-// ============================================================
-// PUT /api/profile/business — Update business details
-// ============================================================
+// PUT /api/profile/business — basic business fields on User
 const updateBusinessProfile = async (req, res, next) => {
-    try {
-        const userId = req.user.id;
-        const { country, description, websiteUrl } = req.body;
+  try {
+    const userId = req.user.id;
+    const { websiteUrl, bio } = req.body;
 
-        const profile = await prisma.profile.findUnique({ where: { userId } });
-        if (!profile) throw new AppError('Profile not found', 404);
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(websiteUrl !== undefined && { websiteUrl }),
+        ...(bio !== undefined && { bio }),
+      },
+      select: publicUserSelect,
+    });
 
-        const bp = await prisma.businessProfile.update({
-            where: { profileId: profile.id },
-            data: {
-                ...(country !== undefined && { country }),
-                ...(description !== undefined && { description }),
-                ...(websiteUrl !== undefined && { websiteUrl }),
-            },
-        });
-
-        res.json({ success: true, businessProfile: bp });
-    } catch (err) {
-        next(err);
-    }
+    res.json({ success: true, profile: user });
+  } catch (err) {
+    next(err);
+  }
 };
 
-// ============================================================
-// POST /api/profile/verification — Submit verification application
-// ============================================================
+// POST /api/profile/verification — apply for BusinessVerification
 const submitVerification = async (req, res, next) => {
-    try {
-        const userId = req.user.id;
-        const { registrationDocUrl, licenceDocUrl, operatingAddress } = req.body;
+  try {
+    const userId = req.user.id;
+    const {
+      businessRegistrationNumber,
+      businessRegistrationDocument,
+      registeredWebsite,
+      contactEmail,
+      contactPhone,
+      physicalAddress,
+      associationName,
+      associationMembershipNumber,
+      associationDocument,
+      associationListingUrl,
+    } = req.body;
 
-        if (!registrationDocUrl || !operatingAddress) {
-            throw new AppError('Registration document and operating address are required', 400);
-        }
-
-        const profile = await prisma.profile.findUnique({
-            where: { userId },
-            include: { businessProfile: true },
-        });
-
-        if (!profile?.businessProfile) {
-            throw new AppError('Business profile required for verification', 400);
-        }
-
-        // Check for existing pending application
-        const existing = await prisma.verificationApplication.findFirst({
-            where: { businessProfileId: profile.businessProfile.id, status: 'PENDING' },
-        });
-        if (existing) {
-            throw new AppError('You already have a pending verification application', 409);
-        }
-
-        const application = await prisma.verificationApplication.create({
-            data: {
-                businessProfileId: profile.businessProfile.id,
-                registrationDocUrl,
-                licenceDocUrl: licenceDocUrl || null,
-                operatingAddress,
-            },
-        });
-
-        res.status(201).json({ success: true, application });
-    } catch (err) {
-        next(err);
+    if (!businessRegistrationNumber || !businessRegistrationDocument || !registeredWebsite || !contactEmail) {
+      throw new AppError('Missing required verification fields', 400);
     }
+
+    const existing = await prisma.businessVerification.findUnique({ where: { userId } });
+    if (existing && existing.status === 'PENDING') {
+      throw new AppError('You already have a pending verification application', 409);
+    }
+
+    const verification = await prisma.businessVerification.upsert({
+      where: { userId },
+      update: {
+        businessRegistrationNumber,
+        businessRegistrationDocument,
+        registeredWebsite,
+        contactEmail,
+        contactPhone: contactPhone || null,
+        physicalAddress: physicalAddress || null,
+        associationName: associationName || null,
+        associationMembershipNumber: associationMembershipNumber || null,
+        associationDocument: associationDocument || null,
+        associationListingUrl: associationListingUrl || null,
+        status: 'PENDING',
+      },
+      create: {
+        userId,
+        businessRegistrationNumber,
+        businessRegistrationDocument,
+        registeredWebsite,
+        contactEmail,
+        contactPhone: contactPhone || null,
+        physicalAddress: physicalAddress || null,
+        associationName: associationName || null,
+        associationMembershipNumber: associationMembershipNumber || null,
+        associationDocument: associationDocument || null,
+        associationListingUrl: associationListingUrl || null,
+        status: 'PENDING',
+      },
+    });
+
+    res.status(201).json({ success: true, verification });
+  } catch (err) {
+    next(err);
+  }
 };
 
-// ============================================================
-// GET /api/profile/verification/status — Check verification status
-// ============================================================
+// GET /api/profile/verification/status
 const getVerificationStatus = async (req, res, next) => {
-    try {
-        const userId = req.user.id;
-        const profile = await prisma.profile.findUnique({
-            where: { userId },
-            include: { businessProfile: true },
-        });
-
-        if (!profile?.businessProfile) {
-            return res.json({ success: true, status: null, message: 'No business profile' });
-        }
-
-        const latestApp = await prisma.verificationApplication.findFirst({
-            where: { businessProfileId: profile.businessProfile.id },
-            orderBy: { createdAt: 'desc' },
-        });
-
-        res.json({
-            success: true,
-            verificationStatus: profile.businessProfile.verificationStatus,
-            application: latestApp,
-        });
-    } catch (err) {
-        next(err);
-    }
+  try {
+    const userId = req.user.id;
+    const verification = await prisma.businessVerification.findUnique({ where: { userId } });
+    res.json({
+      success: true,
+      status: verification?.status || 'NONE',
+      verification,
+    });
+  } catch (err) {
+    next(err);
+  }
 };
 
 module.exports = {
-    getProfileByHandle, getProfilePosts, getProfileReviews,
-    updateMyProfile, updateBusinessProfile,
-    submitVerification, getVerificationStatus,
+  getProfileByHandle,
+  getProfilePosts,
+  getProfileReviews,
+  updateMyProfile,
+  updateBusinessProfile,
+  submitVerification,
+  getVerificationStatus,
 };
+

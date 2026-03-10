@@ -1,6 +1,15 @@
 const prisma = require('../utils/prisma');
 const { AppError } = require('../middleware/errorHandler');
 
+const publicUserSelect = {
+    id: true,
+    username: true,
+    displayName: true,
+    avatarUrl: true,
+    accountType: true,
+    isVerified: true,
+};
+
 // ============ LIKES ============
 
 const likePost = async (req, res, next) => {
@@ -27,7 +36,7 @@ const likePost = async (req, res, next) => {
                 userId: post.userId,
                 type: 'post_liked',
                 title: 'Post Liked!',
-                body: `${req.user.profile?.displayName || 'Someone'} liked your post.`,
+                body: `${req.user.displayName || req.user.username || 'Someone'} liked your post.`,
                 relatedEntityId: postId,
                 relatedEntityType: 'post'
             }).catch(() => { });
@@ -84,38 +93,45 @@ const addComment = async (req, res, next) => {
     try {
         const userId = req.user.id;
         const postId = req.params.postId;
-        const { text, parentId } = req.body;
+        const { content, parentCommentId } = req.body;
 
-        if (!text?.trim()) throw new AppError('Comment text is required', 400);
+        if (!content?.trim()) throw new AppError('Comment content is required', 400);
+
+        let normalizedParentId = parentCommentId || null;
+        if (normalizedParentId) {
+            const parent = await prisma.comment.findUnique({
+                where: { id: normalizedParentId },
+                select: { id: true, parentCommentId: true, postId: true },
+            });
+            if (!parent || parent.postId !== postId) throw new AppError('Invalid parent comment', 400);
+            // Replies-to-replies attach to the same root parent (UI nesting depth capped at 1)
+            normalizedParentId = parent.parentCommentId || parent.id;
+        }
 
         const comment = await prisma.comment.create({
             data: {
                 userId,
                 postId,
-                content: text.trim(),
-                parentId: parentId || null,
+                content: content.trim(),
+                parentCommentId: normalizedParentId,
             },
             include: {
-                user: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } } },
+                user: { select: publicUserSelect },
             },
         });
 
         await prisma.post.update({ where: { id: postId }, data: { commentCount: { increment: 1 } } });
         
-        if (parentId) {
-            await prisma.comment.update({
-                where: { id: parentId },
-                data: { replyCount: { increment: 1 } }
-            });
+        if (normalizedParentId) {
             // Notify parent comment author
-            const parentComment = await prisma.comment.findUnique({ where: { id: parentId } });
+            const parentComment = await prisma.comment.findUnique({ where: { id: normalizedParentId } });
             if (parentComment && parentComment.userId !== userId) {
                 const { createNotification } = require('./notificationController');
                 createNotification({
                     userId: parentComment.userId,
-                    type: 'post_commented',
+                    type: 'comment_replied',
                     title: 'New Reply!',
-                    body: `${req.user.profile?.displayName || 'Someone'} replied to your comment.`,
+                    body: `${req.user.displayName || req.user.username || 'Someone'} replied to your comment.`,
                     relatedEntityId: postId,
                     relatedEntityType: 'post'
                 }).catch(() => { });
@@ -129,7 +145,7 @@ const addComment = async (req, res, next) => {
                     userId: post.userId,
                     type: 'post_commented',
                     title: 'New Comment!',
-                    body: `${req.user.profile?.displayName || 'Someone'} commented on your post.`,
+                    body: `${req.user.displayName || req.user.username || 'Someone'} commented on your post.`,
                     relatedEntityId: postId,
                     relatedEntityType: 'post'
                 }).catch(() => { });
@@ -148,16 +164,21 @@ const getComments = async (req, res, next) => {
 
         const [comments, total] = await Promise.all([
             prisma.comment.findMany({
-                where: { postId, parentId: null },
+                where: { postId, parentCommentId: null },
                 orderBy: { createdAt: 'desc' },
                 skip: (page - 1) * limit,
                 take: limit,
                 include: {
-                    user: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } } },
+                    user: { select: publicUserSelect },
+                    replies: {
+                        orderBy: { createdAt: 'asc' },
+                        take: 2,
+                        include: { user: { select: publicUserSelect } },
+                    },
                     _count: { select: { replies: true } },
                 },
             }),
-            prisma.comment.count({ where: { postId, parentId: null } }),
+            prisma.comment.count({ where: { postId, parentCommentId: null } }),
         ]);
 
         res.json({ success: true, comments, total, page, totalPages: Math.ceil(total / limit) });
@@ -172,15 +193,15 @@ const getReplies = async (req, res, next) => {
 
         const [replies, total] = await Promise.all([
             prisma.comment.findMany({
-                where: { parentId: commentId },
+                where: { parentCommentId: commentId },
                 orderBy: { createdAt: 'asc' },
                 skip: (page - 1) * limit,
                 take: limit,
                 include: {
-                    user: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } } },
+                    user: { select: publicUserSelect },
                 },
             }),
-            prisma.comment.count({ where: { parentId: commentId } }),
+            prisma.comment.count({ where: { parentCommentId: commentId } }),
         ]);
 
         res.json({ success: true, replies, total, page, totalPages: Math.ceil(total / limit) });
@@ -198,20 +219,39 @@ const deleteComment = async (req, res, next) => {
         }
 
         const postId = comment.postId;
-        const parentId = comment.parentId;
+        const parentId = comment.parentCommentId;
 
         await prisma.comment.delete({ where: { id: commentId } });
         
         // Update counts
         await prisma.post.update({ where: { id: postId }, data: { commentCount: { decrement: 1 } } }).catch(() => { });
-        if (parentId) {
-            await prisma.comment.update({
-                where: { id: parentId },
-                data: { replyCount: { decrement: 1 } }
-            }).catch(() => { });
-        }
+        // reply counts are derived via _count in queries
 
         res.json({ success: true, message: 'Comment deleted' });
+    } catch (err) { next(err); }
+};
+
+const toggleCommentLike = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        const { commentId } = req.params;
+
+        const comment = await prisma.comment.findUnique({ where: { id: commentId }, select: { id: true } });
+        if (!comment) throw new AppError('Comment not found', 404);
+
+        const existing = await prisma.commentLike.findUnique({
+            where: { commentId_userId: { commentId, userId } }
+        });
+
+        if (existing) {
+            await prisma.commentLike.delete({ where: { commentId_userId: { commentId, userId } } });
+            await prisma.comment.update({ where: { id: commentId }, data: { likeCount: { decrement: 1 } } }).catch(() => { });
+            return res.json({ success: true, liked: false });
+        }
+
+        await prisma.commentLike.create({ data: { commentId, userId } });
+        await prisma.comment.update({ where: { id: commentId }, data: { likeCount: { increment: 1 } } }).catch(() => { });
+        res.status(201).json({ success: true, liked: true });
     } catch (err) { next(err); }
 };
 
@@ -227,7 +267,7 @@ const getSavedPosts = async (req, res, next) => {
                 include: {
                     post: {
                         include: {
-                            author: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } } }
+                            user: { select: publicUserSelect }
                         }
                     }
                 },
@@ -253,4 +293,4 @@ const getSavedPosts = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-module.exports = { likePost, unlikePost, savePost, unsavePost, addComment, getComments, getReplies, deleteComment, getSavedPosts };
+module.exports = { likePost, unlikePost, savePost, unsavePost, addComment, getComments, getReplies, deleteComment, toggleCommentLike, getSavedPosts };

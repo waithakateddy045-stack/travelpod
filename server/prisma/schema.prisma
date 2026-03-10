@@ -84,6 +84,12 @@ enum DeviceType {
   ANDROID
 }
 
+enum BookingEnquiryStatus {
+  PENDING
+  REPLIED
+  CLOSED
+}
+
 model User {
   id                String    @id @default(cuid())
   email             String    @unique
@@ -104,11 +110,19 @@ model User {
   followerCount     Int       @default(0)
   followingCount    Int       @default(0)
   totalLikes        Int       @default(0)
+  parentAccountId   String?
+  isManagedBusinessPage Boolean @default(false)
+  passwordResetToken String?
+  passwordResetExpiresAt DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
+  parentAccount     User?     @relation("ManagedBusinessPages", fields: [parentAccountId], references: [id])
+  managedBusinessPages User[] @relation("ManagedBusinessPages")
+
   posts             Post[]
   comments          Comment[]
+  commentLikes      CommentLike[]
   likes             Like[]
   saves             Save[]
   followers         Follow[]  @relation("Following")
@@ -124,11 +138,13 @@ model User {
   boardFollows      BoardFollow[]
   boardComments     BoardComment[]
   verification      BusinessVerification?
+  verificationsReviewed BusinessVerification[] @relation("VerificationReviewedBy")
   boostRequests     BoostRequest[]
   badges            UserBadge[]
   collaborationsInitiated Collaboration[] @relation("Initiator")
   collaborationsReceived  Collaboration[] @relation("Receiver")
-  reports           Report[]
+  reportsMade       Report[] @relation("ReportsMade")
+  reportsReceived   Report[] @relation("ReportsReceived")
   sessions          Session[]
   featureFlagUpdates FeatureFlag[]
 }
@@ -193,12 +209,29 @@ model Comment {
   postId        String
   userId        String
   content       String
+  parentCommentId String?
   commentType   CommentType @default(COMMENT)
   linkedPostId  String?
+  likeCount     Int         @default(0)
   createdAt     DateTime    @default(now())
 
   post          Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent        Comment?    @relation("CommentThread", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies       Comment[]   @relation("CommentThread")
+  likes         CommentLike[]
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
 }
 
 model Like {
@@ -275,6 +308,7 @@ model Message {
   conversationId String
   senderId       String
   content        String
+  isRead         Boolean      @default(false)
   createdAt      DateTime     @default(now())
 
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -288,7 +322,7 @@ model BookingEnquiry {
   message     String
   travelDates String?
   budget      String?
-  status      String   @default("PENDING")
+  status      BookingEnquiryStatus @default(PENDING)
   createdAt   DateTime @default(now())
 
   sender      User     @relation("EnquirySender", fields: [senderId], references: [id], onDelete: Cascade)
@@ -373,10 +407,13 @@ model BoardComment {
   boardId   String
   userId    String
   content   String
+  parentCommentId String?
   createdAt DateTime  @default(now())
 
   board     TripBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    BoardComment? @relation("BoardCommentThread", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies   BoardComment[] @relation("BoardCommentThread")
 }
 
 model BusinessVerification {
@@ -387,8 +424,12 @@ model BusinessVerification {
   associationName              String?
   associationMembershipNumber  String?
   associationDocument          String?
+  associationListingUrl        String?
   registeredWebsite            String?
   websiteVerified              Boolean            @default(false)
+  contactEmail                 String?
+  contactPhone                 String?
+  physicalAddress              String?
   verifiedAt                   DateTime?
   verifiedByAdminId            String?
   status                       VerificationStatus @default(PENDING)
@@ -397,6 +438,7 @@ model BusinessVerification {
   updatedAt                    DateTime           @updatedAt
 
   user                         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verifiedByAdmin              User?              @relation("VerificationReviewedBy", fields: [verifiedByAdminId], references: [id])
 }
 
 model BoostRequest {
@@ -463,14 +505,16 @@ model Collaboration {
 model Report {
   id        String   @id @default(cuid())
   postId    String?
-  userId    String
+  reportedUserId String?
+  reporterId String
   reason    String
   details   String?
   resolved  Boolean  @default(false)
   createdAt DateTime @default(now())
 
   post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reportedUser User? @relation("ReportsReceived", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  reporter     User  @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
 }
 
 model FeatureFlag {

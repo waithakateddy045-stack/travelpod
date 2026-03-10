@@ -1,402 +1,324 @@
+const fs = require('fs');
 const prisma = require('../utils/prisma');
 const { AppError } = require('../middleware/errorHandler');
-const { uploadVideo, uploadImage, generateSmartThumbnails, getVideoThumbnail } = require('../services/cloudinary');
-const fs = require('fs');
+const { uploadVideo, uploadImage, getVideoThumbnail } = require('../services/cloudinary');
 
-// ============================================================
-// POST /api/posts — Create a new post (video + metadata)
-// ============================================================
-const createPost = async (req, res, next) => {
-    try {
-        const userId = req.user.id;
-        const {
-            title, description, postType, categoryId, category, locationTag, tags,
-            isReview, businessId, starRating, reviewOfId,
-            textContent, musicTitle,
-            thumbnailTime, perceptualHash
-        } = req.body;
-
-        if (!title && postType !== 'TEXT') throw new AppError('Title is required', 400);
-
-        // 1. Process Media
-        let videoUrl = null;
-        let thumbnailUrl = null;
-        let mediaUrls = [];
-        let duration = 0;
-        let uploadStats = null;
-
-        // Video Upload
-        if (postType === 'VIDEO' && req.file) {
-            const originalSize = req.file.size;
-            const cloudResult = await uploadVideo(req.file.path);
-            videoUrl = cloudResult.secure_url;
-            duration = Math.round(cloudResult.duration || 0);
-            thumbnailUrl = getVideoThumbnail(cloudResult.public_id, thumbnailTime || 0);
-
-            uploadStats = {
-                originalSize,
-                compressedSize: cloudResult.bytes,
-                compressionRatio: ((1 - (cloudResult.bytes / originalSize)) * 100).toFixed(1) + '%'
-            };
-            if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        }
-
-        // Photo Upload (Multiple)
-        if (postType === 'PHOTO' && req.files && req.files.length > 0) {
-            for (const file of req.files) {
-                const result = await uploadImage(file.path, 'posts/photos');
-                mediaUrls.push(result.secure_url);
-                if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-            }
-            thumbnailUrl = mediaUrls[0]; // First photo as cover
-        }
-
-        // 2. Resolve Category
-        let resolvedCategoryId = categoryId || null;
-        if (!resolvedCategoryId && category) {
-            const slug = category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-            const cat = await prisma.category.upsert({
-                where: { slug },
-                update: {},
-                create: { name: category, slug },
-            });
-            resolvedCategoryId = cat.id;
-        }
-
-        // 3. Create Main Post
-        const post = await prisma.post.create({
-            data: {
-                userId,
-                title: title || (postType === 'TEXT' ? textContent.substring(0, 50) : 'Untitled'),
-                description: description || null,
-                postType: postType || 'STANDARD',
-                videoUrl,
-                thumbnailUrl,
-                mediaUrls: mediaUrls.length > 0 ? mediaUrls : null,
-                textContent: textContent || null,
-                duration,
-                categoryId: resolvedCategoryId,
-                locationTag: locationTag || null,
-                moderationStatus: 'APPROVED',
-                perceptualHash: perceptualHash || null,
-                musicTitle: musicTitle || null,
-                isReview: postType === 'REVIEW' || isReview === true || isReview === 'true',
-                starRating: starRating ? parseInt(starRating, 10) : null,
-                reviewOfId: reviewOfId || null,
-                originalSize: uploadStats?.originalSize || null,
-                compressedSize: uploadStats?.compressedSize || null,
-            },
-        });
-
-        // 4. Handle Tags
-        if (tags) {
-            const tagList = Array.isArray(tags) ? tags : String(tags).split(',').map(t => t.trim());
-            for (const tagName of tagList) {
-                const tag = await prisma.tag.upsert({
-                    where: { name: tagName },
-                    update: {},
-                    create: { name: tagName },
-                });
-                await prisma.postTag.create({ data: { postId: post.id, tagId: tag.id } }).catch(() => { });
-            }
-        }
-
-        // 5. Mirrored Review Logic (If Repost/Review)
-        if (postType === 'REVIEW' && reviewOfId) {
-            const originalPost = await prisma.post.findUnique({ where: { id: reviewOfId } });
-            if (originalPost) {
-                await prisma.comment.create({
-                    data: {
-                        postId: reviewOfId,
-                        userId,
-                        content: textContent || description || `Reviewed this post!`,
-                        commentType: 'REVIEW',
-                        linkedPostId: post.id
-                    }
-                });
-                await prisma.post.update({ where: { id: reviewOfId }, data: { commentCount: { increment: 1 } } });
-            }
-        }
-
-        // 6. Business Review Integration (Legacy)
-        if ((postType === 'REVIEW' || isReview === 'true') && businessId) {
-            await prisma.videoReview.create({
-                data: {
-                    postId: post.id,
-                    reviewerId: userId,
-                    businessId,
-                    starRating: starRating ? parseInt(starRating, 10) : 5,
-                    caption: title || 'Review',
-                }
-            }).catch(() => { });
-        }
-
-        res.status(201).json({ success: true, post, compressionStats: uploadStats });
-    } catch (err) { next(err); }
+const publicUserSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  avatarUrl: true,
+  accountType: true,
+  isVerified: true,
 };
 
 // ============================================================
-// GET /api/posts/check-duplicate — Check if hash exists
+// POST /api/posts — Create a new post
+// Supports VIDEO, PHOTO, TEXT posts per PRD
+// ============================================================
+const createPost = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const {
+      title,
+      description,
+      postType = 'VIDEO',
+      location,
+      locationTag,
+      category,
+      tags,
+      textContent,
+      musicTitle,
+      isReview,
+      reviewOfId,
+      starRating,
+      thumbnailTime,
+    } = req.body;
+
+    if (!title && postType !== 'TEXT') throw new AppError('Title is required', 400);
+
+    let videoUrl = null;
+    let thumbnailUrl = null;
+    let mediaUrls = [];
+    let duration = null;
+
+    // Video upload
+    if (postType === 'VIDEO' && req.file) {
+      const cloudResult = await uploadVideo(req.file.path);
+      videoUrl = cloudResult.secure_url;
+      duration = Math.round(cloudResult.duration || 0);
+      thumbnailUrl = getVideoThumbnail(cloudResult.public_id, thumbnailTime || 0);
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    }
+
+    // Photo upload (multi-image carousel)
+    if (postType === 'PHOTO' && req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const result = await uploadImage(file.path, 'posts/photos');
+        mediaUrls.push(result.secure_url);
+        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      }
+      thumbnailUrl = mediaUrls[0] || null;
+    }
+
+    const tagList = tags
+      ? (Array.isArray(tags) ? tags : String(tags).split(',').map((t) => t.trim()).filter(Boolean))
+      : [];
+
+    const post = await prisma.post.create({
+      data: {
+        userId,
+        postType,
+        title: title || (postType === 'TEXT' ? (textContent || '').slice(0, 80) : 'Untitled'),
+        description: description || null,
+        textContent: postType === 'TEXT' ? (textContent || '').slice(0, 500) : textContent || null,
+        videoUrl,
+        thumbnailUrl,
+        mediaUrls: mediaUrls.length ? mediaUrls : null,
+        duration,
+        location: location || null,
+        locationTag: locationTag || null,
+        category: category || null,
+        tags: tagList.length ? tagList : null,
+        musicTitle: musicTitle || null,
+        moderationStatus: 'PENDING',
+        isReview: postType === 'REVIEW' || isReview === true || isReview === 'true',
+        reviewOfId: reviewOfId || null,
+        starRating: starRating ? Number(starRating) : null,
+      },
+    });
+
+    // If this is a review of another post, mirror as REVIEW comment
+    if (post.isReview && reviewOfId) {
+      const original = await prisma.post.findUnique({ where: { id: reviewOfId } });
+      if (original) {
+        await prisma.comment.create({
+          data: {
+            postId: reviewOfId,
+            userId,
+            content: description || textContent || 'Reviewed this post',
+            commentType: 'REVIEW',
+            linkedPostId: post.id,
+          },
+        });
+        await prisma.post.update({
+          where: { id: reviewOfId },
+          data: { commentCount: { increment: 1 } },
+        }).catch(() => {});
+      }
+    }
+
+    res.status(201).json({ success: true, post });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ============================================================
+// GET /api/posts/check-duplicate — stubbed (no perceptual hash schema)
 // ============================================================
 const checkDuplicate = async (req, res, next) => {
-    try {
-        const { hash } = req.query;
-        if (!hash) throw new AppError('Hash is required', 400);
-
-        const duplicate = await prisma.post.findFirst({
-            where: { perceptualHash: hash, moderationStatus: { not: 'REMOVED' } },
-            select: { id: true }
-        });
-
-        res.json({ success: true, isDuplicate: !!duplicate, postId: duplicate?.id });
-    } catch (err) { next(err); }
+  try {
+    res.json({ success: true, isDuplicate: false, postId: null });
+  } catch (err) {
+    next(err);
+  }
 };
 
 // ============================================================
 // GET /api/posts/:id — Single post
 // ============================================================
 const getPost = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const post = await prisma.post.findUnique({
-            where: { id },
-            include: {
-                author: {
-                    select: { id: true, accountType: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } } },
-                },
-                videoReview: { include: { reviewResponse: true } },
-                postTags: { include: { tag: true } },
-                category: true,
-            },
-        });
+  try {
+    const { id } = req.params;
+    const post = await prisma.post.findUnique({
+      where: { id },
+      include: { user: { select: publicUserSelect } },
+    });
+    if (!post) throw new AppError('Post not found', 404);
 
-        if (!post) throw new AppError('Post not found', 404);
+    await prisma.post.update({
+      where: { id },
+      data: { viewCount: { increment: 1 } },
+    }).catch(() => {});
 
-        await prisma.post.update({ where: { id }, data: { viewCount: { increment: 1 } } });
+    let isLiked = false;
+    let isSaved = false;
+    if (req.user) {
+      const [like, save] = await Promise.all([
+        prisma.like.findUnique({ where: { postId_userId: { postId: id, userId: req.user.id } } }).catch(() => null),
+        prisma.save.findUnique({ where: { postId_userId: { postId: id, userId: req.user.id } } }).catch(() => null),
+      ]);
+      isLiked = !!like;
+      isSaved = !!save;
+    }
 
-        let isLiked = false, isSaved = false;
-        if (req.user) {
-            const [like, save] = await Promise.all([
-                prisma.like.findUnique({ where: { userId_postId: { userId: req.user.id, postId: id } } }),
-                prisma.save.findUnique({ where: { userId_postId: { userId: req.user.id, postId: id } } }),
-            ]);
-            isLiked = !!like;
-            isSaved = !!save;
-        }
-
-        res.json({ success: true, post: { ...post, isLiked, isSaved } });
-    } catch (err) { next(err); }
+    res.json({ success: true, post: { ...post, isLiked, isSaved } });
+  } catch (err) {
+    next(err);
+  }
 };
 
 // ============================================================
 // DELETE /api/posts/:id — Delete own post
 // ============================================================
 const deletePost = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const post = await prisma.post.findUnique({ where: { id } });
-
-        if (!post) throw new AppError('Post not found', 404);
-        if (post.userId !== req.user.id && req.user.accountType !== 'ADMIN') {
-            throw new AppError('Not authorized to delete this post', 403);
-        }
-
-        // Hard delete — cascade handles related records
-        await prisma.post.delete({ where: { id } });
-
-        res.json({ success: true, message: 'Post deleted' });
-    } catch (err) { next(err); }
+  try {
+    const { id } = req.params;
+    const post = await prisma.post.findUnique({ where: { id } });
+    if (!post) throw new AppError('Post not found', 404);
+    if (post.userId !== req.user.id && req.user.accountType !== 'ADMIN') {
+      throw new AppError('Not authorized to delete this post', 403);
+    }
+    await prisma.post.delete({ where: { id } });
+    res.json({ success: true, message: 'Post deleted' });
+  } catch (err) {
+    next(err);
+  }
 };
 
 // ============================================================
-// Moderation endpoints (Admin)
+// Moderation endpoints (Admin) — basic PENDING/APPROVED/REJECTED
 // ============================================================
 const getModerationQueue = async (req, res, next) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
-        const status = req.query.status || 'PENDING';
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const status = req.query.status || 'PENDING';
 
-        let where = {};
-        if (status === 'REPORTED') {
-            where = { reports: { some: {} } };
-        } else if (status !== 'ALL') {
-            where = { moderationStatus: status };
-        }
+    let where = {};
+    if (status === 'REPORTED') {
+      where = { reports: { some: {} } };
+    } else if (status !== 'ALL') {
+      where = { moderationStatus: status };
+    }
 
-        const [posts, total] = await Promise.all([
-            prisma.post.findMany({
-                where,
-                orderBy: { createdAt: 'desc' },
-                skip: (page - 1) * limit,
-                take: limit,
-                include: {
-                    author: { select: { id: true, profile: { select: { displayName: true, handle: true } } } },
-                    category: true,
-                    postTags: { include: { tag: true } },
-                    _count: { select: { reports: true } }
-                },
-            }),
-            prisma.post.count({ where }),
-        ]);
+    const [posts, total] = await Promise.all([
+      prisma.post.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          user: { select: publicUserSelect },
+          _count: { select: { reports: true } },
+        },
+      }),
+      prisma.post.count({ where }),
+    ]);
 
-        // Rename author -> user for frontend consistency
-        const mapped = posts.map(p => ({ ...p, user: p.author }));
-        res.json({ success: true, posts: mapped, total, page, totalPages: Math.ceil(total / limit) });
-    } catch (err) { next(err); }
+    res.json({ success: true, posts, total, page, totalPages: Math.ceil(total / limit) });
+  } catch (err) {
+    next(err);
+  }
 };
 
 const moderatePost = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const { action, reason } = req.body;
+  try {
+    const { id } = req.params;
+    const { action } = req.body;
 
-        const finalAction = action === 'REJECTED' ? 'REMOVED' :
-            (action === 'RESTORED' || action === 'RESTORE' ? 'APPROVED' : action);
+    if (action === 'CLEAR_REPORTS') {
+      await prisma.report.deleteMany({ where: { postId: id } });
+      return res.json({ success: true, message: 'Reports cleared' });
+    }
 
-        if (action === 'CLEAR_REPORTS') {
-            await prisma.report.deleteMany({ where: { postId: id } });
-            return res.json({ success: true, message: 'Reports cleared', count: 0 });
-        }
+    let finalStatus;
+    switch (action) {
+      case 'APPROVE':
+      case 'APPROVED':
+        finalStatus = 'APPROVED';
+        break;
+      case 'REJECT':
+      case 'REJECTED':
+      case 'REMOVE':
+      case 'REMOVED':
+        finalStatus = 'REJECTED';
+        break;
+      case 'PENDING':
+        finalStatus = 'PENDING';
+        break;
+      default:
+        throw new AppError('Invalid moderation action', 400);
+    }
 
-        const validStatuses = ['APPROVED', 'REMOVED', 'PENDING', 'UNDER_REVIEW'];
-        if (!validStatuses.includes(finalAction)) {
-            throw new AppError('Invalid moderation action: ' + finalAction, 400);
-        }
-
-        const post = await prisma.post.update({
-            where: { id },
-            data: { moderationStatus: finalAction },
-        });
-
-        res.json({ success: true, post });
-    } catch (err) { next(err); }
+    const post = await prisma.post.update({
+      where: { id },
+      data: { moderationStatus: finalStatus },
+    });
+    res.json({ success: true, post });
+  } catch (err) {
+    next(err);
+  }
 };
 
 // ============================================================
-// POST /api/posts/:id/repost
+// POST /api/posts/:id/repost — not implemented in PRD v3.0
 // ============================================================
 const repostPost = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const userId = req.user.id;
-
-        const original = await prisma.post.findUnique({
-            where: { id },
-            include: { postTags: true }
-        });
-
-        if (!original) throw new AppError('Post not found', 404);
-
-        // Create a new post that references the original
-        const post = await prisma.post.create({
-            data: {
-                userId,
-                title: `Repost: ${original.title}`,
-                description: original.description,
-                videoUrl: original.videoUrl,
-                thumbnailUrl: original.thumbnailUrl,
-                duration: original.duration,
-                postType: 'STANDARD',
-                categoryId: original.categoryId,
-                locationTag: original.locationTag,
-                moderationStatus: 'APPROVED',
-            }
-        });
-
-        // Copy tags
-        if (original.postTags.length > 0) {
-            await prisma.postTag.createMany({
-                data: original.postTags.map(pt => ({
-                    postId: post.id,
-                    tagId: pt.tagId
-                })),
-                skipDuplicates: true
-            });
-        }
-
-        res.status(201).json({ success: true, post });
-    } catch (err) { next(err); }
+  try {
+    res.status(501).json({ success: false, message: 'Repost is not supported in this version.' });
+  } catch (err) {
+    next(err);
+  }
 };
 
 // ============================================================
-// POST /api/posts/:id/recommend
+// POST /api/posts/:id/recommend — not implemented in PRD v3.0
 // ============================================================
 const recommendPost = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const { targetUserId } = req.body;
-        const senderId = req.user.id;
-
-        if (!targetUserId) throw new AppError('Target user ID is required', 400);
-
-        const post = await prisma.post.findUnique({
-            where: { id },
-            include: { author: { select: { profile: { select: { displayName: true } } } } }
-        });
-        if (!post) throw new AppError('Post not found', 404);
-
-        const p1 = senderId < targetUserId ? senderId : targetUserId;
-        const p2 = senderId < targetUserId ? targetUserId : senderId;
-
-        const conversation = await prisma.conversation.upsert({
-            where: { participant1Id_participant2Id: { participant1Id: p1, participant2Id: p2 } },
-            update: {
-                lastMessagePreview: `Recommended a post: ${post.title}`,
-                lastMessageAt: new Date(),
-                ...(p1 === targetUserId ? { unreadCountP1: { increment: 1 } } : { unreadCountP2: { increment: 1 } })
-            },
-            create: {
-                participant1Id: p1,
-                participant2Id: p2,
-                lastMessagePreview: `Recommended a post: ${post.title}`,
-                lastMessageAt: new Date(),
-                ...(p1 === targetUserId ? { unreadCountP1: 1 } : { unreadCountP2: 1 })
-            }
-        });
-
-        const message = await prisma.directMessage.create({
-            data: {
-                conversationId: conversation.id,
-                senderId,
-                content: `Hey! I thought you'd like this post from ${post.author?.profile?.displayName || 'someone'}: ${post.title}\n\nView it here: https://travelpod.app/post/${id}`
-            }
-        });
-
-        res.json({ success: true, message: 'Recommended successfully' });
-    } catch (err) { next(err); }
+  try {
+    res.status(501).json({ success: false, message: 'Recommend is not supported in this version.' });
+  } catch (err) {
+    next(err);
+  }
 };
 
+// ============================================================
+// PATCH /api/posts/:id — lightweight metadata update
+// ============================================================
 const updatePost = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const { thumbnailUrl, title, description, categoryId, musicTitle } = req.body;
-        const userId = req.user.id;
+  try {
+    const { id } = req.params;
+    const { thumbnailUrl, title, description, category, musicTitle, tags } = req.body;
+    const userId = req.user.id;
 
-        const post = await prisma.post.findUnique({ where: { id } });
-        if (!post) throw new AppError('Post not found', 404);
-        if (post.userId !== userId && req.user.accountType !== 'ADMIN') {
-            throw new AppError('Not authorized', 403);
-        }
+    const post = await prisma.post.findUnique({ where: { id } });
+    if (!post) throw new AppError('Post not found', 404);
+    if (post.userId !== userId && req.user.accountType !== 'ADMIN') {
+      throw new AppError('Not authorized', 403);
+    }
 
-        const updated = await prisma.post.update({
-            where: { id },
-            data: {
-                ...(thumbnailUrl && { thumbnailUrl }),
-                ...(title && { title }),
-                ...(description && { description }),
-                ...(categoryId && { categoryId }),
-                ...(musicTitle && { musicTitle }),
-            }
-        });
+    const tagList = tags
+      ? (Array.isArray(tags) ? tags : String(tags).split(',').map((t) => t.trim()).filter(Boolean))
+      : null;
 
-        res.json({ success: true, post: updated });
-    } catch (err) { next(err); }
+    const updated = await prisma.post.update({
+      where: { id },
+      data: {
+        ...(thumbnailUrl && { thumbnailUrl }),
+        ...(title && { title }),
+        ...(description && { description }),
+        ...(category && { category }),
+        ...(musicTitle && { musicTitle }),
+        ...(tagList && { tags: tagList }),
+      },
+    });
+
+    res.json({ success: true, post: updated });
+  } catch (err) {
+    next(err);
+  }
 };
 
 module.exports = {
-    createPost, getPost, deletePost,
-    getModerationQueue, moderatePost,
-    repostPost, recommendPost, checkDuplicate,
-    updatePost
+  createPost,
+  getPost,
+  deletePost,
+  getModerationQueue,
+  moderatePost,
+  repostPost,
+  recommendPost,
+  checkDuplicate,
+  updatePost,
 };

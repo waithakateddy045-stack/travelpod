@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineXMark, HiOutlineCalendar, HiOutlineUsers, HiOutlineBanknotes, HiOutlineChatBubbleBottomCenterText } from 'react-icons/hi2';
 import api from '../../services/api';
 import './EnquiryModal.css';
 
@@ -11,6 +11,12 @@ export default function EnquiryModal({ businessId, businessName, isOpen, onClose
     const [budgetRange, setBudgetRange] = useState('$1000 - $3000');
     const [requirements, setRequirements] = useState('');
     const [message, setMessage] = useState('');
+
+    useEffect(() => {
+        if (isOpen) document.body.style.overflow = 'hidden';
+        else document.body.style.overflow = 'unset';
+        return () => { document.body.style.overflow = 'unset'; };
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -26,9 +32,9 @@ export default function EnquiryModal({ businessId, businessName, isOpen, onClose
                 requirements,
                 message
             });
-            toast.success('Enquiry sent successfully! The business will reply shortly.');
+            toast.success('Enquiry sent! The business will reach out soon.');
             onClose();
-            // Reset for next time
+            // Reset fields
             setTravelDates('');
             setMessage('');
             setRequirements('');
@@ -41,22 +47,21 @@ export default function EnquiryModal({ businessId, businessName, isOpen, onClose
 
     return (
         <div className="enquiry-modal-overlay" onClick={onClose}>
-            <div className="enquiry-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="enquiry-modal-content animate-scaleIn" onClick={e => e.stopPropagation()}>
                 <div className="enquiry-modal-header">
-                    <h2>Enquire with {businessName}</h2>
+                    <div className="enquiry-header-title">
+                        <h2>Enquire with {businessName}</h2>
+                        <p>Plan your perfect getaway</p>
+                    </div>
                     <button className="enquiry-modal-close" onClick={onClose}>
                         <HiOutlineXMark />
                     </button>
                 </div>
 
                 <form className="enquiry-form" onSubmit={handleSubmit}>
-                    <p className="enquiry-instructions">
-                        Send a booking request or ask for more information. Tell them what you are looking for!
-                    </p>
-
                     <div className="form-row two-col">
                         <div className="form-group">
-                            <label>Travel Dates</label>
+                            <label><HiOutlineCalendar /> Travel Dates</label>
                             <input
                                 type="text"
                                 placeholder="e.g. Dec 15 - Dec 28"
@@ -66,7 +71,7 @@ export default function EnquiryModal({ businessId, businessName, isOpen, onClose
                             />
                         </div>
                         <div className="form-group">
-                            <label>Group Size</label>
+                            <label><HiOutlineUsers /> Group Size</label>
                             <input
                                 type="number"
                                 min="1"
@@ -78,32 +83,32 @@ export default function EnquiryModal({ businessId, businessName, isOpen, onClose
                     </div>
 
                     <div className="form-group">
-                        <label>Budget Range (Total)</label>
+                        <label><HiOutlineBanknotes /> Budget Range (Total)</label>
                         <select value={budgetRange} onChange={e => setBudgetRange(e.target.value)}>
+                            <option>Flexible</option>
                             <option>Under $1000</option>
                             <option>$1000 - $3000</option>
                             <option>$3000 - $5000</option>
                             <option>$5000 - $10000</option>
                             <option>$10000+</option>
-                            <option>Flexible</option>
                         </select>
                     </div>
 
                     <div className="form-group">
-                        <label>Special Requirements (Optional)</label>
+                        <label>Special Requirements</label>
                         <input
                             type="text"
-                            placeholder="e.g. Dietary needs, accessibility, celebrations..."
+                            placeholder="Dietary, accessibility, celebrations..."
                             value={requirements}
                             onChange={e => setRequirements(e.target.value)}
                         />
                     </div>
 
                     <div className="form-group">
-                        <label>Message</label>
+                        <label><HiOutlineChatBubbleBottomCenterText /> Your Message</label>
                         <textarea
-                            rows={4}
-                            placeholder="Tell the business a bit more about your ideal trip..."
+                            rows={3}
+                            placeholder="Tell them more about what you're looking for..."
                             value={message}
                             onChange={e => setMessage(e.target.value)}
                             required
@@ -111,8 +116,8 @@ export default function EnquiryModal({ businessId, businessName, isOpen, onClose
                     </div>
 
                     <div className="enquiry-form-actions">
-                        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-                        <button type="submit" className="btn-primary" disabled={loading}>
+                        <button type="button" className="btn-cancel" onClick={onClose}>Cancel</button>
+                        <button type="submit" className="btn-submit" disabled={loading}>
                             {loading ? 'Sending...' : 'Send Enquiry'}
                         </button>
                     </div>

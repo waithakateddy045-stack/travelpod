@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { HiOutlinePlay, HiOutlinePause, HiOutlineSpeakerWave, HiOutlineSpeakerXMark, HiOutlineExclamationTriangle, HiOutlineArrowPath } from 'react-icons/hi2';
+import { Play, Volume2, VolumeX, TriangleAlert, RotateCw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './VideoPlayer.css';
 
@@ -110,11 +110,11 @@ export default function VideoPlayer({ src, poster, autoPlay = false, loop = true
             {hasError && (
                 <div className="video-error-container">
                     <div className="video-error-content">
-                        <HiOutlineExclamationTriangle className="video-error-icon" />
+                        <TriangleAlert className="video-error-icon" />
                         <p className="video-error-text">Video unavailable</p>
                         <p className="video-error-sub">This content may have been removed or is restricted.</p>
                         <button className="video-retry-btn" onClick={handleRetry}>
-                            <HiOutlineArrowPath /> Try Again
+                            <RotateCw /> Try Again
                         </button>
                     </div>
                 </div>
@@ -138,14 +138,14 @@ export default function VideoPlayer({ src, poster, autoPlay = false, loop = true
             {/* Play/Pause overlay */}
             {!playing && !hasError && !isLoading && (
                 <div className="video-overlay play-overlay">
-                    <HiOutlinePlay />
+                    <Play />
                 </div>
             )}
 
             {/* Mute toggle */}
             {!hasError && (
                 <button className="video-mute-btn" onClick={toggleMute}>
-                    {isMuted ? <HiOutlineSpeakerXMark /> : <HiOutlineSpeakerWave />}
+                    {isMuted ? <VolumeX /> : <Volume2 />}
                 </button>
             )}
 

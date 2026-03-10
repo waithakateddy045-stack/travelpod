@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import GlobalNotificationsWatcher from './components/common/GlobalNotificationsWatcher';
 import WelcomePage from './pages/auth/WelcomePage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
@@ -56,6 +57,7 @@ function App() {
     <ErrorBoundary>
       <AuthProvider>
         <Router>
+          <GlobalNotificationsWatcher />
           <Toaster
             position="top-center"
             toastOptions={{
