@@ -16,7 +16,6 @@ const collaborationRoutes = require('./collaborations');
 const broadcastRoutes = require('./broadcasts');
 const searchRoutes = require('./search');
 const notificationRoutes = require('./notifications');
-const featureRoutes = require('./features');
 const analyticsRoutes = require('./analytics');
 const badgeRoutes = require('./badges');
 const featuredRoutes = require('./featured');
@@ -56,7 +55,6 @@ router.use('/settings', settingsRoutes);
 router.use('/boards', boardRoutes);
 router.use('/verify', verificationRoutes);
 router.use('/upload', uploadRoutes);
-router.use('/features', featureRoutes);
 router.use('/ai', aiRoutes);
 
 module.exports = router;
