@@ -59,12 +59,14 @@ export default function VideoPostWizard({ onComplete, onCancel }) {
         setStep(2);
     };
 
+
+
     const handleGenerateAI = async () => {
         setAiLoading(true);
         try {
-            const res = await api.post('/ai/generate-details', {
+            const res = await api.post('/upload/suggestions', {
                 type: 'VIDEO',
-                context: `${file.name}. ${description || ''}`
+                context: `${file?.name || ''}. ${description || ''}`
             });
             if (res.data.success) {
                 const { data } = res.data;
@@ -156,10 +158,7 @@ export default function VideoPostWizard({ onComplete, onCancel }) {
 
                 {step === 3 && (
                     <div className="step-content details-form">
-                        <div className="ai-trigger-banner" onClick={handleGenerateAI}>
-                            <HiOutlineSparkles />
-                            <span>{aiLoading ? 'Magic in progress...' : '✨ Generate with AI'}</span>
-                        </div>
+
 
                         <div className="tp-input-group">
                             <label>Title</label>

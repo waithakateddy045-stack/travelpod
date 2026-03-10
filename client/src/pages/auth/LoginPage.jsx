@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { HiExclamationCircle } from 'react-icons/hi2';
+import { HiOutlineExclamationCircle } from 'react-icons/hi2';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../../context/AuthContext';
 import './AuthPage.css';
@@ -52,7 +52,7 @@ export default function LoginPage() {
 
                 {apiError && (
                     <div className="auth-alert error" style={{ marginBottom: 'var(--space-5)' }}>
-                        <HiExclamationCircle /> {apiError}
+                        <HiOutlineExclamationCircle /> {apiError}
                     </div>
                 )}
 

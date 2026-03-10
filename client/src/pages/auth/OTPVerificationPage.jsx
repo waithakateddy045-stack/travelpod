@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { HiExclamationCircle, HiOutlineMail } from 'react-icons/hi2';
+import { HiOutlineExclamationCircle, HiOutlineEnvelope } from 'react-icons/hi2';
 import api from '../../services/api';
 import './AuthPage.css';
 
@@ -108,7 +108,7 @@ export default function OTPVerificationPage() {
             <div className="auth-card">
                 <div style={{ textAlign: 'center', marginBottom: 'var(--space-6)' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: 'var(--radius-full)', backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-primary)', color: 'var(--accent-primary)', fontSize: 32, marginBottom: 16 }}>
-                        <HiOutlineMail />
+                        <HiOutlineEnvelope />
                     </div>
                     <h1 className="auth-title">Verify your email</h1>
                     <p className="auth-subtitle">We've sent a 6-digit verification code to <strong>{email}</strong>. Entering it below helps keep your account secure.</p>
@@ -116,7 +116,7 @@ export default function OTPVerificationPage() {
 
                 {apiError && (
                     <div className="auth-alert error" style={{ marginBottom: 'var(--space-5)' }}>
-                        <HiExclamationCircle /> {apiError}
+                        <HiOutlineExclamationCircle /> {apiError}
                     </div>
                 )}
 

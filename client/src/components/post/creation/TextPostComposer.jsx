@@ -58,17 +58,18 @@ export default function TextPostComposer({ onComplete, onCancel }) {
         }
     };
 
+
+
     const handleGenerateAI = async () => {
         if (!textContent.trim()) return toast.error("Write something first!");
         setAiLoading(true);
         try {
-            const res = await api.post('/ai/generate-details', {
+            const res = await api.post('/upload/suggestions', {
                 type: 'TEXT',
                 context: textContent
             });
             if (res.data.success) {
                 const { data } = res.data;
-                // Suggest title if none
                 if (!title) setTitle(data.title || '');
                 setTags([...new Set([...tags, ...(data.tags || [])])]);
                 if (!category) setCategory(data.category || '');
@@ -128,10 +129,7 @@ export default function TextPostComposer({ onComplete, onCancel }) {
                 />
 
                 <div className="composer-toolbar">
-                    <button className="tool-btn" onClick={handleGenerateAI} disabled={aiLoading} title="AI Suggest">
-                        <HiOutlineSparkles style={{ color: 'var(--accent-primary)' }} />
-                        <span>AI Suggest</span>
-                    </button>
+
                     <div className="tool-spacer" />
                     <button className={`tool-btn ${isReview ? 'active' : ''}`} onClick={() => setIsReview(!isReview)}>
                         <HiOutlineStar />

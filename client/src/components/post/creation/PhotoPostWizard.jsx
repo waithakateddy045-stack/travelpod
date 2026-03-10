@@ -54,10 +54,12 @@ export default function PhotoPostWizard({ onComplete, onCancel }) {
         setPreviews(newPreviews);
     };
 
+
+
     const handleGenerateAI = async () => {
         setAiLoading(true);
         try {
-            const res = await api.post('/ai/generate-details', {
+            const res = await api.post('/upload/suggestions', {
                 type: 'PHOTO',
                 context: `${title || 'Travel photos'}. ${description}`
             });
@@ -149,10 +151,7 @@ export default function PhotoPostWizard({ onComplete, onCancel }) {
 
                 {step === 2 && (
                     <div className="step-content details-form">
-                        <div className="ai-trigger-banner" onClick={handleGenerateAI}>
-                            <HiOutlineSparkles />
-                            <span>{aiLoading ? 'Magic in progress...' : '✨ Generate with AI'}</span>
-                        </div>
+
 
                         <div className="tp-input-group">
                             <label>Title</label>

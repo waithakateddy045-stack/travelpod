@@ -180,5 +180,6 @@ export const HiOutlineFunnel = Funnel;
 export const HiOutlineClock = Clock;
 
 export const HiExclamationCircle = AlertCircle;
+export const HiOutlineExclamationCircle = AlertCircle;
 export const HiOutlineBriefcase = Briefcase;
 export const HiOutlineXCircle = XCircle;

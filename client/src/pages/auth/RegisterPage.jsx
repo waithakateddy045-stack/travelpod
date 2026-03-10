@@ -8,7 +8,7 @@ import {
     HiOutlineMapPin,
     HiOutlinePaperAirplane,
     HiOutlineUserGroup,
-    HiExclamationCircle,
+    HiOutlineExclamationCircle,
 } from 'react-icons/hi2';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../../context/AuthContext';
@@ -95,7 +95,7 @@ export default function RegisterPage() {
 
                         {apiError && (
                             <div className="auth-alert error" style={{ marginBottom: 'var(--space-5)' }}>
-                                <HiExclamationCircle /> {apiError}
+                                <HiOutlineExclamationCircle /> {apiError}
                             </div>
                         )}
 
@@ -111,7 +111,7 @@ export default function RegisterPage() {
                                     onChange={e => setFormData(f => ({ ...f, email: e.target.value }))}
                                     autoComplete="email"
                                 />
-                                {errors.email && <span className="form-error"><HiExclamationCircle />{errors.email}</span>}
+                                {errors.email && <span className="form-error"><HiOutlineExclamationCircle />{errors.email}</span>}
                             </div>
 
                             <div className="form-field">
@@ -125,7 +125,7 @@ export default function RegisterPage() {
                                     onChange={e => setFormData(f => ({ ...f, password: e.target.value }))}
                                     autoComplete="new-password"
                                 />
-                                {errors.password && <span className="form-error"><HiExclamationCircle />{errors.password}</span>}
+                                {errors.password && <span className="form-error"><HiOutlineExclamationCircle />{errors.password}</span>}
                             </div>
 
                             <button id="register-next-btn" type="submit" className="auth-submit">
@@ -153,7 +153,7 @@ export default function RegisterPage() {
 
                         {apiError && (
                             <div className="auth-alert error" style={{ marginBottom: 'var(--space-5)' }}>
-                                <HiExclamationCircle /> {apiError}
+                                <HiOutlineExclamationCircle /> {apiError}
                             </div>
                         )}
 
