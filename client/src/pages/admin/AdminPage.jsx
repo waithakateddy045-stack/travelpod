@@ -7,6 +7,22 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const getToken = () => localStorage.getItem('admin_token');
 
 const apiCall = async (endpoint, options = {}) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7313/ingest/2ec3ca36-0117-4bfa-b9a3-4adba61fcd33', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5114aa' },
+        body: JSON.stringify({
+            sessionId: '5114aa',
+            runId: 'pre-fix',
+            hypothesisId: 'H3',
+            location: 'client/src/pages/admin/AdminPage.jsx:apiCall',
+            message: 'Admin apiCall request',
+            data: { API_BASE, endpoint, method: options?.method || 'GET' },
+            timestamp: Date.now()
+        })
+    }).catch(() => { });
+    // #endregion
+
     const res = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
         headers: {
@@ -15,8 +31,26 @@ const apiCall = async (endpoint, options = {}) => {
             ...options.headers,
         },
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Request failed');
+    let data = null;
+    try { data = await res.json(); } catch { data = null; }
+    if (!res.ok) {
+        // #region agent log
+        fetch('http://127.0.0.1:7313/ingest/2ec3ca36-0117-4bfa-b9a3-4adba61fcd33', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5114aa' },
+            body: JSON.stringify({
+                sessionId: '5114aa',
+                runId: 'pre-fix',
+                hypothesisId: 'H4',
+                location: 'client/src/pages/admin/AdminPage.jsx:apiCall',
+                message: 'Admin apiCall failed',
+                data: { API_BASE, endpoint, status: res.status, responseMessage: data?.message },
+                timestamp: Date.now()
+            })
+        }).catch(() => { });
+        // #endregion
+        throw new Error(data?.message || `Request failed (${res.status})`);
+    }
     return data;
 };
 
