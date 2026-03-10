@@ -56,8 +56,8 @@ export default function CommentItem({
         try {
             setSubmitting(true);
             const { data } = await api.post(`/engagement/comments/${postId}`, {
-                text: replyText,
-                parentId: comment.id
+                content: replyText,
+                parentCommentId: comment.id
             });
 
             setReplies(prev => [...prev, data.comment]);

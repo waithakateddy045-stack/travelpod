@@ -9,7 +9,7 @@ async function fetchFlags() {
     if (flagCache) return flagCache;
     if (fetchPromise) return fetchPromise;
 
-    fetchPromise = axios.get(`${API}/api/features`)
+    fetchPromise = axios.get(`${API}/features`)
         .then(res => {
             const map = {};
             (res.data.features || []).forEach(f => { map[f.name] = f.isEnabled; });

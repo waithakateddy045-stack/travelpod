@@ -113,7 +113,7 @@ const addComment = async (req, res, next) => {
     try {
         const userId = req.user.id;
         const postId = req.params.postId;
-        const { content, parentCommentId } = req.body;
+        const { content, parentCommentId, linkedPostId } = req.body;
 
         if (!content?.trim()) throw new AppError('Comment content is required', 400);
 
@@ -134,6 +134,7 @@ const addComment = async (req, res, next) => {
                 postId,
                 content: content.trim(),
                 parentCommentId: normalizedParentId,
+                linkedPostId: linkedPostId || null,
             },
             include: {
                 user: { select: publicUserSelect },
@@ -141,7 +142,7 @@ const addComment = async (req, res, next) => {
         });
 
         await prisma.post.update({ where: { id: postId }, data: { commentCount: { increment: 1 } } });
-        
+
         if (normalizedParentId) {
             // Notify parent comment author
             const parentComment = await prisma.comment.findUnique({ where: { id: normalizedParentId } });
@@ -242,7 +243,7 @@ const deleteComment = async (req, res, next) => {
         const parentId = comment.parentCommentId;
 
         await prisma.comment.delete({ where: { id: commentId } });
-        
+
         // Update counts
         await prisma.post.update({ where: { id: postId }, data: { commentCount: { decrement: 1 } } }).catch(() => { });
         // reply counts are derived via _count in queries

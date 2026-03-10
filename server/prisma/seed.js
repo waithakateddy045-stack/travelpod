@@ -14,55 +14,13 @@ const SALT_ROUNDS = 12;
 // ============================================================
 // Real playable travel video URLs from free stock services
 // ============================================================
-const VIDEO_URLS = [
-    // Mixkit free travel/nature videos (direct CDN MP4 URLs)
-    'https://assets.mixkit.co/videos/1166/1166-720.mp4',    // Aerial tropical beach
-    'https://assets.mixkit.co/videos/4367/4367-720.mp4',    // Waves crashing on rocks
-    'https://assets.mixkit.co/videos/34563/34563-720.mp4',  // Aerial city view
-    'https://assets.mixkit.co/videos/1171/1171-720.mp4',    // Palm trees sunset
-    'https://assets.mixkit.co/videos/4883/4883-720.mp4',    // Mountain landscape
-    'https://assets.mixkit.co/videos/3784/3784-720.mp4',    // Tropical island drone
-    'https://assets.mixkit.co/videos/44632/44632-720.mp4',  // City traffic night 
-    'https://assets.mixkit.co/videos/40745/40745-720.mp4',  // Forest aerial
-    'https://assets.mixkit.co/videos/2611/2611-720.mp4',    // Sunset clouds
-    'https://assets.mixkit.co/videos/13733/13733-720.mp4',  // Waterfall nature
-    'https://assets.mixkit.co/videos/1164/1164-720.mp4',    // Ocean waves
-    'https://assets.mixkit.co/videos/6090/6090-720.mp4',    // Mountain road
-    'https://assets.mixkit.co/videos/4696/4696-720.mp4',    // Snowy mountains
-    'https://assets.mixkit.co/videos/3789/3789-720.mp4',    // Beach sunset drone
-    'https://assets.mixkit.co/videos/4840/4840-720.mp4',    // City skyline
-    'https://assets.mixkit.co/videos/2571/2571-720.mp4',    // Desert landscape
-    'https://assets.mixkit.co/videos/4884/4884-720.mp4',    // Green hills
-    'https://assets.mixkit.co/videos/2277/2277-720.mp4',    // River flowing
-    'https://assets.mixkit.co/videos/4821/4821-720.mp4',    // Northern lights
-    'https://assets.mixkit.co/videos/39790/39790-720.mp4',  // Tropical resort
-    'https://assets.mixkit.co/videos/39803/39803-720.mp4',  // Pool resort
-    'https://assets.mixkit.co/videos/37389/37389-720.mp4',  // Old architecture
-    'https://assets.mixkit.co/videos/51461/51461-720.mp4',  // Harbor boats
-    'https://assets.mixkit.co/videos/41701/41701-720.mp4',  // Coastal cliffs
-    'https://assets.mixkit.co/videos/3791/3791-720.mp4',    // Island paradise
-    'https://assets.mixkit.co/videos/4473/4473-720.mp4',    // Jungle waterfall
-    'https://assets.mixkit.co/videos/2619/2619-720.mp4',    // Sunrise timelapse
-    'https://assets.mixkit.co/videos/4814/4814-720.mp4',    // Snow falling
-    'https://assets.mixkit.co/videos/6981/6981-720.mp4',    // Country road
-    'https://assets.mixkit.co/videos/1154/1154-720.mp4',    // Coral reef underwater
-    'https://assets.mixkit.co/videos/34496/34496-720.mp4',  // Night city lights
-    'https://assets.mixkit.co/videos/46068/46068-720.mp4',  // Ancient temple
-    'https://assets.mixkit.co/videos/6181/6181-720.mp4',    // Volcano landscape
-    'https://assets.mixkit.co/videos/4897/4897-720.mp4',    // Lake reflection
-    'https://assets.mixkit.co/videos/3783/3783-720.mp4',    // Drone over ocean
-    'https://assets.mixkit.co/videos/39786/39786-720.mp4',  // Safari wildlife
-    'https://assets.mixkit.co/videos/4633/4633-720.mp4',    // Cherry blossoms
-    'https://assets.mixkit.co/videos/2623/2623-720.mp4',    // Clouds timelapse
-    'https://assets.mixkit.co/videos/34567/34567-720.mp4',  // Busy market
-    'https://assets.mixkit.co/videos/4844/4844-720.mp4',    // Train journey
-];
+// Load real travel videos from archive-videos.json
+const archiveVideos = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'archive-videos.json'), 'utf8'));
+const VIDEO_POOL = archiveVideos.slice(0, 1000); // Take first 1000 for seeding
 
 // Thumbnail generator from video URL
-const getThumbnail = (url) => {
-    // Use a frame from the video as thumbnail via a placeholder approach
-    // In production, Cloudinary generates these automatically
-    return url.replace('-720.mp4', '-thumb.jpg').replace('.mp4', '.jpg');
+const getThumbnail = (videoObj) => {
+    return videoObj.thumbnailUrl || videoObj.url.replace('.mp4', '.jpg');
 };
 
 // ============================================================
@@ -521,21 +479,22 @@ async function main() {
     const posts = [];
     for (let i = 0; i < 400; i++) {
         const user = randomFrom(users);
-        const videoUrl = VIDEO_URLS[i % VIDEO_URLS.length];
-        const title = VIDEO_TITLES[i % VIDEO_TITLES.length];
+        const video = randomFrom(VIDEO_POOL);
+        const videoUrl = video.url;
+        const title = video.title || VIDEO_TITLES[i % VIDEO_TITLES.length];
         const category = randomFrom(categories);
-        const description = randomFrom(DESCRIPTIONS);
+        const description = video.description || randomFrom(DESCRIPTIONS);
 
         const post = await prisma.post.create({
             data: {
                 userId: user.id,
                 videoUrl: videoUrl,
-                thumbnailUrl: getThumbnail(videoUrl),
+                thumbnailUrl: getThumbnail(video),
                 title: title,
                 description: description,
-                duration: randomInt(15, 180),
+                duration: video.duration || randomInt(15, 180),
                 categoryId: category.id,
-                locationTag: randomFrom(LOCATIONS),
+                locationTag: video.location || randomFrom(LOCATIONS),
                 postType: 'STANDARD',
                 moderationStatus: i < 380 ? 'APPROVED' : 'PENDING', // 20 left pending for moderation queue
                 viewCount: randomInt(100, 500000),

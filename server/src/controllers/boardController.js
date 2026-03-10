@@ -87,7 +87,7 @@ const getBoardsFeed = async (req, res, next) => {
                     user: { select: publicUserSelect },
                     videos: {
                         take: 1,
-                        orderBy: { sortOrder: 'asc' },
+                        orderBy: { addedAt: 'asc' },
                         include: { post: { select: { thumbnailUrl: true } } },
                     },
                 },
@@ -164,7 +164,7 @@ const getBoard = async (req, res, next) => {
             include: {
                 user: { select: publicUserSelect },
                 videos: {
-                    orderBy: { sortOrder: 'asc' },
+                    orderBy: { addedAt: 'asc' },
                     include: {
                         post: {
                             select: {
@@ -262,7 +262,7 @@ const addVideoToBoard = async (req, res, next) => {
         if (!board) throw new AppError('Board not found', 404);
         if (board.userId !== req.user.id) throw new AppError('Not authorized', 403);
 
-        await prisma.tripBoardVideo.create({ data: { boardId: id, postId, sortOrder: board.videoCount } });
+        await prisma.tripBoardVideo.create({ data: { boardId: id, postId } });
         await prisma.tripBoard.update({ where: { id }, data: { videoCount: { increment: 1 } } });
         res.json({ success: true });
     } catch (err) { next(err); }
@@ -305,7 +305,7 @@ const getUserBoards = async (req, res, next) => {
                 orderBy: { createdAt: 'desc' },
                 include: {
                     user: { select: publicUserSelect },
-                    videos: { take: 1, orderBy: { sortOrder: 'asc' }, include: { post: { select: { thumbnailUrl: true } } } },
+                    videos: { take: 1, orderBy: { addedAt: 'asc' }, include: { post: { select: { thumbnailUrl: true } } } },
                 },
                 skip: (page - 1) * limit,
                 take: limit,
