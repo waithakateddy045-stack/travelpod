@@ -5,7 +5,7 @@ const fs = require('fs');
 
 // ============================================================
 // POST /api/onboarding/profile
-// Step 1 — Create or update the user's profile
+// Step 1 — Create or update the user's basic profile fields on User
 // ============================================================
 const saveProfile = async (req, res, next) => {
     try {
@@ -22,33 +22,35 @@ const saveProfile = async (req, res, next) => {
             throw new AppError('Handle must be 3–30 characters, lowercase letters, numbers, and underscores only', 400);
         }
 
-        // Check handle uniqueness
-        const existingHandle = await prisma.profile.findUnique({ where: { handle } });
-        if (existingHandle && existingHandle.userId !== userId) {
+        // Ensure username (used as handle) is unique
+        const existing = await prisma.user.findUnique({ where: { username: handle } });
+        if (existing && existing.id !== userId) {
             throw new AppError('This handle is already taken', 409);
         }
 
-        // Upsert profile
-        const profile = await prisma.profile.upsert({
-            where: { userId },
-            create: {
-                userId,
+        const user = await prisma.user.update({
+            where: { id: userId },
+            data: {
                 displayName,
-                handle,
+                username: handle,
                 personalityTags: personalityTags || [],
                 preferredRegions: preferredRegions || [],
-                contentPreferences: contentPreferences || [],
+                // contentPreferences can be folded into personalityTags for now
             },
-            update: {
-                displayName,
-                handle,
-                personalityTags: personalityTags || [],
-                preferredRegions: preferredRegions || [],
-                contentPreferences: contentPreferences || [],
+            select: {
+                id: true,
+                email: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+                accountType: true,
+                personalityTags: true,
+                preferredRegions: true,
+                onboardingComplete: true,
             },
         });
 
-        res.json({ success: true, profile });
+        res.json({ success: true, profile: user });
     } catch (err) {
         next(err);
     }
@@ -66,15 +68,14 @@ const uploadAvatar = async (req, res, next) => {
             throw new AppError('No avatar file uploaded', 400);
         }
 
-        console.log('📸 Uploading onboarding avatar for user:', userId);
         const upload = await uploadImage(req.file.path, 'travelpod/avatars');
-        
+
         if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
 
         const avatarUrl = upload.secure_url;
 
-        await prisma.profile.update({
-            where: { userId },
+        await prisma.user.update({
+            where: { id: userId },
             data: { avatarUrl },
         });
 
@@ -83,40 +84,35 @@ const uploadAvatar = async (req, res, next) => {
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         next(err);
     }
-
 };
 
 // ============================================================
 // POST /api/onboarding/business
-// Step 3 — Business-specific details (agencies, hotels, etc.)
+// Step 3 — Business-specific details stored on User
 // ============================================================
 const saveBusinessProfile = async (req, res, next) => {
     try {
         const userId = req.user.id;
         const { country, description, websiteUrl } = req.body;
 
-        const profile = await prisma.profile.findUnique({ where: { userId } });
-        if (!profile) {
-            throw new AppError('Please complete step 1 first', 400);
-        }
-
-        // Upsert business profile
-        const businessProfile = await prisma.businessProfile.upsert({
-            where: { profileId: profile.id },
-            create: {
-                profileId: profile.id,
-                country: country || null,
-                description: description || null,
+        const user = await prisma.user.update({
+            where: { id: userId },
+            data: {
                 websiteUrl: websiteUrl || null,
+                bio: description || null,
+                // country is not a first-class field; could be encoded into preferredRegions
             },
-            update: {
-                country: country || null,
-                description: description || null,
-                websiteUrl: websiteUrl || null,
+            select: {
+                id: true,
+                email: true,
+                username: true,
+                displayName: true,
+                websiteUrl: true,
+                bio: true,
             },
         });
 
-        res.json({ success: true, businessProfile });
+        res.json({ success: true, businessProfile: user });
     } catch (err) {
         next(err);
     }
@@ -130,43 +126,10 @@ const completeOnboarding = async (req, res, next) => {
     try {
         const userId = req.user.id;
 
-        // Verify profile exists
-        const profile = await prisma.profile.findUnique({ where: { userId } });
-        if (!profile) {
-            throw new AppError('Please complete your profile first', 400);
-        }
-
         await prisma.user.update({
             where: { id: userId },
             data: { onboardingComplete: true },
         });
-
-        // ── Auto-follow the official @travelpod account ──
-        try {
-            const officialProfile = await prisma.profile.findUnique({ where: { handle: 'travelpod' } });
-            if (officialProfile && officialProfile.userId !== userId) {
-                const alreadyFollowing = await prisma.follow.findUnique({
-                    where: { followerId_followingId: { followerId: userId, followingId: officialProfile.userId } },
-                });
-                if (!alreadyFollowing) {
-                    await prisma.follow.create({
-                        data: { followerId: userId, followingId: officialProfile.userId },
-                    });
-                    // Update counts
-                    await prisma.profile.update({
-                        where: { userId: officialProfile.userId },
-                        data: { followerCount: { increment: 1 } },
-                    });
-                    await prisma.profile.update({
-                        where: { userId },
-                        data: { followingCount: { increment: 1 } },
-                    });
-                }
-            }
-        } catch (autoFollowErr) {
-            // Non-critical — don't block onboarding if this fails
-            console.warn('Auto-follow @travelpod failed (non-critical):', autoFollowErr.message);
-        }
 
         res.json({ success: true, message: 'Onboarding complete! Welcome to Travelpod.' });
     } catch (err) {

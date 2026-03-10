@@ -28,17 +28,23 @@ const getNotifications = async (req, res, next) => {
             prisma.notification.count({ where: { userId, readAt: null } }),
         ]);
 
-        // For follow notifications, resolve the related user's handle so the frontend can link to their profile
-        const enriched = await Promise.all(notifications.map(async (n) => {
-            if (n.type === 'new_follower' && n.relatedEntityType === 'user' && n.relatedEntityId) {
-                const profile = await prisma.profile.findUnique({
-                    where: { userId: n.relatedEntityId },
-                    select: { handle: true, avatarUrl: true },
-                });
-                return { ...n, _senderHandle: profile?.handle || null, _senderAvatar: profile?.avatarUrl || null };
-            }
-            return n;
-        }));
+        // For follow notifications, resolve the related user's username/avatar so the frontend can link to their profile
+        const enriched = await Promise.all(
+            notifications.map(async (n) => {
+                if (n.type === 'new_follower' && n.relatedEntityType === 'user' && n.relatedEntityId) {
+                    const user = await prisma.user.findUnique({
+                        where: { id: n.relatedEntityId },
+                        select: { username: true, avatarUrl: true },
+                    });
+                    return {
+                        ...n,
+                        _senderHandle: user?.username || null,
+                        _senderAvatar: user?.avatarUrl || null,
+                    };
+                }
+                return n;
+            })
+        );
 
         res.json({ success: true, notifications: enriched, total, unreadCount, page });
     } catch (err) { next(err); }
