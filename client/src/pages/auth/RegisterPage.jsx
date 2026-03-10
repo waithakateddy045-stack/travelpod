@@ -62,11 +62,9 @@ export default function RegisterPage() {
         setSubmitting(true);
         setApiError('');
         try {
-            const user = await register(formData.email, formData.password, formData.accountType);
-            toast.success('Account created! Let\'s set up your profile.');
-            const returnUrl = sessionStorage.getItem('returnUrl') || '/feed';
-            sessionStorage.removeItem('returnUrl');
-            navigate(user.onboardingComplete ? returnUrl : '/onboarding');
+            await register(formData.email, formData.password, formData.accountType);
+            toast.success('Verification code sent to your email.');
+            navigate('/verify-otp', { state: { email: formData.email } });
         } catch (err) {
             setApiError(err.response?.data?.error || 'Registration failed. Please try again.');
         } finally {

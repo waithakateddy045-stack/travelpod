@@ -105,6 +105,9 @@ model User {
   isAdmin           Boolean   @default(false)
   isSuspended       Boolean   @default(false)
   onboardingComplete Boolean  @default(false)
+  otpCode           String?
+  otpExpiresAt      DateTime?
+  otpVerified       Boolean   @default(false)
   personalityTags   Json?
   preferredRegions  Json?
   followerCount     Int       @default(0)

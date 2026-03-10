@@ -8,6 +8,7 @@ import GlobalNotificationsWatcher from './components/common/GlobalNotificationsW
 import WelcomePage from './pages/auth/WelcomePage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
+import OTPVerificationPage from './pages/auth/OTPVerificationPage';
 import OAuthCallbackPage from './pages/auth/OAuthCallbackPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import OnboardingPage from './pages/onboarding/OnboardingPage';
@@ -76,6 +77,7 @@ function App() {
             <Route path="/" element={<FeedPage />} />
             <Route path="/auth/login" element={<LoginPage />} />
             <Route path="/auth/register" element={<RegisterPage />} />
+            <Route path="/verify-otp" element={<OTPVerificationPage />} />
             <Route path="/auth/callback" element={<OAuthCallbackPage />} />
             <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
 

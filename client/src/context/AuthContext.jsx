@@ -56,22 +56,7 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (email, password, accountType) => {
         const { data } = await api.post('/auth/register', { email, password, accountType });
-        if (data.sessionToken) {
-            await secureStorage.setItem('travelpod_token', data.sessionToken);
-        }
-        await secureStorage.setItem('travelpod_access', data.accessToken);
-        await secureStorage.setItem('travelpod_refresh', data.refreshToken);
-        setUser(data.user);
-
-        // Auto-replay pending action
-        if (pendingAction) {
-            setTimeout(() => {
-                pendingAction();
-                setPendingAction(null);
-            }, 500);
-        }
-
-        return data.user;
+        return data;
     };
 
     const logout = async () => {

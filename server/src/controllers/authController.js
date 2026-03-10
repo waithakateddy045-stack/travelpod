@@ -60,6 +60,9 @@ const register = async (req, res, next) => {
         // Only allow known account types; default to TRAVELER for safety
         const allowedTypes = ['TRAVELER', 'TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
         const accountType = allowedTypes.includes(requestedAccountType) ? requestedAccountType : 'TRAVELER';
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
         const user = await prisma.user.create({
             data: {
                 email,
@@ -69,8 +72,51 @@ const register = async (req, res, next) => {
                 avatarUrl: buildDicebearAvatar(username),
                 accountType,
                 onboardingComplete: false,
+                otpCode,
+                otpExpiresAt,
+                otpVerified: false,
             },
             select: { id: true, email: true, username: true, displayName: true, avatarUrl: true, accountType: true, onboardingComplete: true, isVerified: true, isAdmin: true },
+        });
+
+        const { sendOTP } = require('../utils/emailService');
+        await sendOTP(email, otpCode);
+
+        // Auto-follow Official Account
+        const OFFICIAL_ID = 'cmmkq6gr100019q44pmqevmo6';
+        if (user.id !== OFFICIAL_ID) {
+            await prisma.follow.create({
+                data: { followerId: user.id, followingId: OFFICIAL_ID }
+            }).catch(() => { });
+        }
+
+        res.status(201).json({ success: true, message: 'OTP sent', email });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// POST /api/auth/verify-otp
+const verifyOtp = async (req, res, next) => {
+    try {
+        const { email, code } = req.body;
+        if (!email || !code) throw new AppError('Email and code are required', 400);
+
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) throw new AppError('User not found', 404);
+
+        if (user.otpVerified) throw new AppError('Email already verified', 400);
+
+        if (user.otpCode !== code) throw new AppError('Invalid OTP code', 400);
+        if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) throw new AppError('OTP code has expired', 400);
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                otpVerified: true,
+                otpCode: null,
+                otpExpiresAt: null
+            }
         });
 
         const deviceType = getDeviceType(req);
@@ -89,14 +135,6 @@ const register = async (req, res, next) => {
         const refreshToken = generateRefreshToken(user, session.id);
         await prisma.session.update({ where: { id: session.id }, data: { token: accessToken } });
 
-        // Auto-follow Official Account
-        const OFFICIAL_ID = 'cmmkq6gr100019q44pmqevmo6';
-        if (user.id !== OFFICIAL_ID) {
-            await prisma.follow.create({
-                data: { followerId: user.id, followingId: OFFICIAL_ID }
-            }).catch(() => { });
-        }
-
         if (deviceType === 'WEB') {
             res.cookie('travelpod_session', accessToken, {
                 httpOnly: true,
@@ -106,7 +144,35 @@ const register = async (req, res, next) => {
             });
         }
 
-        res.status(201).json({ success: true, accessToken, refreshToken, user });
+        const userObj = { id: user.id, email: user.email, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl, accountType: user.accountType, onboardingComplete: user.onboardingComplete, isVerified: user.isVerified, isAdmin: user.isAdmin };
+        res.status(200).json({ success: true, accessToken, refreshToken, user: userObj });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// POST /api/auth/resend-otp
+const resendOtp = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        if (!email) throw new AppError('Email is required', 400);
+
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) throw new AppError('User not found', 404);
+        if (user.otpVerified) throw new AppError('Email already verified', 400);
+
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { otpCode, otpExpiresAt }
+        });
+
+        const { sendOTP } = require('../utils/emailService');
+        await sendOTP(email, otpCode);
+
+        res.status(200).json({ success: true, message: 'OTP resent' });
     } catch (err) {
         next(err);
     }
