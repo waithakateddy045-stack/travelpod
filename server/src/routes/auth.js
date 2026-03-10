@@ -11,17 +11,13 @@ const {
     verifyEmail,
     me,
     getSessions,
-    deleteSession,
-    verifyOtp,
-    resendOtp
+    deleteSession
 } = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth');
 
 // Email/password auth
 router.post('/register', register);
 router.post('/login', login);
-router.post('/verify-otp', verifyOtp);
-router.post('/resend-otp', resendOtp);
 router.post('/logout', logout);
 router.post('/refresh', refresh);
 
