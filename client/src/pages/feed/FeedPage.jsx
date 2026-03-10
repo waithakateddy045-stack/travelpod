@@ -49,6 +49,7 @@ export default function FeedPage() {
     const [sessionId] = useState(() => localStorage.getItem('travelpod_session_id') || Math.random().toString(36).substring(2, 11));
     const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
     const [selectedBusiness, setSelectedBusiness] = useState(null);
+    const [isEnquiryModalOpen, setIsEnquiryModalOpen] = useState(false);
     const [reviewPost, setReviewPost] = useState(null);
     const [reportPostId, setReportPostId] = useState(null);
     const [enquiryPost, setEnquiryPost] = useState(null);
