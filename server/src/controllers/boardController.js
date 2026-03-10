@@ -1,6 +1,31 @@
 const prisma = require('../utils/prisma');
 const { AppError } = require('../middleware/errorHandler');
 
+const publicUserSelect = {
+    id: true,
+    email: true,
+    username: true,
+    displayName: true,
+    avatarUrl: true,
+    accountType: true,
+    isVerified: true,
+};
+
+const attachLegacyProfile = (user) => {
+    if (!user) return null;
+    return {
+        ...user,
+        profile: {
+            displayName: user.displayName || user.username || 'Traveler',
+            handle: user.username,
+            avatarUrl: user.avatarUrl,
+            businessProfile: {
+                verificationStatus: user.isVerified ? 'APPROVED' : 'NONE',
+            },
+        },
+    };
+};
+
 // ============================================================
 // POST /api/boards — Create a new board
 // ============================================================
@@ -20,10 +45,16 @@ const createBoard = async (req, res, next) => {
                 isPublic: isPublic !== false,
             },
             include: {
-                user: { select: { id: true, accountType: true, profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true } } } } } },
+                user: { select: publicUserSelect },
             },
         });
-        res.status(201).json({ success: true, board });
+        res.status(201).json({
+            success: true,
+            board: {
+                ...board,
+                user: attachLegacyProfile(board.user),
+            },
+        });
     } catch (err) { next(err); }
 };
 
@@ -53,12 +84,7 @@ const getBoardsFeed = async (req, res, next) => {
                     : [{ createdAt: 'desc' }]),
                 take: poolSize,
                 include: {
-                    user: {
-                        select: {
-                            id: true, accountType: true,
-                            profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true } } } },
-                        },
-                    },
+                    user: { select: publicUserSelect },
                     videos: {
                         take: 1,
                         orderBy: { sortOrder: 'asc' },
@@ -71,6 +97,7 @@ const getBoardsFeed = async (req, res, next) => {
 
         let processed = boards.map(b => ({
             ...b,
+            user: attachLegacyProfile(b.user),
             coverImage: b.coverImage || b.videos?.[0]?.post?.thumbnailUrl || null,
         }));
 
@@ -135,19 +162,14 @@ const getBoard = async (req, res, next) => {
         const board = await prisma.tripBoard.findUnique({
             where: { id },
             include: {
-                user: {
-                    select: {
-                        id: true, accountType: true,
-                        profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true, starRating: true } } } },
-                    },
-                },
+                user: { select: publicUserSelect },
                 videos: {
                     orderBy: { sortOrder: 'asc' },
                     include: {
                         post: {
                             select: {
                                 id: true, title: true, thumbnailUrl: true, videoUrl: true, viewCount: true, likeCount: true, duration: true,
-                                author: { select: { profile: { select: { displayName: true, handle: true, avatarUrl: true } } } },
+                                user: { select: publicUserSelect },
                             },
                         },
                     },
@@ -171,6 +193,16 @@ const getBoard = async (req, res, next) => {
             success: true,
             board: {
                 ...board,
+                user: attachLegacyProfile(board.user),
+                videos: board.videos.map((v) => ({
+                    ...v,
+                    post: v.post
+                        ? {
+                            ...v.post,
+                            author: attachLegacyProfile(v.post.user),
+                        }
+                        : null,
+                })),
                 coverImage: board.coverImage || board.videos?.[0]?.post?.thumbnailUrl || null,
                 ...engagement,
             },
@@ -258,29 +290,36 @@ const removeVideoFromBoard = async (req, res, next) => {
 const getUserBoards = async (req, res, next) => {
     try {
         const { handle } = req.params;
-        const profile = await prisma.profile.findUnique({ where: { handle }, select: { userId: true } });
-        if (!profile) throw new AppError('User not found', 404);
+        const user = await prisma.user.findUnique({
+            where: { username: handle },
+            select: { id: true },
+        });
+        if (!user) throw new AppError('User not found', 404);
 
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 12;
 
         const [boards, total] = await Promise.all([
             prisma.tripBoard.findMany({
-                where: { userId: profile.userId, isPublic: true },
+                where: { userId: user.id, isPublic: true },
                 orderBy: { createdAt: 'desc' },
                 include: {
-                    user: { select: { id: true, accountType: true, profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true } } } } } },
+                    user: { select: publicUserSelect },
                     videos: { take: 1, orderBy: { sortOrder: 'asc' }, include: { post: { select: { thumbnailUrl: true } } } },
                 },
                 skip: (page - 1) * limit,
                 take: limit,
             }),
-            prisma.tripBoard.count({ where: { userId: profile.userId, isPublic: true } })
+            prisma.tripBoard.count({ where: { userId: user.id, isPublic: true } })
         ]);
 
         res.json({
             success: true,
-            boards: boards.map(b => ({ ...b, coverImage: b.coverImage || b.videos?.[0]?.post?.thumbnailUrl || null })),
+            boards: boards.map(b => ({
+                ...b,
+                user: attachLegacyProfile(b.user),
+                coverImage: b.coverImage || b.videos?.[0]?.post?.thumbnailUrl || null,
+            })),
             total,
             page,
             totalPages: Math.ceil(total / limit)
@@ -358,10 +397,16 @@ const getComments = async (req, res, next) => {
             where: { boardId: id },
             orderBy: { createdAt: 'desc' },
             include: {
-                user: { select: { profile: { select: { displayName: true, handle: true, avatarUrl: true } } } },
+                user: { select: publicUserSelect },
             },
         });
-        res.json({ success: true, comments });
+        res.json({
+            success: true,
+            comments: comments.map((c) => ({
+                ...c,
+                user: attachLegacyProfile(c.user),
+            })),
+        });
     } catch (err) { next(err); }
 };
 
@@ -376,9 +421,15 @@ const addComment = async (req, res, next) => {
 
         const comment = await prisma.boardComment.create({
             data: { boardId: id, userId: req.user.id, content: content.trim() },
-            include: { user: { select: { profile: { select: { displayName: true, handle: true, avatarUrl: true } } } } },
+            include: { user: { select: publicUserSelect } },
         });
-        res.json({ success: true, comment });
+        res.json({
+            success: true,
+            comment: {
+                ...comment,
+                user: attachLegacyProfile(comment.user),
+            },
+        });
     } catch (err) { next(err); }
 };
 

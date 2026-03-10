@@ -22,12 +22,15 @@ const likePost = async (req, res, next) => {
         // if (post.userId === userId) throw new AppError('You cannot like your own post', 400);
 
         const existing = await prisma.like.findUnique({
-            where: { userId_postId: { userId, postId } },
+            where: { postId_userId: { postId, userId } },
         });
         if (existing) return res.json({ success: true, message: 'Already liked' });
 
         await prisma.like.create({ data: { userId, postId } });
-        await prisma.post.update({ where: { id: postId }, data: { likeCount: { increment: 1 } } });
+        await prisma.post.update({
+            where: { id: postId },
+            data: { likeCount: { increment: 1 } },
+        });
 
         // Trigger Notification
         const { createNotification } = require('./notificationController');
@@ -51,8 +54,15 @@ const unlikePost = async (req, res, next) => {
         const userId = req.user.id;
         const postId = req.params.postId;
 
-        await prisma.like.delete({ where: { userId_postId: { userId, postId } } }).catch(() => { });
-        await prisma.post.update({ where: { id: postId }, data: { likeCount: { decrement: 1 } } }).catch(() => { });
+        await prisma.like.delete({ where: { postId_userId: { postId, userId } } }).catch(() => { });
+        await prisma.post.update({
+            where: { id: postId },
+            data: {
+                likeCount: {
+                    decrement: 1,
+                },
+            },
+        }).catch(() => { });
 
         res.json({ success: true, message: 'Like removed' });
     } catch (err) { next(err); }
@@ -66,12 +76,15 @@ const savePost = async (req, res, next) => {
         const postId = req.params.postId;
 
         const existing = await prisma.save.findUnique({
-            where: { userId_postId: { userId, postId } },
+            where: { postId_userId: { postId, userId } },
         });
         if (existing) return res.json({ success: true, message: 'Already saved' });
 
         await prisma.save.create({ data: { userId, postId } });
-        await prisma.post.update({ where: { id: postId }, data: { saveCount: { increment: 1 } } });
+        await prisma.post.update({
+            where: { id: postId },
+            data: { saveCount: { increment: 1 } },
+        });
         res.status(201).json({ success: true, message: 'Post saved' });
     } catch (err) { next(err); }
 };
@@ -81,8 +94,15 @@ const unsavePost = async (req, res, next) => {
         const userId = req.user.id;
         const postId = req.params.postId;
 
-        await prisma.save.delete({ where: { userId_postId: { userId, postId } } }).catch(() => { });
-        await prisma.post.update({ where: { id: postId }, data: { saveCount: { decrement: 1 } } }).catch(() => { });
+        await prisma.save.delete({ where: { postId_userId: { postId, userId } } }).catch(() => { });
+        await prisma.post.update({
+            where: { id: postId },
+            data: {
+                saveCount: {
+                    decrement: 1,
+                },
+            },
+        }).catch(() => { });
         res.json({ success: true, message: 'Post unsaved' });
     } catch (err) { next(err); }
 };

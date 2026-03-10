@@ -51,6 +51,8 @@ export default function SettingsPage() {
     const [avatarFile, setAvatarFile] = useState(null);
     const [avatarPreview, setAvatarPreview] = useState(null);
     const [profileLoading, setProfileLoading] = useState(false);
+    const [badges, setBadges] = useState([]);
+    const [badgesLoading, setBadgesLoading] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -195,6 +197,16 @@ export default function SettingsPage() {
     const isCapacitor = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform();
 
     const { enabled: promotionsEnabled } = useFeatureFlag('sponsored_promotions');
+    const { enabled: gamificationEnabled } = useFeatureFlag('gamification');
+
+    useEffect(() => {
+        if (!user || !gamificationEnabled) return;
+        setBadgesLoading(true);
+        api.get('/badges/my')
+            .then(res => setBadges(res.data?.badges || []))
+            .catch(() => {})
+            .finally(() => setBadgesLoading(false));
+    }, [user, gamificationEnabled]);
 
     const SECTIONS = [
         { key: 'edit_profile', label: 'Edit Profile', icon: <HiOutlinePencilSquare /> },
@@ -342,6 +354,69 @@ export default function SettingsPage() {
                                                 onChange={e => setProfileForm(f => ({ ...f, description: e.target.value }))}
                                                 placeholder="Detailed description of your services..."
                                             />
+                                        </div>
+                                    )}
+
+                                    {gamificationEnabled && (
+                                        <div style={{ marginTop: 'var(--space-6)' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
+                                                <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Your badges</h3>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate('/badges')}
+                                                    style={{
+                                                        border: 'none',
+                                                        background: 'transparent',
+                                                        color: 'var(--color-primary-light)',
+                                                        fontSize: 'var(--text-xs)',
+                                                        cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    View all
+                                                </button>
+                                            </div>
+                                            {badgesLoading ? (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+                                                    <div style={{ width: 18, height: 18, borderRadius: '50%', border: '2px solid var(--border-primary)', borderTopColor: 'var(--color-primary)', animation: 'spin 0.8s linear infinite' }} />
+                                                    <span>Loading badges…</span>
+                                                </div>
+                                            ) : badges.length === 0 ? (
+                                                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+                                                    You have not earned any badges yet. Keep exploring and sharing to unlock achievements.
+                                                </p>
+                                            ) : (
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                    {badges.slice(0, 6).map(b => {
+                                                        const badge = b.badge || b;
+                                                        return (
+                                                            <span
+                                                                key={b.id || badge.id}
+                                                                style={{
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: 6,
+                                                                    padding: '4px 10px',
+                                                                    borderRadius: '999px',
+                                                                    background: 'var(--bg-elevated)',
+                                                                    border: '1px solid var(--border-primary)',
+                                                                    fontSize: 'var(--text-xs)',
+                                                                    color: 'var(--text-secondary)',
+                                                                }}
+                                                            >
+                                                                <span>🏅</span>
+                                                                <span>{badge.name || badge.badgeType || 'Badge'}</span>
+                                                                {badge.tier && (
+                                                                    <span style={{ opacity: 0.8 }}>· {badge.tier}</span>
+                                                                )}
+                                                            </span>
+                                                    );})}
+                                                    {badges.length > 6 && (
+                                                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+                                                            +{badges.length - 6} more
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 

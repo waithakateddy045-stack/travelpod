@@ -1,5 +1,27 @@
 const prisma = require('../utils/prisma');
 
+// GET /api/features
+const getFeatures = async (_req, res, next) => {
+    try {
+        const features = await prisma.featureFlag.findMany({
+            orderBy: { name: 'asc' },
+            select: {
+                id: true,
+                name: true,
+                isEnabled: true,
+                description: true,
+            },
+        });
+        res.json({ success: true, features });
+    } catch (err) {
+        next(err);
+    }
+};
+
+module.exports = { getFeatures };
+
+const prisma = require('../utils/prisma');
+
 // GET /api/features — public list of all feature flags
 const getAllFeatures = async (req, res, next) => {
     try {
