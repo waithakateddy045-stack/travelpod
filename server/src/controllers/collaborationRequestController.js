@@ -8,7 +8,7 @@ const createCollaboration = async (req, res, next) => {
         if (!receiverId || !proposal) throw new AppError('receiverId and proposal required', 400);
         if (receiverId === req.user.id) throw new AppError('Cannot collaborate with yourself', 400);
 
-        const collab = await prisma.collaborationRequest.create({
+        const collab = await prisma.collaboration.create({
             data: {
                 initiatorId: req.user.id,
                 receiverId,
@@ -46,19 +46,17 @@ const getCollaborations = async (req, res, next) => {
             ? { initiatorId: userId }
             : { receiverId: userId };
 
-        const collabs = await prisma.collaborationRequest.findMany({
+        const collabs = await prisma.collaboration.findMany({
             where,
             include: {
                 initiator: {
                     select: {
-                        id: true, accountType: true,
-                        profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true } } } },
+                        id: true, username: true, displayName: true, avatarUrl: true, accountType: true, isVerified: true,
                     },
                 },
                 receiver: {
                     select: {
-                        id: true, accountType: true,
-                        profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true } } } },
+                        id: true, username: true, displayName: true, avatarUrl: true, accountType: true, isVerified: true,
                     },
                 },
             },

@@ -6,7 +6,7 @@ const os = require('os');
 const fs = require('fs');
 const { authenticate, optionalAuth, adminOnly } = require('../middleware/auth');
 const {
-    createPost, getPost, deletePost,
+    listPosts, createPost, getPost, deletePost,
     getModerationQueue, moderatePost,
     repostPost, recommendPost, checkDuplicate,
     updatePost
@@ -36,6 +36,7 @@ const upload = multer({
 
 // Public routes
 router.get('/check-duplicate', checkDuplicate);
+router.get('/', listPosts);
 router.get('/:id', getPost);
 
 // Post CRUD (Protected routes)

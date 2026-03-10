@@ -3,7 +3,7 @@ const prisma = require('../utils/prisma');
 // GET /api/badges/all — all available badges
 const getAllBadges = async (req, res, next) => {
     try {
-        const badges = await prisma.gamificationBadge.findMany({
+        const badges = await prisma.badge.findMany({
             orderBy: { tier: 'asc' },
         });
         res.json({ success: true, badges });
@@ -25,14 +25,14 @@ const getMyBadges = async (req, res, next) => {
 // GET /api/users/:username/badges — public badge display
 const getUserBadges = async (req, res, next) => {
     try {
-        const profile = await prisma.profile.findUnique({
-            where: { handle: req.params.username },
-            select: { userId: true },
+        const user = await prisma.user.findUnique({
+            where: { username: req.params.username },
+            select: { id: true },
         });
-        if (!profile) return res.status(404).json({ error: 'User not found' });
+        if (!user) return res.status(404).json({ error: 'User not found' });
 
         const earned = await prisma.userBadge.findMany({
-            where: { userId: profile.userId },
+            where: { userId: user.id },
             include: { badge: true },
             orderBy: { earnedAt: 'desc' },
         });
@@ -46,7 +46,7 @@ const getUserBadges = async (req, res, next) => {
  */
 async function checkAndAwardBadges(userId) {
     try {
-        const badges = await prisma.gamificationBadge.findMany();
+        const badges = await prisma.badge.findMany();
         const existing = await prisma.userBadge.findMany({
             where: { userId },
             select: { badgeId: true },

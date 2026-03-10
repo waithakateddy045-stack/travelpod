@@ -13,6 +13,39 @@ const publicUserSelect = {
 };
 
 // ============================================================
+// GET /api/posts — List posts (legacy + admin usage)
+// ============================================================
+const listPosts = async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
+    const destination = req.query.destination ? String(req.query.destination).trim() : null;
+    const category = req.query.category ? String(req.query.category).trim() : null;
+
+    const where = {
+      moderationStatus: 'APPROVED',
+      ...(destination && { locationTag: { equals: destination, mode: 'insensitive' } }),
+      ...(category && category !== 'All' && { category: { contains: category, mode: 'insensitive' } }),
+    };
+
+    const [posts, total] = await Promise.all([
+      prisma.post.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: { user: { select: publicUserSelect } },
+      }),
+      prisma.post.count({ where }),
+    ]);
+
+    res.json({ success: true, posts, total, page, totalPages: Math.ceil(total / limit) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ============================================================
 // POST /api/posts — Create a new post
 // Supports VIDEO, PHOTO, TEXT posts per PRD
 // ============================================================
@@ -312,6 +345,7 @@ const updatePost = async (req, res, next) => {
 };
 
 module.exports = {
+  listPosts,
   createPost,
   getPost,
   deletePost,
