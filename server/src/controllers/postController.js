@@ -68,7 +68,13 @@ const createPost = async (req, res, next) => {
       thumbnailTime,
     } = req.body;
 
-    if (!title && postType !== 'TEXT') throw new AppError('Title is required', 400);
+    // Normalize postType from admin UI (e.g. "STANDARD") into valid enum
+    let normalizedPostType = postType || 'VIDEO';
+    if (normalizedPostType === 'STANDARD') {
+      normalizedPostType = 'VIDEO';
+    }
+
+    if (!title && normalizedPostType !== 'TEXT') throw new AppError('Title is required', 400);
 
     let videoUrl = null;
     let thumbnailUrl = null;
@@ -76,7 +82,7 @@ const createPost = async (req, res, next) => {
     let duration = null;
 
     // Video upload
-    if (postType === 'VIDEO' && req.file) {
+    if (normalizedPostType === 'VIDEO' && req.file) {
       const cloudResult = await uploadVideo(req.file.path);
       videoUrl = cloudResult.secure_url;
       duration = Math.round(cloudResult.duration || 0);
@@ -85,7 +91,7 @@ const createPost = async (req, res, next) => {
     }
 
     // Photo upload (multi-image carousel)
-    if (postType === 'PHOTO' && req.files && req.files.length > 0) {
+    if (normalizedPostType === 'PHOTO' && req.files && req.files.length > 0) {
       for (const file of req.files) {
         const result = await uploadImage(file.path, 'posts/photos');
         mediaUrls.push(result.secure_url);
@@ -98,10 +104,29 @@ const createPost = async (req, res, next) => {
       ? (Array.isArray(tags) ? tags : String(tags).split(',').map((t) => t.trim()).filter(Boolean))
       : [];
 
+    // #region agent log
+    fetch('http://127.0.0.1:7313/ingest/2ec3ca36-0117-4bfa-b9a3-4adba61fcd33', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Debug-Session-Id': '5114aa',
+      },
+      body: JSON.stringify({
+        sessionId: '5114aa',
+        runId: 'pre-fix',
+        hypothesisId: 'ADMIN_CREATE_POST',
+        location: 'postController.js:createPost',
+        message: 'About to create post',
+        data: { postType, title, hasFile: !!req.file, hasFiles: !!(req.files && req.files.length), isReview, reviewOfId },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion agent log
+
     const post = await prisma.post.create({
       data: {
         userId,
-        postType,
+        postType: normalizedPostType,
         title: title || (postType === 'TEXT' ? (textContent || '').slice(0, 80) : 'Untitled'),
         description: description || null,
         textContent: postType === 'TEXT' ? (textContent || '').slice(0, 500) : textContent || null,

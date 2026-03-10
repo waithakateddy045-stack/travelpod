@@ -150,52 +150,96 @@ const createBroadcast = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
+// Simple public user projection reused for broadcasts
+const publicUserSelect = {
+    id: true,
+    username: true,
+    displayName: true,
+    avatarUrl: true,
+    accountType: true,
+    isVerified: true,
+};
+
 // GET /api/broadcasts — Admin: list all broadcasts with stats
+// In PRD v3.0, broadcasts are stored as Posts with isBroadcast=true.
 const getBroadcasts = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
 
-        const [broadcasts, total] = await Promise.all([
-            prisma.broadcastPost.findMany({
+        // #region agent log
+        fetch('http://127.0.0.1:7313/ingest/2ec3ca36-0117-4bfa-b9a3-4adba61fcd33', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Debug-Session-Id': '5114aa',
+            },
+            body: JSON.stringify({
+                sessionId: '5114aa',
+                runId: 'pre-fix',
+                hypothesisId: 'ADMIN_BROADCASTS',
+                location: 'broadcastController.js:getBroadcasts',
+                message: 'Entering getBroadcasts',
+                data: { page, limit },
+                timestamp: Date.now(),
+            }),
+        }).catch(() => {});
+        // #endregion agent log
+
+        const where = { isBroadcast: true };
+
+        const [posts, total] = await Promise.all([
+            prisma.post.findMany({
+                where,
                 orderBy: { createdAt: 'desc' },
                 skip: (page - 1) * limit,
                 take: limit,
                 include: {
-                    post: {
-                        select: { id: true, title: true, description: true, videoUrl: true, thumbnailUrl: true, duration: true, postType: true },
-                    },
-                    sender: {
-                        select: {
-                            id: true,
-                            profile: {
-                                select: { displayName: true, handle: true, avatarUrl: true },
-                                include: { businessProfile: { select: { verificationStatus: true } } }
-                            },
-                            businessVerification: true
-                        },
-                    },
-                    _count: { select: { targets: true } },
+                    user: { select: publicUserSelect },
                 },
             }),
-            prisma.broadcastPost.count(),
+            prisma.post.count({ where }),
         ]);
 
-        // Enrich with viewed counts
-        const enriched = await Promise.all(broadcasts.map(async (b) => {
-            const viewedCount = await prisma.broadcastTarget.count({
-                where: { broadcastId: b.id, viewed: true },
-            });
-            return {
-                ...b,
-                targetCount: b._count.targets,
-                viewedCount,
-                viewRate: b._count.targets > 0 ? ((viewedCount / b._count.targets) * 100).toFixed(1) : '0',
-            };
-        }));
+        const broadcasts = posts.map((p) => {
+            const hasVideo = !!p.videoUrl;
+            const hasImages = Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0;
+            let mediaType = 'TEXT';
+            if (hasVideo && hasImages) mediaType = 'MIXED';
+            else if (hasVideo) mediaType = 'VIDEO';
+            else if (hasImages) mediaType = 'IMAGE';
 
-        res.json({ success: true, broadcasts: enriched, total, page, totalPages: Math.ceil(total / limit) });
-    } catch (err) { next(err); }
+            return {
+                id: p.id,
+                post: {
+                    id: p.id,
+                    title: p.title,
+                    description: p.description,
+                    videoUrl: p.videoUrl,
+                    thumbnailUrl: p.thumbnailUrl,
+                    duration: p.duration,
+                    postType: p.postType,
+                },
+                sender: p.user,
+                mediaUrls: Array.isArray(p.mediaUrls) ? p.mediaUrls : [],
+                mediaType,
+                targetCount: 0,
+                viewedCount: 0,
+                viewRate: '0',
+                createdAt: p.createdAt,
+            };
+        });
+
+        res.json({
+            success: true,
+            broadcasts,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit),
+        });
+    } catch (err) {
+        next(err);
+    }
 };
 
 // GET /api/broadcasts/inbox — User: broadcasts targeted at them

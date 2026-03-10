@@ -106,6 +106,25 @@ const getAdminVerifications = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
 
+        // #region agent log
+        fetch('http://127.0.0.1:7313/ingest/2ec3ca36-0117-4bfa-b9a3-4adba61fcd33', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Debug-Session-Id': '5114aa',
+            },
+            body: JSON.stringify({
+                sessionId: '5114aa',
+                runId: 'pre-fix',
+                hypothesisId: 'ADMIN_VERIFICATIONS',
+                location: 'verificationController.js:getAdminVerifications',
+                message: 'Entering getAdminVerifications',
+                data: { status, page, limit },
+                timestamp: Date.now(),
+            }),
+        }).catch(() => {});
+        // #endregion agent log
+
         const [verifications, total] = await Promise.all([
             prisma.businessVerification.findMany({
                 where: { status },
@@ -115,8 +134,13 @@ const getAdminVerifications = async (req, res, next) => {
                 include: {
                     user: {
                         select: {
-                            id: true, email: true, accountType: true,
-                            profile: { select: { displayName: true, handle: true, avatarUrl: true } },
+                            id: true,
+                            email: true,
+                            accountType: true,
+                            username: true,
+                            displayName: true,
+                            avatarUrl: true,
+                            isVerified: true,
                         },
                     },
                 },
@@ -147,14 +171,11 @@ const approveVerification = async (req, res, next) => {
             },
         });
 
-        // Also update the BusinessProfile verificationStatus
-        const profile = await prisma.profile.findUnique({ where: { userId: verification.userId } });
-        if (profile) {
-            await prisma.businessProfile.updateMany({
-                where: { profileId: profile.id },
-                data: { verificationStatus: 'APPROVED', verifiedAt: new Date() },
-            });
-        }
+        // Also mark the underlying User as verified
+        await prisma.user.update({
+            where: { id: verification.userId },
+            data: { isVerified: true },
+        }).catch(() => {});
 
         res.json({ success: true, verification });
     } catch (err) { next(err); }

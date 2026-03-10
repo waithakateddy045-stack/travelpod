@@ -70,10 +70,47 @@ const getCollaborations = async (req, res, next) => {
 // GET /api/admin/collaborations — admin overview
 const getAdminCollaborations = async (req, res, next) => {
     try {
-        const collabs = await prisma.collaborationRequest.findMany({
+        // #region agent log
+        fetch('http://127.0.0.1:7313/ingest/2ec3ca36-0117-4bfa-b9a3-4adba61fcd33', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Debug-Session-Id': '5114aa',
+            },
+            body: JSON.stringify({
+                sessionId: '5114aa',
+                runId: 'pre-fix',
+                hypothesisId: 'ADMIN_COLLABS',
+                location: 'collaborationRequestController.js:getAdminCollaborations',
+                message: 'Entering getAdminCollaborations',
+                data: {},
+                timestamp: Date.now(),
+            }),
+        }).catch(() => {});
+        // #endregion agent log
+
+        const collabs = await prisma.collaboration.findMany({
             include: {
-                initiator: { select: { id: true, profile: { select: { displayName: true, handle: true } } } },
-                receiver: { select: { id: true, profile: { select: { displayName: true, handle: true } } } },
+                initiator: {
+                    select: {
+                        id: true,
+                        username: true,
+                        displayName: true,
+                        avatarUrl: true,
+                        accountType: true,
+                        isVerified: true,
+                    },
+                },
+                receiver: {
+                    select: {
+                        id: true,
+                        username: true,
+                        displayName: true,
+                        avatarUrl: true,
+                        accountType: true,
+                        isVerified: true,
+                    },
+                },
             },
             orderBy: { createdAt: 'desc' },
         });

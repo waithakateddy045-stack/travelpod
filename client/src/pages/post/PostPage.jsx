@@ -55,11 +55,22 @@ export default function PostPage() {
                 api.get(`/posts/${id}`),
                 api.get(`/engagement/comments/${id}`)
             ]);
-            setPost(postRes.data.post);
+            const rawPost = postRes.data.post;
+            const baseAuthor = rawPost.author || rawPost.user || {};
+            const author = {
+                ...baseAuthor,
+                profile: baseAuthor.profile || {
+                    displayName: baseAuthor.displayName || baseAuthor.username || 'Traveler',
+                    handle: baseAuthor.username,
+                    avatarUrl: baseAuthor.avatarUrl,
+                },
+            };
+
+            setPost({ ...rawPost, author });
             setComments(commentsRes.data.comments);
 
             // Fetch author's other posts for swipe navigation
-            const authorHandle = postRes.data.post.author?.profile?.handle;
+            const authorHandle = author.profile?.handle;
             if (authorHandle) {
                 const authorPostsRes = await api.get(`/profile/${authorHandle}/posts`);
                 setAuthorPosts(authorPostsRes.data.posts || []);

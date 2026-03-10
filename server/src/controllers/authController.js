@@ -37,6 +37,7 @@ const register = async (req, res, next) => {
     try {
         const email = sanitizeEmail(req.body.email);
         const password = req.body.password;
+        const requestedAccountType = req.body.accountType;
 
         if (!email || !password) throw new AppError('Email and password are required', 400);
         validatePassword(password);
@@ -55,6 +56,10 @@ const register = async (req, res, next) => {
         }
 
         const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+        // Only allow known account types; default to TRAVELER for safety
+        const allowedTypes = ['TRAVELER', 'TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
+        const accountType = allowedTypes.includes(requestedAccountType) ? requestedAccountType : 'TRAVELER';
         const user = await prisma.user.create({
             data: {
                 email,
@@ -62,7 +67,7 @@ const register = async (req, res, next) => {
                 username,
                 displayName: null,
                 avatarUrl: buildDicebearAvatar(username),
-                accountType: 'TRAVELER',
+                accountType,
                 onboardingComplete: false,
             },
             select: { id: true, email: true, username: true, displayName: true, avatarUrl: true, accountType: true, onboardingComplete: true, isVerified: true, isAdmin: true },

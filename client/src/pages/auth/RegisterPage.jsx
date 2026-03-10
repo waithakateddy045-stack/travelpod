@@ -10,6 +10,7 @@ import {
     HiOutlineUserGroup,
     HiExclamationCircle,
 } from 'react-icons/hi2';
+import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../../context/AuthContext';
 import './AuthPage.css';
 

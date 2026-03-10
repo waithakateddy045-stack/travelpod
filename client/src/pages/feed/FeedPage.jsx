@@ -30,7 +30,7 @@ const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE
 
 export default function FeedPage() {
     const navigate = useNavigate();
-    const { user, isMuted, setIsMuted, notificationCount, messageCount, showAuthPrompt } = useAuth();
+    const { user, isMuted, setIsMuted, notificationCount, messageCount, showAuthPrompt, setAuthModal } = useAuth();
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);

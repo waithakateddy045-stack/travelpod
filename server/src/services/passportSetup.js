@@ -1,7 +1,6 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
 const prisma = require('../utils/prisma');
 
 const generateAccessToken = (user) =>
@@ -11,18 +10,19 @@ const generateAccessToken = (user) =>
         { expiresIn: process.env.JWT_EXPIRY || '7d' }
     );
 
-const storeRefreshToken = async (userId, refreshToken) => {
-    const token = uuidv4();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
-    return await prisma.session.create({
+const storeSessionToken = async (userId, accessToken) => {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const session = await prisma.session.create({
         data: {
             userId,
-            refreshToken,
-            token,
-            expiresAt
-        }
+            token: accessToken,
+            deviceType: 'WEB',
+            expiresAt,
+            lastActiveAt: now,
+        },
     });
+    return session;
 };
 
 passport.use(
@@ -44,11 +44,37 @@ passport.use(
 
                 if (!user) {
                     // New user — create account (default to TRAVELER until onboarding)
+                    const baseHandle =
+                        email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16) || 'traveler';
+
+                    let candidate = baseHandle.toLowerCase();
+                    let counter = 1;
+                    // Ensure unique username
+                    // eslint-disable-next-line no-constant-condition
+                    while (true) {
+                        const existing = await prisma.user.findUnique({
+                            where: { username: candidate },
+                            select: { id: true },
+                        });
+                        if (!existing) break;
+                        candidate = `${baseHandle.toLowerCase()}${counter}`;
+                        counter += 1;
+                    }
+
+                    const displayName =
+                        profile.displayName || profile.name?.givenName || baseHandle || 'Traveler';
+
                     user = await prisma.user.create({
                         data: {
                             email,
                             googleId: profile.id,
-                            emailVerified: true,
+                            username: candidate,
+                            displayName,
+                            avatarUrl:
+                                profile.photos?.[0]?.value ||
+                                `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(
+                                    candidate
+                                )}`,
                             accountType: 'TRAVELER',
                         },
                     });
@@ -56,22 +82,21 @@ passport.use(
                     // Existing email account — link Google OAuth
                     user = await prisma.user.update({
                         where: { id: user.id },
-                        data: { googleId: profile.id, emailVerified: true },
+                        data: { googleId: profile.id },
                     });
                 }
 
-                if (user.isSuspended || user.isDeleted) {
+                if (user.isSuspended) {
                     return done(new Error('Account access denied'), null);
                 }
 
                 const jwtAccessToken = generateAccessToken(user);
-                const refreshToken = uuidv4();
-                const session = await storeRefreshToken(user.id, refreshToken);
+                const session = await storeSessionToken(user.id, jwtAccessToken);
                 const sessionToken = session.token;
 
                 return done(null, {
                     accessToken: jwtAccessToken,
-                    refreshToken,
+                    refreshToken: null,
                     sessionToken,
                     onboardingComplete: user.onboardingComplete,
                 });

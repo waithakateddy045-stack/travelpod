@@ -55,7 +55,7 @@ export default function AuthPromptModal({ isOpen, onClose, message }) {
     };
 
     const handleGoogleLogin = () => {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const API_URL = import.meta.env.VITE_API_URL || 'https://travelpod-production.up.railway.app/api';
         window.location.href = `${API_URL}/auth/google?source=web`;
     };
 

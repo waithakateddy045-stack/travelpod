@@ -58,10 +58,22 @@ export default function EnquiriesPage() {
 
     const getStatusChip = (status) => {
         switch (status) {
-            case 'PENDING': return <span className="enquiry-status pending">Pending</span>;
-            case 'RESPONDED': return <span className="enquiry-status replied"><HiOutlineCheckCircle /> Responded</span>;
-            case 'EXPIRED': return <span className="enquiry-status declined"><HiOutlineXCircle /> Expired</span>;
-            default: return null;
+            case 'PENDING':
+                return <span className="enquiry-status pending">Pending</span>;
+            case 'REPLIED':
+                return (
+                    <span className="enquiry-status replied">
+                        <HiOutlineCheckCircle /> Responded
+                    </span>
+                );
+            case 'CLOSED':
+                return (
+                    <span className="enquiry-status declined">
+                        <HiOutlineXCircle /> Closed
+                    </span>
+                );
+            default:
+                return null;
         }
     };
 
@@ -93,7 +105,13 @@ export default function EnquiriesPage() {
                     <div className="enquiries-list">
                         {enquiries.map(enq => {
                             const otherUser = isBusiness ? enq.traveler : enq.business;
-                            const profile = otherUser?.profile;
+                            const baseUser = otherUser || {};
+                            const profile =
+                                baseUser.profile || {
+                                    displayName: baseUser.displayName || baseUser.username || 'Traveler',
+                                    handle: baseUser.username,
+                                    avatarUrl: baseUser.avatarUrl,
+                                };
 
                             return (
                                 <div key={enq.id} className="enquiry-card">
@@ -151,7 +169,7 @@ export default function EnquiriesPage() {
                                             <button className="btn-reply" onClick={() => setReplyingTo(enq.id)}>
                                                 Reply & Start Chat
                                             </button>
-                                            <button className="btn-decline" onClick={() => handleUpdateStatus(enq.id, 'EXPIRED')}>
+                                            <button className="btn-decline" onClick={() => handleUpdateStatus(enq.id, 'CLOSED')}>
                                                 Decline
                                             </button>
                                         </div>
@@ -175,14 +193,14 @@ export default function EnquiriesPage() {
                                         </div>
                                     )}
 
-                                    {enq.status !== 'EXPIRED' && enq.status !== 'RESPONDED' && !isBusiness && (
+                                    {enq.status !== 'CLOSED' && enq.status !== 'REPLIED' && !isBusiness && (
                                         <div className="enquiry-actions-traveler">
-                                            <button className="btn-cancel" onClick={() => handleUpdateStatus(enq.id, 'EXPIRED')}>
+                                            <button className="btn-cancel" onClick={() => handleUpdateStatus(enq.id, 'CLOSED')}>
                                                 Cancel Request
                                             </button>
                                         </div>
                                     )}
-                                    {enq.status === 'RESPONDED' && !isBusiness && (
+                                    {enq.status === 'REPLIED' && !isBusiness && (
                                         <div className="enquiry-actions-traveler">
                                             <button className="btn-reply" onClick={() => navigate('/messages')}>
                                                 Go to Messages

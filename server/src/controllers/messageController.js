@@ -2,39 +2,76 @@ const prisma = require('../utils/prisma');
 const { AppError } = require('../middleware/errorHandler');
 
 // GET /api/messages/conversations
+// Returns all conversations where the current user is a participant,
+// including the other user and the latest message metadata.
 const getConversations = async (req, res, next) => {
     try {
         const userId = req.user.id;
 
-        const conversations = await prisma.conversation.findMany({
-            where: {
-                OR: [
-                    { participant1Id: userId },
-                    { participant2Id: userId }
-                ]
-            },
-            orderBy: { lastMessageAt: 'desc' },
+        const participantRows = await prisma.conversationParticipant.findMany({
+            where: { userId },
             include: {
-                participant1: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } }, accountType: true } },
-                participant2: { select: { id: true, profile: { select: { displayName: true, handle: true, avatarUrl: true } }, accountType: true } }
-            }
+                conversation: {
+                    include: {
+                        participants: { include: { user: true } },
+                        messages: {
+                            orderBy: { createdAt: 'desc' },
+                            take: 1,
+                        },
+                    },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
         });
 
-        // Format for frontend
-        const formatted = conversations.map(c => {
-            const isP1 = c.participant1Id === userId;
-            return {
-                id: c.id,
-                otherUser: isP1 ? c.participant2 : c.participant1,
-                lastMessagePreview: c.lastMessagePreview,
-                lastMessageAt: c.lastMessageAt,
-                unreadCount: isP1 ? c.unreadCountP1 : c.unreadCountP2,
-                createdAt: c.createdAt
-            };
-        });
+        const conversations = await Promise.all(
+            participantRows.map(async (row) => {
+                const conversation = row.conversation;
+                const otherParticipant = conversation.participants.find(
+                    (p) => p.userId !== userId
+                );
+                const otherUser = otherParticipant?.user;
 
-        res.json({ success: true, conversations: formatted });
-    } catch (err) { next(err); }
+                const lastMessage = conversation.messages[0] || null;
+
+                // Count unread messages for this user in this conversation
+                const unreadCount = await prisma.message.count({
+                    where: {
+                        conversationId: conversation.id,
+                        isRead: false,
+                        senderId: { not: userId },
+                    },
+                });
+
+                return {
+                    id: conversation.id,
+                    otherUser: otherUser
+                        ? {
+                              id: otherUser.id,
+                              profile: {
+                                  displayName:
+                                      otherUser.displayName ||
+                                      otherUser.username ||
+                                      'Traveler',
+                                  handle: otherUser.username,
+                                  avatarUrl: otherUser.avatarUrl,
+                              },
+                          }
+                        : null,
+                    lastMessagePreview: lastMessage
+                        ? lastMessage.content.substring(0, 50)
+                        : '',
+                    lastMessageAt: lastMessage ? lastMessage.createdAt : conversation.createdAt,
+                    unreadCount,
+                    createdAt: conversation.createdAt,
+                };
+            })
+        );
+
+        res.json({ success: true, conversations });
+    } catch (err) {
+        next(err);
+    }
 };
 
 // GET /api/messages/:conversationId
@@ -42,37 +79,42 @@ const getMessages = async (req, res, next) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user.id;
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 30;
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 30;
 
-        const conversation = await prisma.conversation.findUnique({ where: { id: conversationId } });
-        if (!conversation) throw new AppError('Conversation not found', 404);
-        if (conversation.participant1Id !== userId && conversation.participant2Id !== userId) {
-            throw new AppError('Unauthorized', 403);
-        }
+        const participant = await prisma.conversationParticipant.findFirst({
+            where: { conversationId, userId },
+        });
+        if (!participant) throw new AppError('Conversation not found', 404);
 
-        const messages = await prisma.directMessage.findMany({
+        const messages = await prisma.message.findMany({
             where: { conversationId },
-            orderBy: { sentAt: 'desc' },
+            orderBy: { createdAt: 'asc' },
             skip: (page - 1) * limit,
-            take: limit
+            take: limit,
         });
 
-        // Mark read
-        const isP1 = conversation.participant1Id === userId;
-        if ((isP1 && conversation.unreadCountP1 > 0) || (!isP1 && conversation.unreadCountP2 > 0)) {
-            await prisma.conversation.update({
-                where: { id: conversationId },
-                data: isP1 ? { unreadCountP1: 0 } : { unreadCountP2: 0 }
-            });
-            await prisma.directMessage.updateMany({
-                where: { conversationId, senderId: { not: userId }, readAt: null },
-                data: { readAt: new Date() }
-            });
-        }
+        // Mark all messages from others as read
+        await prisma.message.updateMany({
+            where: {
+                conversationId,
+                senderId: { not: userId },
+                isRead: false,
+            },
+            data: { isRead: true },
+        });
 
-        res.json({ success: true, messages: messages.reverse(), page });
-    } catch (err) { next(err); }
+        const shaped = messages.map((m) => ({
+            id: m.id,
+            senderId: m.senderId,
+            content: m.content,
+            sentAt: m.createdAt,
+        }));
+
+        res.json({ success: true, messages: shaped, page });
+    } catch (err) {
+        next(err);
+    }
 };
 
 // POST /api/messages
@@ -84,57 +126,74 @@ const sendMessage = async (req, res, next) => {
         if (!recipientId || !content) throw new AppError('Recipient and content required', 400);
         if (senderId === recipientId) throw new AppError('Cannot message yourself', 400);
 
-        const p1 = senderId < recipientId ? senderId : recipientId;
-        const p2 = senderId < recipientId ? recipientId : senderId;
-
-        let conversation = await prisma.conversation.findUnique({
-            where: { participant1Id_participant2Id: { participant1Id: p1, participant2Id: p2 } }
+        let conversation = await prisma.conversation.findFirst({
+            where: {
+                participants: {
+                    some: { userId: senderId },
+                },
+                AND: {
+                    participants: {
+                        some: { userId: recipientId },
+                    },
+                },
+            },
+            include: { participants: true },
         });
 
         if (!conversation) {
             conversation = await prisma.conversation.create({
-                data: { participant1Id: p1, participant2Id: p2, lastMessageAt: new Date() }
+                data: {
+                    participants: {
+                        create: [{ userId: senderId }, { userId: recipientId }],
+                    },
+                },
+                include: { participants: true },
             });
         }
 
-        const message = await prisma.directMessage.create({
-            data: { conversationId: conversation.id, senderId, content }
-        });
-
-        const isSenderP1 = conversation.participant1Id === senderId;
-        await prisma.conversation.update({
-            where: { id: conversation.id },
+        const message = await prisma.message.create({
             data: {
-                lastMessagePreview: content.substring(0, 50),
-                lastMessageAt: new Date(),
-                unreadCountP1: isSenderP1 ? undefined : { increment: 1 },
-                unreadCountP2: isSenderP1 ? { increment: 1 } : undefined
-            }
+                conversationId: conversation.id,
+                senderId,
+                content,
+            },
         });
 
-        res.status(201).json({ success: true, message, conversationId: conversation.id });
-    } catch (err) { next(err); }
+        res.status(201).json({
+            success: true,
+            message: {
+                id: message.id,
+                senderId: message.senderId,
+                content: message.content,
+                sentAt: message.createdAt,
+            },
+            conversationId: conversation.id,
+        });
+    } catch (err) {
+        next(err);
+    }
 };
 
 const getUnreadMessageCount = async (req, res, next) => {
     try {
         const userId = req.user.id;
-        const conversations = await prisma.conversation.findMany({
+
+        const totalUnread = await prisma.message.count({
             where: {
-                OR: [
-                    { participant1Id: userId, unreadCountP1: { gt: 0 } },
-                    { participant2Id: userId, unreadCountP2: { gt: 0 } }
-                ]
+                isRead: false,
+                senderId: { not: userId },
+                conversation: {
+                    participants: {
+                        some: { userId },
+                    },
+                },
             },
-            select: { participant1Id: true, unreadCountP1: true, unreadCountP2: true }
         });
 
-        const totalUnread = conversations.reduce((acc, c) => {
-            return acc + (c.participant1Id === userId ? c.unreadCountP1 : c.unreadCountP2);
-        }, 0);
-
         res.json({ success: true, count: totalUnread });
-    } catch (err) { next(err); }
+    } catch (err) {
+        next(err);
+    }
 };
 
 module.exports = { getConversations, getMessages, sendMessage, getUnreadMessageCount };
