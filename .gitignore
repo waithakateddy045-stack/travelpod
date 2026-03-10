@@ -24,3 +24,11 @@ npm-debug.log*
 # Prisma
 server/prisma/*.db
 server/prisma/migrations/*/migration_lock.toml
+
+# Temp files
+server/tmp/
+server/check_archive_content.js
+server/identify_stock_content.js
+server/purge_stock_accounts.js
+server/check_archive_urls.js
+server/fix_archive_urls.js

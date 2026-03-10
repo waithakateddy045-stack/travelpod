@@ -73,8 +73,8 @@ const createEnquiry = async (req, res, next) => {
         const senderId = req.user.id;
         const { businessId, travelDates, groupSize, budgetRange, requirements, message } = req.body;
 
-        if (!businessId || !travelDates || !budgetRange || !message) {
-            throw new AppError('Missing required fields for enquiry', 400);
+        if (!businessId || !message) {
+            throw new AppError('businessId and message are required', 400);
         }
 
         if (senderId === businessId) throw new AppError('Cannot enquiry yourself', 400);
@@ -104,7 +104,7 @@ const createEnquiry = async (req, res, next) => {
             body: 'A traveler has sent you a new enquiry.',
             relatedEntityId: bookingEnquiry.id,
             relatedEntityType: 'booking_enquiry',
-        }).catch(() => {});
+        }).catch(() => { });
 
         res.status(201).json({ success: true, enquiry: bookingEnquiry });
     } catch (err) {
@@ -155,9 +155,8 @@ const respondToEnquiry = async (req, res, next) => {
             });
         }
 
-        const systemMessageText = `[Enquiry Update]\nI've replied to your booking enquiry regarding: ${
-            enquiry.travelDates || 'your requested dates'
-        }.\n\nResponse: ${content}`;
+        const systemMessageText = `[Enquiry Update]\nI've replied to your booking enquiry regarding: ${enquiry.travelDates || 'your requested dates'
+            }.\n\nResponse: ${content}`;
 
         const message = await prisma.message.create({
             data: {

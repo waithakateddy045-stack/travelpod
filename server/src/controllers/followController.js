@@ -16,8 +16,8 @@ const followUser = async (req, res, next) => {
         await prisma.follow.create({ data: { followerId, followingId } });
 
         await Promise.all([
-            prisma.profile.updateMany({ where: { userId: followingId }, data: { followerCount: { increment: 1 } } }),
-            prisma.profile.updateMany({ where: { userId: followerId }, data: { followingCount: { increment: 1 } } }),
+            prisma.user.update({ where: { id: followingId }, data: { followerCount: { increment: 1 } } }),
+            prisma.user.update({ where: { id: followerId }, data: { followingCount: { increment: 1 } } }),
         ]);
 
         const { createNotification } = require('./notificationController');
@@ -44,8 +44,8 @@ const unfollowUser = async (req, res, next) => {
         }).catch(() => { });
 
         await Promise.all([
-            prisma.profile.updateMany({ where: { userId: followingId }, data: { followerCount: { decrement: 1 } } }),
-            prisma.profile.updateMany({ where: { userId: followerId }, data: { followingCount: { decrement: 1 } } }),
+            prisma.user.update({ where: { id: followingId }, data: { followerCount: { decrement: 1 } } }),
+            prisma.user.update({ where: { id: followerId }, data: { followingCount: { decrement: 1 } } }),
         ]);
 
         res.json({ success: true, message: 'Unfollowed' });

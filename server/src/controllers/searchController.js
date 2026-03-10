@@ -14,31 +14,31 @@ const search = async (req, res, next) => {
         let total = 0;
 
         if (!type || type === 'users') {
-            const [profiles, count] = await Promise.all([
-                prisma.profile.findMany({
+            const [users, count] = await Promise.all([
+                prisma.user.findMany({
                     where: {
                         OR: [
                             { displayName: { contains: query, mode: 'insensitive' } },
-                            { handle: { contains: query, mode: 'insensitive' } },
+                            { username: { contains: query, mode: 'insensitive' } },
                         ],
                     },
                     skip: (page - 1) * limit, take: limit,
                     select: {
-                        displayName: true, handle: true, avatarUrl: true,
-                        followerCount: true, user: { select: { accountType: true } },
-                        businessProfile: { select: { verificationStatus: true, starRating: true } },
+                        displayName: true, username: true, avatarUrl: true,
+                        followerCount: true, accountType: true,
+                        verification: { select: { status: true } },
                     },
                 }),
-                prisma.profile.count({
+                prisma.user.count({
                     where: {
                         OR: [
                             { displayName: { contains: query, mode: 'insensitive' } },
-                            { handle: { contains: query, mode: 'insensitive' } },
+                            { username: { contains: query, mode: 'insensitive' } },
                         ]
                     },
                 }),
             ]);
-            results = profiles.map(p => ({ ...p, resultType: 'user' }));
+            results = users.map(u => ({ ...u, handle: u.username, resultType: 'user' }));
             total = count;
         }
 
@@ -57,7 +57,7 @@ const search = async (req, res, next) => {
                     select: {
                         id: true, title: true, thumbnailUrl: true, viewCount: true,
                         likeCount: true, categoryId: true, locationTag: true, createdAt: true,
-                        author: { select: { profile: { select: { displayName: true, handle: true, avatarUrl: true } } } },
+                        user: { select: { displayName: true, username: true, avatarUrl: true } },
                     },
                 }),
                 prisma.post.count({
@@ -95,13 +95,13 @@ const getCategories = async (req, res, next) => {
 // GET /api/search/top-rated — Top rated businesses
 const getTopRated = async (req, res, next) => {
     try {
-        const businesses = await prisma.businessProfile.findMany({
-            where: { verificationStatus: 'APPROVED', starRating: { gt: 0 } },
-            orderBy: { starRating: 'desc' },
+        const verifications = await prisma.businessVerification.findMany({
+            where: { status: 'APPROVED' },
+            orderBy: { createdAt: 'desc' },
             take: 20,
-            include: { profile: { select: { displayName: true, handle: true, avatarUrl: true } } },
+            include: { user: { select: { displayName: true, username: true, avatarUrl: true } } },
         });
-        res.json({ success: true, businesses });
+        res.json({ success: true, businesses: verifications });
     } catch (err) { next(err); }
 };
 

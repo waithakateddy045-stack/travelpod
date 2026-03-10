@@ -48,7 +48,7 @@ const getAdminBoosts = async (req, res, next) => {
         const boosts = await prisma.boostRequest.findMany({
             where,
             include: {
-                user: { select: { id: true, profile: { select: { displayName: true, handle: true } } } },
+                user: { select: { id: true, displayName: true, username: true } },
                 post: { select: { id: true, title: true, thumbnailUrl: true } },
             },
             orderBy: { createdAt: 'desc' },
@@ -108,7 +108,7 @@ async function getActiveBoosts(viewerAccountType, viewerRegion) {
                         author: {
                             select: {
                                 id: true, accountType: true,
-                                profile: { select: { displayName: true, handle: true, avatarUrl: true, businessProfile: { select: { verificationStatus: true } } } },
+                                displayName: true, username: true, avatarUrl: true, isVerified: true
                             },
                         },
                         category: true,
@@ -124,7 +124,7 @@ async function getActiveBoosts(viewerAccountType, viewerRegion) {
             prisma.boostRequest.update({
                 where: { id: b.id },
                 data: { impressions: { increment: 1 } },
-            }).catch(() => {});
+            }).catch(() => { });
         }
 
         return boosts;

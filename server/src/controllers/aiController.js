@@ -62,8 +62,8 @@ const chatWithCopilot = async (req, res, next) => {
 
         res.json({ success: true, reply });
     } catch (err) {
-        console.error('Copilot Chat Error:', err.message);
-        res.status(500).json({ error: 'Copilot encountered an error analyzing your request.' });
+        console.error('❌ Copilot Chat Error:', err);
+        res.status(500).json({ error: 'Copilot encountered an error analyzing your request.', details: err.message });
     }
 };
 
@@ -96,8 +96,8 @@ const generatePostDetails = async (req, res, next) => {
 
         res.json({ success: true, data });
     } catch (err) {
-        console.error('AI Detail Gen Error:', err.message);
-        res.status(500).json({ error: 'Failed to generate details' });
+        console.error('❌ AI Detail Gen Error:', err);
+        res.status(500).json({ error: 'Failed to generate details', details: err.message });
     }
 };
 

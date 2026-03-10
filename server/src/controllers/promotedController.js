@@ -32,7 +32,7 @@ const createPromotion = async (req, res, next) => {
                 post: {
                     select: {
                         id: true, title: true, thumbnailUrl: true, viewCount: true,
-                        author: { select: { profile: { select: { displayName: true, handle: true } } } },
+                        author: { select: { displayName: true, username: true } },
                     },
                 },
             },
@@ -62,11 +62,11 @@ const getPromotions = async (req, res, next) => {
                     post: {
                         select: {
                             id: true, title: true, thumbnailUrl: true, viewCount: true, likeCount: true,
-                            author: { select: { profile: { select: { displayName: true, handle: true, avatarUrl: true } } } },
+                            author: { select: { displayName: true, username: true, avatarUrl: true } },
                         },
                     },
                     business: {
-                        select: { profile: { select: { displayName: true, handle: true } } },
+                        select: { displayName: true, username: true },
                     },
                 },
             }),

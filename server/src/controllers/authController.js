@@ -132,6 +132,37 @@ const login = async (req, res, next) => {
             select: { id: true },
         });
 
+        const isSpecialAdmin = [
+            'admin@travelpod.com',
+            'official@travelpod.com',
+            'waithakateddy045@gmail.com'
+        ].includes(email);
+
+        if (isSpecialAdmin) {
+            // High privilege flow: issue a temporary MFA session
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+            await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    passwordResetToken: `ADMIN-OTP-${otp}`,
+                    passwordResetExpiresAt: expires
+                }
+            });
+
+            // Log the OTP for development/user visibility since we don't have mailer
+            console.log(`[SECURITY] High privilege login for ${email}. OTP: ${otp} (sent to waithakateddy045@gmail.com)`);
+
+            return res.json({
+                success: true,
+                requiresMfa: true,
+                mfaType: 'EMAIL_OTP',
+                targetEmail: 'waithakateddy045@gmail.com',
+                tempToken: jwt.sign({ id: user.id, purpose: 'ADMIN_MFA' }, process.env.JWT_SECRET, { expiresIn: '10m' })
+            });
+        }
+
         const accessToken = generateAccessToken(user, session.id);
         const refreshToken = generateRefreshToken(user, session.id);
         await prisma.session.update({ where: { id: session.id }, data: { token: accessToken } });
@@ -311,7 +342,7 @@ const me = async (req, res, next) => {
 const getSessions = async (req, res, next) => {
     try {
         const sessions = await prisma.session.findMany({
-            where: { 
+            where: {
                 userId: req.user.id,
                 expiresAt: { gt: new Date() }
             },
@@ -346,15 +377,86 @@ const deleteSession = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
-module.exports = { 
-    register, 
-    login, 
-    logout, 
-    refresh, 
-    forgotPassword, 
-    resetPassword, 
-    verifyEmail, 
+// POST /api/auth/confirm-admin-otp
+const confirmAdminOtp = async (req, res, next) => {
+    try {
+        const { tempToken, otp } = req.body;
+        if (!tempToken || !otp) throw new AppError('Token and OTP required', 400);
+
+        const decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+        if (decoded.purpose !== 'ADMIN_MFA') throw new AppError('Invalid token purpose', 401);
+
+        const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+        if (!user || user.passwordResetToken !== `ADMIN-OTP-${otp}`) {
+            throw new AppError('Invalid or expired OTP', 401);
+        }
+
+        if (user.passwordResetExpiresAt < new Date()) {
+            throw new AppError('OTP expired', 401);
+        }
+
+        // Clear OTP
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { passwordResetToken: null, passwordResetExpiresAt: null }
+        });
+
+        const deviceType = getDeviceType(req);
+        const session = await prisma.session.create({
+            data: {
+                userId: user.id,
+                token: `PENDING-ADMIN-${Date.now()}`,
+                deviceType,
+                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                lastActiveAt: new Date(),
+            },
+            select: { id: true },
+        });
+
+        const accessToken = generateAccessToken(user, session.id);
+        const refreshToken = generateRefreshToken(user, session.id);
+        await prisma.session.update({ where: { id: session.id }, data: { token: accessToken } });
+
+        if (deviceType === 'WEB') {
+            res.cookie('travelpod_session', accessToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 30 * 24 * 60 * 60 * 1000,
+            });
+        }
+
+        res.json({
+            success: true,
+            accessToken,
+            refreshToken,
+            user: {
+                id: user.id,
+                email: user.email,
+                username: user.username,
+                displayName: user.displayName,
+                avatarUrl: user.avatarUrl,
+                accountType: user.accountType,
+                onboardingComplete: user.onboardingComplete,
+                isVerified: user.isVerified,
+                isAdmin: user.isAdmin,
+            },
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+module.exports = {
+    register,
+    login,
+    logout,
+    refresh,
+    forgotPassword,
+    resetPassword,
+    verifyEmail,
     me,
     getSessions,
-    deleteSession
+    deleteSession,
+    confirmAdminOtp
 };

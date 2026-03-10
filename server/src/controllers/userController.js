@@ -29,7 +29,9 @@ const getFollowersByUsername = async (req, res, next) => {
                         select: {
                             id: true,
                             accountType: true,
-                            profile: { select: { displayName: true, handle: true, avatarUrl: true } }
+                            username: true,
+                            displayName: true,
+                            avatarUrl: true
                         }
                     }
                 },
@@ -76,7 +78,9 @@ const getFollowingByUsername = async (req, res, next) => {
                         select: {
                             id: true,
                             accountType: true,
-                            profile: { select: { displayName: true, handle: true, avatarUrl: true } }
+                            username: true,
+                            displayName: true,
+                            avatarUrl: true
                         }
                     }
                 },

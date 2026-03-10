@@ -8,6 +8,7 @@ const {
     toggleCommentLike,
     getSavedPosts
 } = require('../controllers/engagementController');
+const { getUnreadCount } = require('../controllers/notificationController');
 
 // Likes
 router.post('/like/:postId', authenticate, likePost);
@@ -33,5 +34,8 @@ router.delete('/comments/:commentId', authenticate, deleteComment);
 
 // Comment likes
 router.post('/comment-like/:commentId', authenticate, toggleCommentLike);
+
+// Notifications fallback
+router.get('/unread-count', authenticate, getUnreadCount);
 
 module.exports = router;

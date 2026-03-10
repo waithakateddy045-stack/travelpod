@@ -16,7 +16,7 @@ const getSettings = async (req, res, next) => {
             where: { id: req.user.id },
             select: {
                 id: true, email: true, accountType: true, onboardingComplete: true, createdAt: true,
-                profile: { select: { displayName: true, handle: true, bio: true, avatarUrl: true, personalityTags: true, preferredRegions: true, contentPreferences: true } },
+                displayName: true, username: true, bio: true, avatarUrl: true, personalityTags: true, preferredRegions: true
             },
         });
         res.json({ success: true, user });
@@ -30,7 +30,7 @@ const updateEmail = async (req, res, next) => {
         if (!email || !password) throw new AppError('Email and current password required', 400);
 
         const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-        const valid = await bcrypt.compare(password, user.hashedPassword);
+        const valid = await bcrypt.compare(password, user.password);
         if (!valid) throw new AppError('Incorrect password', 401);
 
         await prisma.user.update({ where: { id: req.user.id }, data: { email } });
@@ -46,11 +46,11 @@ const updatePassword = async (req, res, next) => {
         if (newPassword.length < 8) throw new AppError('New password must be at least 8 characters', 400);
 
         const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-        const valid = await bcrypt.compare(currentPassword, user.hashedPassword);
+        const valid = await bcrypt.compare(currentPassword, user.password);
         if (!valid) throw new AppError('Current password is incorrect', 401);
 
         const hash = await bcrypt.hash(newPassword, 12);
-        await prisma.user.update({ where: { id: req.user.id }, data: { hashedPassword: hash } });
+        await prisma.user.update({ where: { id: req.user.id }, data: { password: hash } });
         res.json({ success: true, message: 'Password updated' });
     } catch (err) { next(err); }
 };
@@ -85,8 +85,8 @@ const deleteAccount = async (req, res, next) => {
     try {
         const { password } = req.body;
         const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-        if (user.hashedPassword) {
-            const valid = await bcrypt.compare(password, user.hashedPassword);
+        if (user.password) {
+            const valid = await bcrypt.compare(password, user.password);
             if (!valid) throw new AppError('Incorrect password', 401);
         }
 
@@ -103,18 +103,18 @@ const updateProfile = async (req, res, next) => {
 
         // 1. Handle uniqueness check if changing
         if (handle) {
-            const existing = await prisma.profile.findFirst({
-                where: { handle: { equals: handle.trim(), mode: 'insensitive' }, userId: { not: userId } }
+            const existing = await prisma.user.findFirst({
+                where: { username: { equals: handle.trim(), mode: 'insensitive' }, id: { not: userId } }
             });
             if (existing) throw new AppError('Handle is already taken', 400);
         }
 
         // 2. Update Profile
-        const profile = await prisma.profile.update({
-            where: { userId },
+        const user = await prisma.user.update({
+            where: { id: userId },
             data: {
                 ...(displayName && { displayName: displayName.trim() }),
-                ...(handle && { handle: handle.trim().toLowerCase() }),
+                ...(handle && { username: handle.trim().toLowerCase() }),
                 ...(bio !== undefined && { bio: bio?.trim() || null }),
                 ...(personalityTags && { personalityTags }),
                 ...(preferredRegions && { preferredRegions }),
@@ -145,8 +145,8 @@ const updateAvatar = async (req, res, next) => {
 
         if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
 
-        await prisma.profile.update({
-            where: { userId: req.user.id },
+        await prisma.user.update({
+            where: { id: req.user.id },
             data: { avatarUrl: upload.secure_url }
         });
 

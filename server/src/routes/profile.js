@@ -13,6 +13,12 @@ router.get('/:handle/posts', getProfilePosts);
 router.get('/:handle/reviews', getProfileReviews);
 
 // Authenticated
+router.get('/me', authenticate, (req, res, next) => {
+    // Redirect to the profile handle if preferred, or just return the data
+    const { profileController } = require('../controllers/profileController');
+    req.params.handle = req.user.username;
+    return getProfileByHandle(req, res, next);
+});
 router.put('/me', authenticate, updateMyProfile);
 router.put('/business', authenticate, updateBusinessProfile);
 

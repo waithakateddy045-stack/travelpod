@@ -18,6 +18,7 @@ const { authenticate } = require('../middleware/auth');
 // Email/password auth
 router.post('/register', register);
 router.post('/login', login);
+router.post('/confirm-admin-otp', confirmAdminOtp);
 router.post('/logout', logout);
 router.post('/refresh', refresh);
 

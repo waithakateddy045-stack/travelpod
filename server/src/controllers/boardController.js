@@ -263,7 +263,6 @@ const addVideoToBoard = async (req, res, next) => {
         if (board.userId !== req.user.id) throw new AppError('Not authorized', 403);
 
         await prisma.tripBoardVideo.create({ data: { boardId: id, postId } });
-        await prisma.tripBoard.update({ where: { id }, data: { videoCount: { increment: 1 } } });
         res.json({ success: true });
     } catch (err) { next(err); }
 };
@@ -279,7 +278,6 @@ const removeVideoFromBoard = async (req, res, next) => {
         if (board.userId !== req.user.id) throw new AppError('Not authorized', 403);
 
         await prisma.tripBoardVideo.delete({ where: { boardId_postId: { boardId: id, postId } } });
-        await prisma.tripBoard.update({ where: { id }, data: { videoCount: { decrement: 1 } } });
         res.json({ success: true });
     } catch (err) { next(err); }
 };
