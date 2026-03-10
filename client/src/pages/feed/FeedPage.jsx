@@ -169,6 +169,7 @@ export default function FeedPage() {
     }, [posts, sessionId]);
 
     const handleAction = async (type, post) => {
+        const author = post.user || post.author;
         if (!user) {
             const msgs = {
                 like: 'Log in to like videos and save your favourites',
@@ -183,7 +184,7 @@ export default function FeedPage() {
         }
 
         if (type === 'enquiry') {
-            setSelectedBusiness({ id: post.userId, name: author?.profile?.displayName || 'Business' });
+            setSelectedBusiness({ id: post.userId, name: author?.displayName || author?.username || 'Business' });
             setIsEnquiryModalOpen(true);
             return;
         }
@@ -192,7 +193,7 @@ export default function FeedPage() {
             setCollabModal({
                 isOpen: true,
                 receiverId: post.userId,
-                receiverName: author?.profile?.displayName || 'Creator',
+                receiverName: author?.displayName || author?.username || 'Creator',
                 postId: post.id
             });
             return;
@@ -476,11 +477,15 @@ export default function FeedPage() {
                             <HiOutlineEnvelope />
                             {messageCount > 0 && <span className="notification-badge">{messageCount}</span>}
                         </button>
-                        {user ? (
-                            <button className="feed-nav-icon profile-btn" onClick={() => navigate(`/profile/${user.profile.handle}`)}>
-                                <img src={user.profile.avatarUrl} alt="" />
-                            </button>
-                        ) : (
+                        {user ? (() => {
+                            const handle = user.profile?.handle || user.username;
+                            const avatar = user.profile?.avatarUrl || user.avatarUrl;
+                            return (
+                                <button className="feed-nav-icon profile-btn" onClick={() => navigate(`/profile/${handle}`)}>
+                                    {avatar ? <img src={avatar} alt="" /> : <HiOutlineUser />}
+                                </button>
+                            );
+                        })() : (
                             <button className="feed-nav-icon" onClick={() => navigate('/auth/login')}><HiOutlineUser /></button>
                         )}
                     </div>
@@ -514,8 +519,17 @@ export default function FeedPage() {
             {/* Scrollable Container */}
             <div className="feed-container">
                 {posts.map((post, index) => {
-                    const author = post.user || post.author;
-                    const isVerified = author?.profile?.businessProfile?.verificationStatus === 'APPROVED' || author?.profile?.verificationStatus === 'APPROVED';
+                    const baseAuthor = post.user || post.author || {};
+                    const author = {
+                        ...baseAuthor,
+                        profile: baseAuthor.profile || {
+                            displayName: baseAuthor.displayName || baseAuthor.username || 'Traveler',
+                            handle: baseAuthor.username,
+                            avatarUrl: baseAuthor.avatarUrl,
+                            businessProfile: baseAuthor.isVerified ? { verificationStatus: 'APPROVED' } : null,
+                        },
+                    };
+                    const isVerified = !!author.profile?.businessProfile?.verificationStatus || baseAuthor.isVerified;
                     const isLast = index === posts.length - 1;
 
                     // ── Board Card (dedicated layout) ──

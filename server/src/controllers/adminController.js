@@ -18,12 +18,12 @@ const getDashboardStats = async (req, res, next) => {
             prisma.user.count({ where: { accountType: { not: 'ADMIN' } } }),
             prisma.post.count(),
             prisma.post.count({ where: { moderationStatus: 'PENDING' } }),
-            prisma.businessVerification.count({ where: { status: 'PENDING' } }), // Unified to BusinessVerification
+            prisma.businessVerification.count({ where: { status: 'PENDING' } }),
             prisma.report.count(),
             prisma.user.count({ where: { isSuspended: true } }),
             prisma.post.count({ where: { moderationStatus: 'APPROVED' } }),
             prisma.tripBoard.count(),
-            prisma.enquiry.count(),
+            prisma.bookingEnquiry.count(),
         ]);
 
         const accountBreakdown = await prisma.user.groupBy({
@@ -77,8 +77,8 @@ const getUsers = async (req, res, next) => {
             ...(search && {
                 OR: [
                     { email: { contains: search, mode: 'insensitive' } },
-                    { profile: { displayName: { contains: search, mode: 'insensitive' } } },
-                    { profile: { handle: { contains: search, mode: 'insensitive' } } },
+                    { username: { contains: search, mode: 'insensitive' } },
+                    { displayName: { contains: search, mode: 'insensitive' } },
                 ],
             }),
         };
@@ -92,28 +92,18 @@ const getUsers = async (req, res, next) => {
                 select: {
                     id: true,
                     email: true,
+                    username: true,
+                    displayName: true,
+                    avatarUrl: true,
                     accountType: true,
                     isSuspended: true,
-                    emailVerified: true,
                     onboardingComplete: true,
+                    isVerified: true,
                     createdAt: true,
-                    profile: {
-                        select: {
-                            displayName: true,
-                            handle: true,
-                            avatarUrl: true,
-                            followerCount: true,
-                            businessProfile: {
-                                select: {
-                                    verificationStatus: true,
-                                    starRating: true,
-                                },
-                            },
-                        },
-                    },
-                    _count: {
-                        select: { postsAuthored: true },
-                    },
+                    followerCount: true,
+                    followingCount: true,
+                    totalLikes: true,
+                    _count: { select: { posts: true } },
                 },
             }),
             prisma.user.count({ where }),
@@ -147,12 +137,11 @@ const getBoards = async (req, res, next) => {
                     user: {
                         select: {
                             id: true,
-                            profile: {
-                                select: {
-                                    displayName: true,
-                                    handle: true,
-                                },
-                            },
+                            username: true,
+                            displayName: true,
+                            avatarUrl: true,
+                            accountType: true,
+                            isVerified: true,
                         },
                     },
                     _count: {
@@ -188,11 +177,13 @@ const updateBoardStatus = async (req, res, next) => {
         const { id } = req.params;
         const { action } = req.body;
 
-        const moderationStatus = action === 'RESTORED' ? 'ACTIVE' : 'REMOVED';
+        // TripBoard does not have a moderationStatus field in PRD schema.
+        // Use isPublic as a soft moderation flag instead.
+        const makePublic = action === 'RESTORED';
 
         const board = await prisma.tripBoard.update({
             where: { id },
-            data: { moderationStatus },
+            data: { isPublic: makePublic },
         });
 
         res.json({ success: true, board });
