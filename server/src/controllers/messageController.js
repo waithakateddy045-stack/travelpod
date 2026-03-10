@@ -13,7 +13,19 @@ const getConversations = async (req, res, next) => {
             include: {
                 conversation: {
                     include: {
-                        participants: { include: { user: true } },
+                        participants: {
+                            include: {
+                                user: {
+                                    select: {
+                                        id: true,
+                                        username: true,
+                                        displayName: true,
+                                        avatarUrl: true,
+                                        isVerified: true
+                                    }
+                                }
+                            }
+                        },
                         messages: {
                             orderBy: { createdAt: 'desc' },
                             take: 1,
@@ -47,16 +59,16 @@ const getConversations = async (req, res, next) => {
                     id: conversation.id,
                     otherUser: otherUser
                         ? {
-                              id: otherUser.id,
-                              profile: {
-                                  displayName:
-                                      otherUser.displayName ||
-                                      otherUser.username ||
-                                      'Traveler',
-                                  handle: otherUser.username,
-                                  avatarUrl: otherUser.avatarUrl,
-                              },
-                          }
+                            id: otherUser.id,
+                            profile: {
+                                displayName:
+                                    otherUser.displayName ||
+                                    otherUser.username ||
+                                    'Traveler',
+                                handle: otherUser.username,
+                                avatarUrl: otherUser.avatarUrl,
+                            },
+                        }
                         : null,
                     lastMessagePreview: lastMessage
                         ? lastMessage.content.substring(0, 50)

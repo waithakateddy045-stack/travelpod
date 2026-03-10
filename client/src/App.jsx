@@ -29,7 +29,7 @@ import CopyrightPage from './pages/legal/CopyrightPage';
 import BadgesPage from './pages/badges/BadgesPage';
 import CollaborationsPage from './pages/collaborations/CollaborationsPage';
 import NotFoundPage from './pages/NotFoundPage';
-import AICopilot from './components/ai/AICopilot';
+
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import './index.css';
@@ -109,7 +109,7 @@ function App() {
             {/* 404 */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
-          <AICopilot />
+
         </Router>
       </AuthProvider>
     </ErrorBoundary>
