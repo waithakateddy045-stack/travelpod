@@ -87,8 +87,15 @@ const register = async (req, res, next) => {
 
         const accessToken = generateAccessToken(user, session.id);
         const refreshToken = generateRefreshToken(user, session.id);
-
         await prisma.session.update({ where: { id: session.id }, data: { token: accessToken } });
+
+        // Auto-follow Official Account
+        const OFFICIAL_ID = 'cmmkq6gr100019q44pmqevmo6';
+        if (user.id !== OFFICIAL_ID) {
+            await prisma.follow.create({
+                data: { followerId: user.id, followingId: OFFICIAL_ID }
+            }).catch(() => { });
+        }
 
         if (deviceType === 'WEB') {
             res.cookie('travelpod_session', accessToken, {

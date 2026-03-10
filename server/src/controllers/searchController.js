@@ -56,7 +56,7 @@ const search = async (req, res, next) => {
                     skip: (page - 1) * limit, take: limit,
                     select: {
                         id: true, title: true, thumbnailUrl: true, viewCount: true,
-                        likeCount: true, categoryId: true, locationTag: true, createdAt: true,
+                        likeCount: true, category: true, locationTag: true, createdAt: true,
                         user: { select: { displayName: true, username: true, avatarUrl: true } },
                     },
                 }),
@@ -70,7 +70,7 @@ const search = async (req, res, next) => {
                     },
                 }),
             ]);
-            results = posts.map(p => ({ ...p, category: p.categoryId, location: p.locationTag, user: p.author, resultType: 'post' }));
+            results = posts.map(p => ({ ...p, category: p.category, location: p.locationTag, user: p.user, resultType: 'post' }));
             total = count;
         }
 
