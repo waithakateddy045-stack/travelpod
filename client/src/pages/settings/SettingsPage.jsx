@@ -135,6 +135,18 @@ export default function SettingsPage() {
         } finally { setLoading(false); }
     };
 
+    const handleSignOutAll = async () => {
+        setLoading(true);
+        try {
+            await api.delete('/auth/sessions/all');
+            toast.success('Signed out of all devices');
+            logout();
+            navigate('/');
+        } catch (err) {
+            toast.error('Failed to sign out globally');
+        } finally { setLoading(false); }
+    };
+
     const [socialLinks, setSocialLinks] = useState({
         instagramUrl: '', facebookUrl: '', linkedinUrl: '', whatsappPhone: ''
     });
@@ -204,7 +216,7 @@ export default function SettingsPage() {
         setBadgesLoading(true);
         api.get('/badges/my')
             .then(res => setBadges(res.data?.badges || []))
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => setBadgesLoading(false));
     }, [user, gamificationEnabled]);
 
@@ -409,7 +421,8 @@ export default function SettingsPage() {
                                                                     <span style={{ opacity: 0.8 }}>· {badge.tier}</span>
                                                                 )}
                                                             </span>
-                                                    );})}
+                                                        );
+                                                    })}
                                                     {badges.length > 6 && (
                                                         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
                                                             +{badges.length - 6} more
@@ -639,10 +652,45 @@ export default function SettingsPage() {
                             </div>
                         )}
 
-                        {/* Account Deletion */}
+                        {/* Account Management & Deletion */}
                         {activeSection === 'account' && (
                             <div>
-                                <h2 style={{ marginBottom: 'var(--space-4)', fontWeight: 700, color: '#ef4444' }}>Delete Account</h2>
+                                <h2 style={{ marginBottom: 'var(--space-4)', fontWeight: 700 }}>Account Access</h2>
+
+                                {/* Danger Zone: Logout */}
+                                <div style={{ marginBottom: 'var(--space-6)', padding: 'var(--space-4)', border: '1px solid var(--border-primary)', borderRadius: 'var(--radius-md)', background: 'var(--bg-elevated)' }}>
+                                    <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 600, marginBottom: 'var(--space-2)' }}>Sign Out</h3>
+                                    <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-4)' }}>
+                                        Sign out of your active session on this device.
+                                    </p>
+                                    <button
+                                        className="action-btn-main danger"
+                                        style={{ width: '100%', marginBottom: 'var(--space-4)', padding: '12px', background: '#ef4444', color: 'white', borderRadius: 'var(--radius-md)', border: 'none', fontWeight: 600, cursor: 'pointer' }}
+                                        onClick={() => {
+                                            logout();
+                                            navigate('/');
+                                        }}
+                                    >
+                                        Sign Out
+                                    </button>
+
+                                    <div style={{ borderTop: '1px solid var(--border-primary)', paddingTop: 'var(--space-4)' }}>
+                                        <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 600, marginBottom: 'var(--space-2)' }}>Sign Out of All Devices</h3>
+                                        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-4)' }}>
+                                            Log out globally, ending all sessions across every browser and device you're logged into.
+                                        </p>
+                                        <button
+                                            className="action-btn-main secondary"
+                                            style={{ width: '100%', padding: '12px', border: '1px solid currentColor', color: '#ef4444', background: 'transparent', borderRadius: 'var(--radius-md)', fontWeight: 600, cursor: 'pointer' }}
+                                            onClick={handleSignOutAll}
+                                            disabled={loading}
+                                        >
+                                            Sign out of all devices
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <h2 style={{ marginBottom: 'var(--space-4)', fontWeight: 700, color: '#ef4444', marginTop: 'var(--space-6)' }}>Delete Account</h2>
                                 <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-6)' }}>
                                     This action is permanent and cannot be undone. All your posts, followers, and data will be removed.
                                 </p>

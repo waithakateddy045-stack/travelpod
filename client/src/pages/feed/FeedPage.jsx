@@ -110,14 +110,12 @@ export default function FeedPage() {
 
             let items = [];
             if (feedMode === 'BROADCASTS') {
-                items = (data.broadcasts || []).map(b => ({
-                    ...(b.post || {}),
-                    author: b.sender,
+                items = (data.broadcasts || []).map(post => ({
+                    ...post,
+                    author: post.user,
                     isBroadcast: true,
-                    broadcastId: b.id,
-                    mediaUrls: b.mediaUrls || [],
-                    mediaType: b.mediaType || 'TEXT',
-                    viewed: b.viewed
+                    broadcastId: post.id,
+                    mediaUrls: post.mediaUrls || [],
                 }));
             } else if (feedMode === 'BOARDS') {
                 items = (data.boards || []).map(b => ({ ...b, isBoard: true }));

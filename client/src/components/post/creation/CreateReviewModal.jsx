@@ -12,6 +12,7 @@ export default function CreateReviewModal({ post, onClose, onComplete }) {
     const [textContent, setTextContent] = useState('');
     const [starRating, setStarRating] = useState(5);
     const [location, setLocation] = useState('');
+    const [mediaFile, setMediaFile] = useState(null);
     const [uploading, setUploading] = useState(false);
 
     const handlePublish = async () => {
@@ -19,14 +20,18 @@ export default function CreateReviewModal({ post, onClose, onComplete }) {
 
         setUploading(true);
         try {
-            const res = await api.post('/posts', {
-                postType: 'REVIEW',
-                title: `Review: ${post.title}`,
-                textContent,
-                reviewOfId: post.id,
-                starRating,
-                locationTag: location,
-                businessId: post.author?.handle // Linking to post author as business if applicable
+            const formData = new FormData();
+            formData.append('postType', 'REVIEW');
+            formData.append('title', `Review: ${post.title}`);
+            formData.append('textContent', textContent);
+            formData.append('reviewOfId', post.id);
+            formData.append('starRating', starRating);
+            if (location) formData.append('locationTag', location);
+            if (post.author?.handle) formData.append('businessId', post.author.handle);
+            if (mediaFile) formData.append('media', mediaFile);
+
+            const res = await api.post('/posts', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
 
             if (res.data.success) {
@@ -79,6 +84,17 @@ export default function CreateReviewModal({ post, onClose, onComplete }) {
                     <div className="tp-input-group compact">
                         <label><HiOutlineMapPin /> Location Tag</label>
                         <input value={location} onChange={e => setLocation(e.target.value)} placeholder="Where was this?" />
+                    </div>
+
+                    <div className="tp-input-group compact" style={{ marginTop: 'var(--space-3)' }}>
+                        <label>Attach Media (Optional)</label>
+                        <input
+                            type="file"
+                            accept="video/mp4,video/quicktime,image/jpeg,image/png,image/webp"
+                            onChange={e => setMediaFile(e.target.files[0])}
+                            style={{ padding: '8px', border: '1px solid var(--border-primary)', borderRadius: 'var(--radius-md)' }}
+                        />
+                        {mediaFile && <span style={{ fontSize: '0.8rem', color: 'var(--color-primary)' }}>Selected: {mediaFile.name}</span>}
                     </div>
                 </div>
 

@@ -90,6 +90,8 @@ const getProfilePosts = async (req, res, next) => {
           createdAt: true,
           postType: true,
           isReview: true,
+          textContent: true,
+          mediaUrls: true,
         },
       }),
       prisma.post.count({ where: { userId: user.id, moderationStatus: 'APPROVED' } }),

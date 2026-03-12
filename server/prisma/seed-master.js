@@ -208,6 +208,20 @@ async function main() {
             mediaItem?.description ||
             `Experience ${category.toLowerCase()} vibes in ${location}. Curated for Travelpod.`;
 
+        const isBusiness = ['HOTEL_RESORT', 'TRAVEL_AGENCY', 'AIRLINE'].includes(creator.accountType);
+
+        // Make roughly ~60 of the TEXT posts broadcasts if authored by business
+        let isBroadcast = false;
+        let broadcastSector = null;
+        let broadcastRegion = null;
+
+        if (postType === 'TEXT' && isBusiness && i % 3 === 0) {
+            isBroadcast = true;
+            const sectors = ['Travelers', 'Hotels & Resorts', 'Airlines', 'Travel Agencies', 'All'];
+            broadcastSector = sectors[Math.floor(Math.random() * sectors.length)];
+            broadcastRegion = location.split(" ")[0]; // Just capturing the first word of the location
+        }
+
         posts.push(
             await prisma.post.create({
                 data: {
@@ -222,6 +236,9 @@ async function main() {
                     locationTag: location,
                     category,
                     duration,
+                    isBroadcast,
+                    broadcastSector,
+                    broadcastRegion,
                     tags: ["Travel", category, location.split(" ")[0]],
                     viewCount: Math.floor(Math.random() * 10000),
                 },
@@ -229,6 +246,38 @@ async function main() {
         );
 
         if (i % 50 === 0) console.log(`Created ${i} posts...`);
+    }
+
+    // 4.5. CREATE 20 OFFICIAL BROADCAST GUIDELINE POSTS
+    console.log("Creating 20 Official Broadcast Guideline Posts...");
+    const guidelineTitles = [
+        "Welcome to Travelpod Mobile", "How to Verify Your Business", "Using the Feed Algorithm",
+        "Booking Security Tips", "Reporting Inappropriate Content", "Trip Boards Best Practices",
+        "Creating Viral Videos", "Monetization Guidelines", "Updates to Privacy Policy",
+        "Connecting with fellow Travelers", "How to Use Filters", "Messaging Safely",
+        "Finding Local Gems", "Sustainable Travel Tips", "Feature Request Tracker",
+        "Partner Network Benefits", "Weekly Travel Digest #1", "Uploading HD Media",
+        "Respecting Cultural Norms", "Contacting Support"
+    ];
+
+    for (let i = 0; i < 20; i++) {
+        const title = guidelineTitles[i] || `Travelpod Guide #${i}`;
+        const description = `Official guidelines and updates from the Travelpod team regarding ${title.toLowerCase()}. Please adhere to these best practices to maintain a healthy ecosystem.`;
+
+        const officialBroadcast = await prisma.post.create({
+            data: {
+                userId: official.id, // the Travelpod Official account we created earlier
+                postType: 'TEXT',
+                title,
+                description,
+                isBroadcast: true,
+                broadcastSector: 'All',
+                broadcastRegion: 'Global',
+                tags: ["Guidelines", "Official", "Help"],
+                viewCount: Math.floor(Math.random() * 50000)
+            }
+        });
+        posts.push(officialBroadcast);
     }
 
     // 5. CREATE 54 TRIP BOARDS

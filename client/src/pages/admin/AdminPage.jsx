@@ -7,21 +7,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const getToken = () => localStorage.getItem('admin_token');
 
 const apiCall = async (endpoint, options = {}) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7313/ingest/2ec3ca36-0117-4bfa-b9a3-4adba61fcd33', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5114aa' },
-        body: JSON.stringify({
-            sessionId: '5114aa',
-            runId: 'pre-fix',
-            hypothesisId: 'H3',
-            location: 'client/src/pages/admin/AdminPage.jsx:apiCall',
-            message: 'Admin apiCall request',
-            data: { API_BASE, endpoint, method: options?.method || 'GET' },
-            timestamp: Date.now()
-        })
-    }).catch(() => { });
-    // #endregion
+    // Agent log removed
 
     const res = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
@@ -34,21 +20,7 @@ const apiCall = async (endpoint, options = {}) => {
     let data = null;
     try { data = await res.json(); } catch { data = null; }
     if (!res.ok) {
-        // #region agent log
-        fetch('http://127.0.0.1:7313/ingest/2ec3ca36-0117-4bfa-b9a3-4adba61fcd33', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5114aa' },
-            body: JSON.stringify({
-                sessionId: '5114aa',
-                runId: 'pre-fix',
-                hypothesisId: 'H4',
-                location: 'client/src/pages/admin/AdminPage.jsx:apiCall',
-                message: 'Admin apiCall failed',
-                data: { API_BASE, endpoint, status: res.status, responseMessage: data?.message },
-                timestamp: Date.now()
-            })
-        }).catch(() => { });
-        // #endregion
+        // Agent log error fallback removed
         throw new Error(data?.message || `Request failed (${res.status})`);
     }
     return data;
@@ -98,11 +70,39 @@ const LoginScreen = ({ onLogin }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [mfaRequired, setMfaRequired] = useState(false);
+    const [otpCode, setOtpCode] = useState('');
+    const [tempToken, setTempToken] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
+
+        if (mfaRequired) {
+            try {
+                const data = await fetch(`${API_BASE}/auth/verify-admin-mfa`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${tempToken}`
+                    },
+                    body: JSON.stringify({ email, code: otpCode }),
+                }).then(r => r.json());
+
+                if (!data.success) throw new Error(data.message || 'MFA Verification failed');
+
+                localStorage.setItem('admin_token', data.accessToken);
+                localStorage.setItem('admin_user', JSON.stringify(data.user));
+                onLogin(data.user);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+            return;
+        }
+
         try {
             const data = await fetch(`${API_BASE}/auth/login`, {
                 method: 'POST',
@@ -111,7 +111,17 @@ const LoginScreen = ({ onLogin }) => {
             }).then(r => r.json());
 
             if (!data.success) throw new Error(data.message || 'Login failed');
-            if (data.user.accountType !== 'ADMIN') throw new Error('Access denied — admin accounts only');
+
+            if (data.requiresMfa) {
+                setMfaRequired(true);
+                setTempToken(data.tempToken);
+                setLoading(false);
+                return;
+            }
+
+            if (data.user?.accountType !== 'ADMIN' && !data.user?.isAdmin) {
+                throw new Error('Access denied — admin accounts only');
+            }
 
             localStorage.setItem('admin_token', data.accessToken);
             localStorage.setItem('admin_user', JSON.stringify(data.user));
@@ -133,16 +143,45 @@ const LoginScreen = ({ onLogin }) => {
                 </div>
                 <form onSubmit={handleSubmit} className="login-form">
                     {error && <div className="login-error">{error}</div>}
-                    <div className="form-group">
-                        <label>Admin Email</label>
-                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="username" />
-                    </div>
-                    <div className="form-group">
-                        <label>Password</label>
-                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
-                    </div>
+                    
+                    {!mfaRequired ? (
+                        <>
+                            <div className="form-group">
+                                <label>Admin Email</label>
+                                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="username" />
+                            </div>
+                            <div className="form-group">
+                                <label>Password</label>
+                                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
+                            </div>
+                        </>
+                    ) : (
+                        <div className="form-group">
+                            <label>MFA OTP Code</label>
+                            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                                A security code was sent to the administrator's email.
+                            </p>
+                            <input 
+                                type="text" 
+                                value={otpCode} 
+                                onChange={e => setOtpCode(e.target.value)} 
+                                placeholder="000000" 
+                                required 
+                                autoFocus
+                            />
+                            <button 
+                                type="button" 
+                                className="text-btn" 
+                                onClick={() => setMfaRequired(false)}
+                                style={{ marginTop: '8px', fontSize: '12px', background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer' }}
+                            >
+                                ← Back to Login
+                            </button>
+                        </div>
+                    )}
+
                     <button type="submit" className="login-btn" disabled={loading}>
-                        {loading ? 'Authenticating...' : 'Sign In to Admin Console'}
+                        {loading ? 'Processing...' : mfaRequired ? 'Verify & Enter' : 'Sign In to Admin Console'}
                     </button>
                 </form>
                 <p className="login-footer">This panel is restricted to Travelpod administrators only.</p>

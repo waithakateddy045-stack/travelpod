@@ -104,10 +104,10 @@ export default function ProfilePage() {
 
             const { data } = await api.get(`/profile/${handle}/posts?page=${page}&limit=12`);
             const items = data.posts || [];
-            
+
             if (items.length < 12) setPostsHasMore(false);
             setPosts(prev => isRefresh ? items : [...prev, ...items]);
-        } catch { 
+        } catch {
             setPostsHasMore(false);
         } finally {
             setLoading(false);
@@ -128,7 +128,7 @@ export default function ProfilePage() {
 
             const { data } = await api.get(`/engagement/saves?page=${page}&limit=12`);
             const items = data.posts || [];
-            
+
             if (items.length < 12) setSavedHasMore(false);
             setSavedPosts(prev => isRefresh ? items : [...prev, ...items]);
         } catch {
@@ -160,7 +160,7 @@ export default function ProfilePage() {
             const endpoint = isOwn ? '/boards/user/me' : `/boards/user/${handle}`;
             const { data } = await api.get(`${endpoint}?page=${page}&limit=12`);
             const items = data.boards || [];
-            
+
             if (items.length < 12) setBoardsHasMore(false);
             setBoards(prev => isRefresh ? items : [...prev, ...items]);
         } catch {
@@ -264,8 +264,8 @@ export default function ProfilePage() {
                         <h1 className="profile-name">
                             {profile.displayName}
                             {profile.isVerified && (
-                                <HiCheckBadge 
-                                    className="verified-badge-icon interactive" 
+                                <HiCheckBadge
+                                    className="verified-badge-icon interactive"
                                     onClick={() => setIsVerificationModalOpen(true)}
                                     title="Verified Business - Click for details"
                                 />
@@ -343,13 +343,13 @@ export default function ProfilePage() {
                                         <HiOutlineChartBar /> Analytics
                                     </Link>
                                 )}
-                                 {isBusiness && profile.businessProfile?.verificationStatus === 'PENDING' && (
+                                {isBusiness && profile.businessProfile?.verificationStatus === 'PENDING' && (
                                     <div className="verification-status-pill">
                                         ⏳ Verification Pending
                                     </div>
                                 )}
                                 {isBusiness && profile.businessProfile?.verificationStatus === 'APPROVED' && (
-                                    <button 
+                                    <button
                                         className="profile-action-btn accent pulse-broadcast"
                                         onClick={() => navigate('/upload?type=broadcast')}
                                     >
@@ -488,10 +488,10 @@ export default function ProfilePage() {
                     <div className="post-grid">
                         {(activeTab === 'posts' ? posts : savedPosts).length > 0 ? (
                             (activeTab === 'posts' ? posts : savedPosts).map((post, index, array) => (
-                                <Link 
-                                    key={post.id} 
-                                    to={`/post/${post.id}`} 
-                                    className={`post-grid-item ${!post.thumbnailUrl && !post.videoUrl ? 'text-only' : ''}`} 
+                                <Link
+                                    key={post.id}
+                                    to={`/post/${post.id}`}
+                                    className={`post-grid-item ${!post.thumbnailUrl && !post.videoUrl ? 'text-only' : ''}`}
                                     style={{ textDecoration: 'none', color: 'inherit' }}
                                     ref={index === array.length - 1 ? lastElementRef : null}
                                 >
@@ -501,19 +501,28 @@ export default function ProfilePage() {
                                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
                                             <HiOutlinePlayCircle style={{ fontSize: '2rem', color: 'rgba(255,255,255,0.5)' }} />
                                         </div>
+                                    ) : post.mediaUrls && post.mediaUrls.length > 0 ? (
+                                        <img src={post.mediaUrls[0]} alt={post.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
-                                        <div className="text-preview">
-                                            {isVerified && (
-                                                <HiCheckBadge 
-                                                    className="verified-badge-inline interactive" 
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        setIsVerificationModalOpen(true);
-                                                    }}
-                                                />
-                                            )}
-                                            <p>{post.title || post.description}</p>
+                                        <div className="text-preview" style={{ padding: '8px', width: '100%', height: '100%', background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(20,20,20,1) 100%)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 'inherit', boxSizing: 'border-box' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '4px 0 8px 0' }}>
+                                                {profileData?.avatarUrl ? (
+                                                    <img src={profileData.avatarUrl} alt="" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
+                                                ) : (
+                                                    <HiOutlineUser style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#333', padding: '2px' }} />
+                                                )}
+                                                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                                                    <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        {profileData?.displayName}
+                                                        {isVerified && <HiCheckBadge style={{ color: '#00d2ff', marginLeft: '2px', fontSize: '0.65rem', verticalAlign: 'middle' }} />}
+                                                    </span>
+                                                    <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{profileData?.handle}</span>
+                                                </div>
+                                            </div>
+                                            {post.title && <h4 style={{ fontSize: '0.8rem', color: '#fff', margin: '0 0 4px 0', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</h4>}
+                                            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)', display: '-webkit-box', WebkitLineClamp: post.title ? 2 : 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', margin: 0, lineHeight: '1.3' }}>
+                                                {post.textContent?.substring(0, 100) || post.description || "Text Post"}
+                                            </p>
                                         </div>
                                     )}
                                     <div className="post-grid-overlay">
@@ -567,7 +576,7 @@ export default function ProfilePage() {
                         )}
                     </div>
                 )}
-                
+
                 {/* Achievements Grid */}
                 {activeTab === 'achievements' && gamificationEnabled && (
                     <div className="post-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
@@ -611,10 +620,10 @@ export default function ProfilePage() {
                 {activeTab === 'boards' && (
                     <div className="post-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
                         {boards.length > 0 ? boards.map((board, index, array) => (
-                            <Link 
-                                key={board.id} 
-                                to={`/boards/${board.id}`} 
-                                className="post-grid-item" 
+                            <Link
+                                key={board.id}
+                                to={`/boards/${board.id}`}
+                                className="post-grid-item"
                                 style={{ textDecoration: 'none', height: 200 }}
                                 ref={index === array.length - 1 ? lastElementRef : null}
                             >

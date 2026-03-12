@@ -5,11 +5,9 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 function debugLog(payload) {
     // #region agent log
-    fetch('http://127.0.0.1:7313/ingest/2ec3ca36-0117-4bfa-b9a3-4adba61fcd33', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '5114aa' },
-        body: JSON.stringify({ sessionId: '5114aa', timestamp: Date.now(), ...payload }),
-    }).catch(() => { });
+    if (import.meta.env.DEV) {
+        console.debug('API Debug Log:', payload);
+    }
     // #endregion
 }
 

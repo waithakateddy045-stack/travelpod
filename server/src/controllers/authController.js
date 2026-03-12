@@ -151,6 +151,54 @@ const verifyOtp = async (req, res, next) => {
     }
 };
 
+// POST /api/auth/verify-admin-mfa
+const verifyAdminMfa = async (req, res, next) => {
+    try {
+        const { email, code } = req.body;
+        if (!email || !code) throw new AppError('Email and code are required', 400);
+
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) throw new AppError('User not found', 404);
+
+        const expectedMfaToken = `ADMIN-OTP-${code}`;
+        if (user.passwordResetToken !== expectedMfaToken) {
+            throw new AppError('Invalid MFA code', 401);
+        }
+
+        if (!user.passwordResetExpiresAt || user.passwordResetExpiresAt < new Date()) {
+            throw new AppError('MFA code expired', 401);
+        }
+
+        // Success! Issue sessions
+        const deviceType = getDeviceType(req);
+        const session = await prisma.session.create({
+            data: {
+                userId: user.id,
+                token: `TEMP-${Date.now()}`,
+                deviceType,
+                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                lastActiveAt: new Date(),
+            },
+            select: { id: true },
+        });
+
+        const accessToken = generateAccessToken(user, session.id);
+        const refreshToken = generateRefreshToken(user, session.id);
+        await prisma.session.update({ where: { id: session.id }, data: { token: accessToken } });
+
+        // Clear the OTP
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { passwordResetToken: null, passwordResetExpiresAt: null }
+        });
+
+        const userObj = { id: user.id, email: user.email, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl, accountType: user.accountType, onboardingComplete: user.onboardingComplete, isVerified: user.isVerified, isAdmin: user.isAdmin };
+        res.status(200).json({ success: true, accessToken, refreshToken, user: userObj });
+    } catch (err) {
+        next(err);
+    }
+};
+
 // POST /api/auth/resend-otp
 const resendOtp = async (req, res, next) => {
     try {
@@ -438,16 +486,25 @@ const getSessions = async (req, res, next) => {
 const deleteSession = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const session = await prisma.session.findUnique({ where: { id } });
+        await prisma.session.deleteMany({
+            where: { id, userId: req.user.id }
+        });
+        res.json({ success: true });
+    } catch (err) {
+        next(err);
+    }
+};
 
-        if (!session || session.userId !== req.user.id) {
-            throw new AppError('Session not found', 404);
-        }
-
-        await prisma.session.delete({ where: { id } });
-
-        res.json({ success: true, message: 'Session terminated' });
-    } catch (err) { next(err); }
+// DELETE /api/auth/sessions/all
+const deleteAllSessions = async (req, res, next) => {
+    try {
+        await prisma.session.deleteMany({
+            where: { userId: req.user.id }
+        });
+        res.json({ success: true, message: 'All sessions logged out' });
+    } catch (err) {
+        next(err);
+    }
 };
 
 // POST /api/auth/confirm-admin-otp
@@ -531,5 +588,8 @@ module.exports = {
     me,
     getSessions,
     deleteSession,
-    confirmAdminOtp
+    deleteAllSessions,
+    resendOtp,
+    verifyOtp,
+    verifyAdminMfa
 };

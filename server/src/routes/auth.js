@@ -11,7 +11,11 @@ const {
     verifyEmail,
     me,
     getSessions,
-    deleteSession
+    deleteSession,
+    deleteAllSessions,
+    resendOtp,
+    verifyOtp,
+    verifyAdminMfa
 } = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth');
 
@@ -25,14 +29,18 @@ router.post('/refresh', refresh);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
-// Email verification
+// Email verification / OTP
 router.get('/verify-email/:token', verifyEmail);
+router.post('/verify-otp', verifyOtp);
+router.post('/resend-otp', resendOtp);
+router.post('/verify-admin-mfa', verifyAdminMfa);
 
 // Authenticated user info
 router.get('/me', authenticate, me);
 
 // Session management
 router.get('/sessions', authenticate, getSessions);
+router.delete('/sessions/all', authenticate, deleteAllSessions);
 router.delete('/sessions/:id', authenticate, deleteSession);
 
 // Google OAuth

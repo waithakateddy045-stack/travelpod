@@ -33,10 +33,9 @@ const getConversations = async (req, res, next) => {
                     },
                 },
             },
-            orderBy: { createdAt: 'desc' },
         });
 
-        const conversations = await Promise.all(
+        const conversationsUnsorted = await Promise.all(
             participantRows.map(async (row) => {
                 const conversation = row.conversation;
                 const otherParticipant = conversation.participants.find(
@@ -79,6 +78,8 @@ const getConversations = async (req, res, next) => {
                 };
             })
         );
+
+        const conversations = conversationsUnsorted.sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
 
         res.json({ success: true, conversations });
     } catch (err) {
