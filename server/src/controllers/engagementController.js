@@ -112,6 +112,11 @@ const unsavePost = async (req, res, next) => {
 const addComment = async (req, res, next) => {
     try {
         const userId = req.user.id;
+        const { postId } = req.params;
+        const { content, parentCommentId, linkedPostId } = req.body;
+
+        if (!content) throw new AppError('Comment content is required', 400);
+
         let normalizedParentId = parentCommentId || null;
         let realPostId = postId;
 
