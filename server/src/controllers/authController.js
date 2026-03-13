@@ -95,12 +95,59 @@ const register = async (req, res, next) => {
             
             const { sendOTP } = require('../utils/emailService');
             const result = await sendOTP(email, otpCode);
-            
-            const response = { success: true, message: 'OTP updated and sent', email };
+
             if (result.simulated) {
-                response.message = 'OTP updated (Simulated - Trial Mode)';
-                response.devModeOtp = otpCode;
+                console.log('AUTO-VERIFIED: Email service in trial mode (Dormant Account)');
+                
+                // Finalize update and verify
+                const updatedUser = await prisma.user.update({
+                    where: { email },
+                    data: {
+                        password: passwordHash,
+                        otpCode: null,
+                        otpExpiresAt: null,
+                        otpVerified: true
+                    }
+                });
+
+                // Create session
+                const deviceType = getDeviceType(req);
+                const session = await prisma.session.create({
+                    data: {
+                        userId: updatedUser.id,
+                        token: `PENDING-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                        deviceType,
+                        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                        lastActiveAt: new Date(),
+                    },
+                    select: { id: true },
+                });
+
+                const accessToken = generateAccessToken(updatedUser, session.id);
+                const refreshToken = generateRefreshToken(updatedUser, session.id);
+                await prisma.session.update({ where: { id: session.id }, data: { token: accessToken } });
+
+                if (deviceType === 'WEB') {
+                    res.cookie('travelpod_session', accessToken, {
+                        httpOnly: true,
+                        secure: process.env.NODE_ENV === 'production',
+                        sameSite: 'strict',
+                        maxAge: 30 * 24 * 60 * 60 * 1000,
+                    });
+                }
+
+                const userObj = { id: updatedUser.id, email: updatedUser.email, username: updatedUser.username, displayName: updatedUser.displayName, avatarUrl: updatedUser.avatarUrl, accountType: updatedUser.accountType, onboardingComplete: updatedUser.onboardingComplete, isVerified: updatedUser.isVerified, isAdmin: updatedUser.isAdmin };
+                
+                return res.status(200).json({
+                    success: true,
+                    message: 'Account updated and auto-verified (Trial Mode)',
+                    accessToken,
+                    refreshToken,
+                    user: userObj
+                });
             }
+
+            const response = { success: true, message: 'OTP updated and sent', email };
             return res.status(200).json(response);
         }
 
@@ -149,11 +196,57 @@ const register = async (req, res, next) => {
             const targetEmail = getOTPDestination(email, user.isAdmin);
             const result = await sendOTP(targetEmail, otpCode);
 
-            const response = { success: true, message: 'OTP sent', email, targetEmail };
             if (result.simulated) {
-                response.message = 'OTP generated (Simulated - Trial Mode)';
-                response.devModeOtp = otpCode;
+                console.log('AUTO-VERIFIED: Email service in trial mode');
+                
+                // Auto-verify user
+                const updatedUser = await prisma.user.update({
+                    where: { id: user.id },
+                    data: {
+                        otpVerified: true,
+                        otpCode: null,
+                        otpExpiresAt: null
+                    }
+                });
+
+                // Create session
+                const deviceType = getDeviceType(req);
+                const session = await prisma.session.create({
+                    data: {
+                        userId: user.id,
+                        token: `PENDING-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                        deviceType,
+                        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                        lastActiveAt: new Date(),
+                    },
+                    select: { id: true },
+                });
+
+                const accessToken = generateAccessToken(updatedUser, session.id);
+                const refreshToken = generateRefreshToken(updatedUser, session.id);
+                await prisma.session.update({ where: { id: session.id }, data: { token: accessToken } });
+
+                if (deviceType === 'WEB') {
+                    res.cookie('travelpod_session', accessToken, {
+                        httpOnly: true,
+                        secure: process.env.NODE_ENV === 'production',
+                        sameSite: 'strict',
+                        maxAge: 30 * 24 * 60 * 60 * 1000,
+                    });
+                }
+
+                const userObj = { id: updatedUser.id, email: updatedUser.email, username: updatedUser.username, displayName: updatedUser.displayName, avatarUrl: updatedUser.avatarUrl, accountType: updatedUser.accountType, onboardingComplete: updatedUser.onboardingComplete, isVerified: updatedUser.isVerified, isAdmin: updatedUser.isAdmin };
+                
+                return res.status(201).json({
+                    success: true,
+                    message: 'Account created and auto-verified (Trial Mode)',
+                    accessToken,
+                    refreshToken,
+                    user: userObj
+                });
             }
+
+            const response = { success: true, message: 'OTP sent', email, targetEmail };
             return res.status(201).json(response);
         }
 
