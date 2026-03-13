@@ -8,6 +8,7 @@ import {
     HiOutlineBell, HiOutlineUser, HiOutlinePlayCircle,
     HiOutlineArrowPath, HiOutlineStar, HiOutlineEnvelope,
     HiOutlineChartBar, HiOutlineShare, HiOutlineEllipsisHorizontal,
+    HiOutlineChatBubbleLeftRight,
     HiOutlineRectangleStack, HiOutlineSpeakerWave, HiOutlineSpeakerXMark,
     HiCheckBadge, HiOutlinePaperAirplane, HiOutlineTrash, HiOutlineFolderPlus,
     HiOutlineMapPin
@@ -503,8 +504,14 @@ export default function FeedPage() {
                             <HiOutlineEnvelope />
                             {messageCount > 0 && <span className="notification-badge">{messageCount}</span>}
                         </button>
+                        {user && BUSINESS_TYPES.includes(user.accountType) && (
+                            <button className="feed-nav-icon enquiry-nav-btn" onClick={() => navigate('/enquiries')} title="Enquiries">
+                                <HiOutlineChatBubbleLeftRight />
+                                {notificationCount > 0 && <span className="notification-badge">!</span>}
+                            </button>
+                        )}
                         {user ? (() => {
-                            const handle = user.profile?.handle || user.username;
+                            const handle = user.profile?.handle || user.username || user.id;
                             const avatar = user.profile?.avatarUrl || user.avatarUrl;
                             return (
                                 <button className="feed-nav-icon profile-btn" onClick={() => navigate(`/profile/${handle}`)}>
@@ -580,7 +587,11 @@ export default function FeedPage() {
                                     </div>
                                 </div>
                                 <div className="board-card-meta">
-                                    <Link to={`/profile/${author?.profile?.handle}`} className="feed-card-author" onClick={e => e.stopPropagation()}>
+                                    <Link 
+                                        to={`/profile/${author?.profile?.handle || author?.username || author?.id || 'unknown'}`} 
+                                        className="feed-card-author" 
+                                        onClick={e => e.stopPropagation()}
+                                    >
                                         <div className="feed-card-avatar">
                                             {author?.profile?.avatarUrl ? <img src={author.profile.avatarUrl} alt="" /> : <HiOutlineUser />}
                                         </div>

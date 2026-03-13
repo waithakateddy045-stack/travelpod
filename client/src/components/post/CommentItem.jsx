@@ -82,7 +82,7 @@ export default function CommentItem({
         <div className={`comment-item-container ${level > 0 ? 'reply-item' : ''}`}>
             <div className={`comment-item ${isCreator ? 'is-creator' : ''}`}>
                 <Link
-                    to={`/profile/${comment.user?.username}`}
+                    to={`/profile/${comment.user?.username || comment.user?.handle || comment.user?.id || 'unknown'}`}
                     className="comment-avatar"
                 >
                     {comment.user?.avatarUrl ? (
@@ -95,7 +95,7 @@ export default function CommentItem({
                 <div className="comment-content">
                     <div className="comment-header">
                         <Link
-                            to={`/profile/${comment.user?.username}`}
+                            to={`/profile/${comment.user?.username || comment.user?.handle || comment.user?.id || 'unknown'}`}
                             className="comment-author"
                         >
                             {comment.user?.displayName}

@@ -31,6 +31,35 @@ const getOTPDestination = (email, isAdmin) => {
     return sanitizeEmail(email);
 };
 
+/**
+ * Ensures a user automatically follows the official Travelpod account
+ */
+const autoFollowOfficialAccount = async (userId) => {
+    try {
+        const officialUser = await prisma.user.findFirst({
+            where: { email: 'official@travelpod.com' }
+        });
+
+        if (officialUser && userId !== officialUser.id) {
+            await prisma.follow.upsert({
+                where: {
+                    followerId_followingId: {
+                        followerId: userId,
+                        followingId: officialUser.id
+                    }
+                },
+                update: {},
+                create: {
+                    followerId: userId,
+                    followingId: officialUser.id
+                }
+            });
+        }
+    } catch (e) {
+        console.error('[AUTO_FOLLOW_FAILED]', e.message);
+    }
+};
+
 const generateAccessToken = (user, sessionId) => {
     return jwt.sign(
         { id: user.id, email: user.email, accountType: user.accountType, sid: sessionId },
@@ -159,19 +188,8 @@ const register = async (req, res, next) => {
             return res.status(201).json(response);
         }
 
-        // Auto-follow Official Account (moved up for non-OTP users)
-        try {
-            const officialUser = await prisma.user.findFirst({
-                where: { email: 'official@travelpod.com' }
-            });
-            if (officialUser && user.id !== officialUser.id) {
-                await prisma.follow.create({
-                    data: { followerId: user.id, followingId: officialUser.id }
-                }).catch(() => { });
-            }
-        } catch (e) {
-            console.error('Failed to auto-follow official account:', e);
-        }
+        // Auto-follow Official Account (moved to helper)
+        await autoFollowOfficialAccount(user.id);
 
         res.status(201).json({ success: true, message: 'Account created', email, otpSkipped: true, user });
     } catch (err) {
@@ -226,6 +244,9 @@ const verifyOtp = async (req, res, next) => {
                 maxAge: 30 * 24 * 60 * 60 * 1000,
             });
         }
+
+        // Auto-follow Official Account on verification
+        await autoFollowOfficialAccount(user.id);
 
         const userObj = { id: user.id, email: user.email, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl, accountType: user.accountType, onboardingComplete: user.onboardingComplete, isVerified: user.isVerified, isAdmin: user.isAdmin };
         res.status(200).json({ success: true, accessToken, refreshToken, user: userObj });
