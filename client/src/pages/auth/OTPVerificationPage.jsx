@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { HiOutlineExclamationCircle, HiOutlineEnvelope } from 'react-icons/hi2';
 import api from '../../services/api';
+import { secureStorage } from '../../utils/secureStorage';
 import './AuthPage.css';
 
 export default function OTPVerificationPage() {
@@ -77,7 +78,6 @@ export default function OTPVerificationPage() {
             const res = await api.post('/auth/verify-otp', { email, code });
             const { accessToken, refreshToken, user: userData } = res.data;
             if (accessToken) {
-                const { secureStorage } = await import('../../utils/secureStorage');
                 await secureStorage.setItem('travelpod_access', accessToken);
                 await secureStorage.setItem('travelpod_refresh', refreshToken);
                 

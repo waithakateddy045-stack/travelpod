@@ -3,6 +3,12 @@ const { Resend } = require('resend');
 const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM || 'onboarding@resend.dev';
 
+if (!process.env.RESEND_API_KEY) {
+    console.error('❌ RESEND_API_KEY is missing from environment variables!');
+} else {
+    console.log('✅ RESEND_API_KEY is present (length: ' + process.env.RESEND_API_KEY.length + ')');
+}
+
 /**
  * Send OTP Verification Email
  */
