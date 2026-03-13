@@ -59,6 +59,8 @@ const register = async (req, res, next) => {
         if (!email || !password) throw new AppError('Email and password are required', 400);
         validatePassword(password);
 
+        const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing) {
             if (existing.otpVerified) {
@@ -112,7 +114,7 @@ const register = async (req, res, next) => {
             username = `${usernameBase}${Math.floor(Math.random() * 9000 + 1000)}`;
         }
 
-        const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
 
         // Only allow known account types; default to TRAVELER for safety
         const allowedTypes = ['TRAVELER', 'TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];

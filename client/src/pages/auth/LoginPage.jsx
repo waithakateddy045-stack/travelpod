@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { HiOutlineExclamationCircle } from 'react-icons/hi2';
 import { Capacitor } from '@capacitor/core';
