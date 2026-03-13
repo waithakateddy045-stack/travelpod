@@ -96,7 +96,7 @@ const register = async (req, res, next) => {
             const { sendOTP } = require('../utils/emailService');
             const result = await sendOTP(email, otpCode);
 
-            if (result.simulated) {
+            if (!result.sent && result.devModeOtp) {
                 console.log('AUTO-VERIFIED: Email service in trial mode (Dormant Account)');
                 
                 // Finalize update and verify
@@ -140,7 +140,7 @@ const register = async (req, res, next) => {
                 
                 return res.status(200).json({
                     success: true,
-                    message: 'Account updated and auto-verified (Trial Mode)',
+                    message: 'Account updated and auto-verified (SMS Trial Mode)',
                     accessToken,
                     refreshToken,
                     user: userObj
@@ -196,7 +196,7 @@ const register = async (req, res, next) => {
             const targetEmail = getOTPDestination(email, user.isAdmin);
             const result = await sendOTP(targetEmail, otpCode);
 
-            if (result.simulated) {
+            if (!result.sent && result.devModeOtp) {
                 console.log('AUTO-VERIFIED: Email service in trial mode');
                 
                 // Auto-verify user
