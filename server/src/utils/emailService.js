@@ -1,47 +1,78 @@
 const nodemailer = require('nodemailer');
+const { getOTPTemplate, getWelcomeTemplate, getResetPasswordTemplate } = require('./email/templates');
 
+/**
+ * Hardened Gmail SMTP Transporter
+ * Uses connection pooling and rate limiting for better reliability
+ */
 const transporter = nodemailer.createTransport({
   service: 'gmail',
+  pool: true,
+  maxConnections: 3,
+  maxMessages: 100,
+  rateDelta: 1000,
+  rateLimit: 1, // 1 email per second max to avoid Gmail spam blocks
   auth: {
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_APP_PASSWORD
   }
 });
 
-const sendOTP = async (email, otpCode) => {
+/**
+ * Unified Email Sender with Fail-safe Timeout
+ */
+const sendEmail = async (options) => {
+  const { to, subject, html, fallbackCode } = options;
+  
   try {
     const sendPromise = transporter.sendMail({
-      from: `Travelpod <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: 'Your Travelpod verification code',
-      html: `<div style="font-family:sans-serif;background:#111;color:#fff;padding:40px;border-radius:12px;text-align:center"><h2 style="color:#e94560">Travelpod</h2><p>Your verification code is:</p><h1 style="font-size:56px;letter-spacing:16px;color:#ffffff;margin:24px 0">${otpCode}</h1><p style="color:#aaa">Expires in 10 minutes</p></div>`
+      from: `"Travelpod" <${process.env.GMAIL_USER}>`,
+      to,
+      subject,
+      html
     });
-    
-    // 4-second timeout to prevent hanging when SMTP is slow/blocked
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP Timeout')), 4000));
-    
+
+    // 5-second timeout to prevent server execution from hanging
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('SMTP_TIMEOUT')), 5000)
+    );
+
     await Promise.race([sendPromise, timeoutPromise]);
+    console.log(`[EMAIL_SUCCESS] Sent: "${subject}" to ${to}`);
     return { sent: true };
   } catch (err) {
-    console.warn('OTP FAILED (or timed out):', err.message, '| OTP:', otpCode);
-    return { sent: false, devModeOtp: otpCode };
+    console.warn(`[EMAIL_FAILED] ${err.message} | To: ${to} | Fallback: ${fallbackCode}`);
+    return { sent: false, devModeOtp: fallbackCode };
   }
+};
+
+const sendOTP = async (email, otpCode) => {
+  return sendEmail({
+    to: email,
+    subject: 'Your Travelpod verification code',
+    html: getOTPTemplate(otpCode),
+    fallbackCode: otpCode
+  });
 };
 
 const sendWelcome = async (email, displayName) => {
-  try {
-    const sendPromise = transporter.sendMail({
-      from: `Travelpod <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: 'Welcome to Travelpod!',
-      html: `<div style="font-family:sans-serif;background:#111;color:#fff;padding:40px;border-radius:12px;text-align:center"><h2 style="color:#e94560">Welcome to Travelpod, ${displayName}!</h2><p>Your account is verified. Start exploring.</p></div>`
-    });
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP Timeout')), 4000));
-    await Promise.race([sendPromise, timeoutPromise]);
-    return { sent: true };
-  } catch (err) {
-    return { sent: false };
-  }
+  return sendEmail({
+    to: email,
+    subject: 'Welcome to Travelpod!',
+    html: getWelcomeTemplate(displayName)
+  });
 };
 
-module.exports = { sendOTP, sendWelcome };
+const sendPasswordReset = async (email, resetUrl) => {
+  return sendEmail({
+    to: email,
+    subject: 'Reset your Travelpod password',
+    html: getResetPasswordTemplate(resetUrl)
+  });
+};
+
+module.exports = { 
+  sendOTP, 
+  sendWelcome,
+  sendPasswordReset
+};
