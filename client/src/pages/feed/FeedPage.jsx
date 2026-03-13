@@ -157,7 +157,7 @@ export default function FeedPage() {
                     // Broadcast: Mark as viewed
                     const post = posts.find(p => p.id === postId);
                     if (post?.isBroadcast && !post.viewed) {
-                        api.put(`/broadcasts/${post.broadcastId}/viewed`).catch(() => { });
+                        api.put(`/broadcasts/${post.id}/viewed`).catch(() => { });
                     }
                 }
             });
