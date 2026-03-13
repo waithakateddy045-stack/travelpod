@@ -85,7 +85,7 @@ async function uploadVideo(filePath, options = {}) {
         folder: 'travelpod/videos',
         transformation: [...VIDEO_TRANSFORMS, ...transformations],
         eager: [
-            { format: 'mp4', video_codec: 'h264', quality: 'auto' },
+            { format: 'mp4', video_codec: 'h264' },
         ],
         eager_async: true,
         ...otherOptions,

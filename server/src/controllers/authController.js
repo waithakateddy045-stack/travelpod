@@ -373,7 +373,7 @@ const login = async (req, res, next) => {
                 mfaType: 'EMAIL_OTP',
                 email, // Source email
                 targetEmail, // Where it was sent
-                devModeOtp: result.simulated ? otp : undefined
+                devModeOtp: result.devModeOtp // Use the devModeOtp from the emailService result
             });
         }
 
