@@ -99,12 +99,30 @@ export default function CommentItem({
                             className="comment-author"
                         >
                             {comment.user?.displayName}
+                            {comment.commentType === 'REVIEW' && <span className="review-badge-simple">✍️ Review</span>}
                             {isCreator && <span className="creator-badge">Creator</span>}
                         </Link>
                         <span className="comment-time">{new Date(comment.createdAt).toLocaleDateString()}</span>
                     </div>
 
                     <p className="comment-text">{comment.content}</p>
+
+                    {comment.commentType === 'REVIEW' && comment.mediaUrls && comment.mediaUrls.length > 0 && (
+                        <div className="comment-review-media">
+                            <img 
+                                src={comment.mediaUrls[0]} 
+                                alt="Review media" 
+                                className="comment-media-preview"
+                                onClick={() => window.open(comment.mediaUrls[0], '_blank')}
+                            />
+                        </div>
+                    )}
+
+                    {comment.commentType === 'REVIEW' && comment.linkedPostId && (
+                        <Link to={`/post/${comment.linkedPostId}`} className="view-full-review-link">
+                            View full review post →
+                        </Link>
+                    )}
 
                     <div className="comment-footer">
                         <button

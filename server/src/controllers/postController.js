@@ -34,7 +34,10 @@ const listPosts = async (req, res, next) => {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
-        include: { user: { select: publicUserSelect } },
+        include: { 
+          user: { select: publicUserSelect },
+          reviewOf: { include: { user: { select: publicUserSelect } } }
+        },
       }),
       prisma.post.count({ where }),
     ]);
@@ -154,9 +157,10 @@ const createPost = async (req, res, next) => {
           data: {
             postId: reviewOfId,
             userId,
-            content: description || textContent || 'Reviewed this post',
+            content: textContent || description || 'Reviewed this post',
             commentType: 'REVIEW',
             linkedPostId: post.id,
+            mediaUrls: post.mediaUrls || [],
           },
         });
         await prisma.post.update({
@@ -191,7 +195,10 @@ const getPost = async (req, res, next) => {
     const { id } = req.params;
     const post = await prisma.post.findUnique({
       where: { id },
-      include: { user: { select: publicUserSelect } },
+      include: { 
+        user: { select: publicUserSelect },
+        reviewOf: { include: { user: { select: publicUserSelect } } }
+      },
     });
     if (!post) throw new AppError('Post not found', 404);
 

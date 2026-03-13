@@ -39,7 +39,10 @@ const getFeed = async (req, res, next) => {
           orderBy: { createdAt: 'desc' },
           skip: (page - 1) * limit,
           take: limit,
-          include: { user: { select: publicUserSelect } },
+          include: { 
+            user: { select: publicUserSelect },
+            reviewOf: { include: { user: { select: publicUserSelect } } }
+          },
         }),
         prisma.post.count({ where }),
       ]);
@@ -81,7 +84,10 @@ const getFeed = async (req, res, next) => {
             where: { ...where, userId: { in: followingIds } },
             orderBy: { createdAt: 'desc' },
             take: 80,
-            include: { user: { select: publicUserSelect } },
+            include: { 
+              user: { select: publicUserSelect },
+              reviewOf: { include: { user: { select: publicUserSelect } } }
+            },
           })
         : Promise.resolve([]),
       preferred.length
@@ -89,14 +95,20 @@ const getFeed = async (req, res, next) => {
             where: { ...where, locationTag: { in: preferred, mode: 'insensitive' } },
             orderBy: { createdAt: 'desc' },
             take: 80,
-            include: { user: { select: publicUserSelect } },
+            include: { 
+              user: { select: publicUserSelect },
+              reviewOf: { include: { user: { select: publicUserSelect } } }
+            },
           })
         : Promise.resolve([]),
       prisma.post.findMany({
         where,
         orderBy: [{ saveCount: 'desc' }, { commentCount: 'desc' }, { likeCount: 'desc' }, { createdAt: 'desc' }],
         take: 120,
-        include: { user: { select: publicUserSelect } },
+        include: { 
+          user: { select: publicUserSelect },
+          reviewOf: { include: { user: { select: publicUserSelect } } }
+        },
       }),
     ]);
 
@@ -161,7 +173,10 @@ const getFollowingFeed = async (req, res, next) => {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
-        include: { user: { select: publicUserSelect } },
+        include: { 
+          user: { select: publicUserSelect },
+          reviewOf: { include: { user: { select: publicUserSelect } } }
+        },
       }),
       prisma.post.count({ where: { moderationStatus: 'APPROVED', userId: { in: ids } } }),
     ]);

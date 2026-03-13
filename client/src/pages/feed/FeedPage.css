@@ -743,6 +743,37 @@
     to { transform: translateY(0); opacity: 1; }
 }
 
+/* ═══════════════════════════════════════
+   Review Post Specific Styles
+   ═══════════════════════════════════════ */
+.feed-review-media-container {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    background: #111;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.review-media-4-5 {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.feed-card-review-reference {
+    padding: 0 var(--space-4) var(--space-2);
+}
+
+.feed-card-review-thoughts {
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    margin-bottom: var(--space-2);
+    white-space: pre-wrap;
+}
+
 /* AuthPromptModal styling overrides for Feed */
 .auth-prompt-overlay {
     background: rgba(0, 0, 0, 0.85);

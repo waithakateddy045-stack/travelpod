@@ -23,6 +23,7 @@ import EngagementBar from '../../components/post/EngagementBar';
 import PostMoreMenu from '../../components/post/PostMoreMenu';
 import VerificationDetailsModal from '../../components/verification/VerificationDetailsModal';
 import CreateReviewModal from '../../components/post/creation/CreateReviewModal';
+import OriginalPostCard from '../../components/post/OriginalPostCard';
 import './FeedPage.css';
 
 const FILTER_CHIPS = ['All', 'Destinations', 'Hotels & Resorts', 'Safari', 'Beach', 'Adventures'];
@@ -309,6 +310,32 @@ export default function FeedPage() {
         const isActive = activeVideoId === post.id;
         const hasVideo = !!post.videoUrl;
         const mediaUrls = post.mediaUrls || [];
+
+        // CASE 0: Review Post (LinkedIn-Style)
+        if (post.postType === 'REVIEW' || post.isReview) {
+            if (mediaUrls.length > 0) {
+                return (
+                    <div className="feed-review-media-container" onClick={(e) => handlePostClick(e, post)}>
+                        <img src={mediaUrls[0]} alt="" className="review-media-4-5" loading="lazy" />
+                    </div>
+                );
+            }
+            if (hasVideo) {
+                return (
+                    <div className="feed-review-media-container" onClick={(e) => handlePostClick(e, post)}>
+                         <VideoPlayer
+                            src={post.videoUrl}
+                            poster={post.thumbnailUrl}
+                            autoPlay={isActive}
+                            muted={isMuted}
+                            loop
+                            aspectRatio="4/5"
+                        />
+                    </div>
+                );
+            }
+            return null; // OriginalPostCard handled in main render loop
+        }
 
         // CASE 1: Text-Only Post (X-Style)
         if (!hasVideo && mediaUrls.length === 0) {
@@ -653,18 +680,33 @@ export default function FeedPage() {
                             {/* Media Section */}
                             <div className="feed-card-media-wrapper">
                                 {renderMedia(post)}
-                                <button className="feed-mute-corner" onClick={toggleMute}>
-                                    {isMuted ? <HiOutlineSpeakerXMark /> : <HiOutlineSpeakerWave />}
-                                </button>
+                                {(post.videoUrl || (post.mediaUrls && post.mediaUrls.length > 0)) && (
+                                    <button className="feed-mute-corner" onClick={toggleMute}>
+                                        {isMuted ? <HiOutlineSpeakerXMark /> : <HiOutlineSpeakerWave />}
+                                    </button>
+                                )}
                             </div>
+
+                            {/* Original Post Reference (for Reviews) */}
+                            {(post.postType === 'REVIEW' || post.isReview) && post.reviewOf && (
+                                <div className="feed-card-review-reference">
+                                    <OriginalPostCard post={post.reviewOf} />
+                                </div>
+                            )}
 
                             {/* Engagement Bar */}
                             {renderActions(post, author)}
 
                             {/* Info Panel (Below Actions) */}
                             <div className="feed-card-info">
-                                <div className="feed-card-title">{post.title}</div>
-                                {post.description && <div className="feed-card-desc">{post.description}</div>}
+                                {(post.postType === 'REVIEW' || post.isReview) ? (
+                                    <div className="feed-card-review-thoughts">{post.textContent || post.description}</div>
+                                ) : (
+                                    <>
+                                        <div className="feed-card-title">{post.title}</div>
+                                        {post.description && <div className="feed-card-desc">{post.description}</div>}
+                                    </>
+                                )}
                                 <div className="feed-card-music">
                                     {post.musicTitle ? post.musicTitle : `🎵 Original sound - ${author?.profile?.displayName || 'Travelpod Creator'}`}
                                 </div>

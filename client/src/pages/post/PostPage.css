@@ -665,3 +665,48 @@
         overflow-y: auto !important;
     }
 }
+
+/* Review Badge in Comments */
+.review-badge-simple {
+    font-size: 11px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    margin-left: var(--space-2);
+    font-weight: 500;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.comment-review-media {
+    margin: var(--space-2) 0;
+    max-width: 200px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    cursor: pointer;
+    border: 1px solid var(--border-primary);
+}
+
+.comment-media-preview {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: transform 0.2s;
+}
+
+.comment-media-preview:hover {
+    transform: scale(1.05);
+}
+
+.view-full-review-link {
+    display: inline-block;
+    margin-top: var(--space-2);
+    font-size: 0.85rem;
+    color: var(--color-primary-light);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.view-full-review-link:hover {
+    text-decoration: underline;
+}

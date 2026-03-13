@@ -225,6 +225,7 @@ model Comment {
   parentCommentId String?
   commentType   CommentType @default(COMMENT)
   linkedPostId  String?
+  mediaUrls     String[]
   likeCount     Int         @default(0)
   createdAt     DateTime    @default(now())
 
