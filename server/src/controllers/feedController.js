@@ -1,19 +1,4 @@
-const prisma = require('../utils/prisma');
-
-const publicUserSelect = {
-  id: true,
-  username: true,
-  displayName: true,
-  avatarUrl: true,
-  accountType: true,
-  isVerified: true,
-  parentAccountId: true,
-  isManagedBusinessPage: true,
-};
-
-function normalizeDestination(tag) {
-  return String(tag || '').trim().toLowerCase();
-}
+const { getSeenContentIds, markContentSeen } = require('../utils/feedHelper');
 
 // ============================================================
 // GET /api/feed
@@ -25,6 +10,7 @@ const getFeed = async (req, res, next) => {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
     const destination = req.query.destination ? normalizeDestination(req.query.destination) : null;
+    const sessionId = req.query.sessionId;
 
     const where = {
       moderationStatus: 'APPROVED',
@@ -63,6 +49,10 @@ const getFeed = async (req, res, next) => {
     // Logged-in feed (lightweight PRD-ish ranking)
     const userId = req.user.id;
 
+    // Fetch seen IDs to exclude
+    const { seenPostIds } = await getSeenContentIds(userId);
+    const excludeSeen = { id: { notIn: seenPostIds } };
+
     const me = await prisma.user.findUnique({
       where: { id: userId },
       select: { preferredRegions: true },
@@ -81,7 +71,7 @@ const getFeed = async (req, res, next) => {
     const [fromFollowing, fromPreferred, trending] = await Promise.all([
       followingIds.length
         ? prisma.post.findMany({
-            where: { ...where, userId: { in: followingIds } },
+            where: { ...where, ...excludeSeen, userId: { in: followingIds } },
             orderBy: { createdAt: 'desc' },
             take: 80,
             include: { 
@@ -92,7 +82,7 @@ const getFeed = async (req, res, next) => {
         : Promise.resolve([]),
       preferred.length
         ? prisma.post.findMany({
-            where: { ...where, locationTag: { in: preferred, mode: 'insensitive' } },
+            where: { ...where, ...excludeSeen, locationTag: { in: preferred, mode: 'insensitive' } },
             orderBy: { createdAt: 'desc' },
             take: 80,
             include: { 
@@ -102,7 +92,7 @@ const getFeed = async (req, res, next) => {
           })
         : Promise.resolve([]),
       prisma.post.findMany({
-        where,
+        where: { ...where, ...excludeSeen },
         orderBy: [{ saveCount: 'desc' }, { commentCount: 'desc' }, { likeCount: 'desc' }, { createdAt: 'desc' }],
         take: 120,
         include: { 
@@ -132,6 +122,11 @@ const getFeed = async (req, res, next) => {
     const start = (page - 1) * limit;
     const posts = sorted.slice(start, start + limit);
 
+    // Mark as seen in background
+    if (posts.length > 0) {
+      markContentSeen(userId, posts.map(p => p.id)).catch(() => {});
+    }
+
     const mappedPosts = posts.map(p => ({
       ...p,
       user: p.user ? {
@@ -159,6 +154,8 @@ const getFollowingFeed = async (req, res, next) => {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
 
+    const { seenPostIds } = await getSeenContentIds(userId);
+
     const following = await prisma.follow.findMany({
       where: { followerId: userId },
       select: { followingId: true },
@@ -169,7 +166,11 @@ const getFollowingFeed = async (req, res, next) => {
 
     const [posts, total] = await Promise.all([
       prisma.post.findMany({
-        where: { moderationStatus: 'APPROVED', userId: { in: ids } },
+        where: { 
+          moderationStatus: 'APPROVED', 
+          userId: { in: ids },
+          id: { notIn: seenPostIds }
+        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -178,8 +179,19 @@ const getFollowingFeed = async (req, res, next) => {
           reviewOf: { include: { user: { select: publicUserSelect } } }
         },
       }),
-      prisma.post.count({ where: { moderationStatus: 'APPROVED', userId: { in: ids } } }),
+      prisma.post.count({ 
+        where: { 
+          moderationStatus: 'APPROVED', 
+          userId: { in: ids },
+          id: { notIn: seenPostIds }
+        } 
+      }),
     ]);
+
+    // Mark seen
+    if (posts.length > 0) {
+      markContentSeen(userId, posts.map(p => p.id)).catch(() => {});
+    }
 
     const mappedPosts = posts.map(p => ({
       ...p,

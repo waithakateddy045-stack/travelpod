@@ -159,6 +159,8 @@ model User {
   featureFlagUpdates FeatureFlag[]
   adminActions      AdminActionLog[] @relation("AdminActions")
   featuredPlacements FeaturedPlacement[] @relation("BusinessPlacements")
+  postViews         PostView[]
+  boardViews        BoardView[]
 }
 
 model Session {
@@ -215,6 +217,7 @@ model Post {
   reports          Report[]
   collaborations   Collaboration[]
   featuredPlacements FeaturedPlacement[]
+  views            PostView[]
 
   @@index([userId, moderationStatus])
   @@index([createdAt])
@@ -371,6 +374,7 @@ model TripBoard {
   saves           BoardSave[]
   follows         BoardFollow[]
   comments        BoardComment[]
+  views           BoardView[]
 }
 
 model TripBoardVideo {
@@ -587,4 +591,30 @@ model FeaturedPlacement {
 
   post              Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   business          User     @relation("BusinessPlacements", fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model PostView {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+}
+
+model BoardView {
+  id        String    @id @default(cuid())
+  userId    String
+  boardId   String
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  board     TripBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, boardId])
+  @@index([userId])
 }

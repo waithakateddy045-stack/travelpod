@@ -308,8 +308,13 @@ export default function FeedPage() {
         setIsMuted(prev => !prev);
     };
 
-    const renderMedia = (post) => {
+    const renderMedia = (post, index) => {
         const isActive = activeVideoId === post.id;
+        
+        // Preload logic: if this post is within the next 3 items from the active one
+        const activeIndex = posts.findIndex(p => p.id === activeVideoId);
+        const shouldPreload = index > activeIndex && index <= activeIndex + 3;
+
         const hasVideo = !!post.videoUrl;
         const mediaUrls = post.mediaUrls || [];
 
@@ -332,6 +337,7 @@ export default function FeedPage() {
                             muted={isMuted}
                             loop
                             aspectRatio="4/5"
+                            shouldPreload={shouldPreload}
                         />
                     </div>
                 );
@@ -398,6 +404,7 @@ export default function FeedPage() {
                         muted={isMuted}
                         loop
                         onClick={(e) => handlePostClick(e, post)}
+                        shouldPreload={shouldPreload}
                     />
                 </div>
             );
@@ -413,6 +420,7 @@ export default function FeedPage() {
                             poster={post.thumbnailUrl}
                             autoPlay={isActive}
                             muted={isMuted}
+                            shouldPreload={shouldPreload}
                         />
                     </div>
                 )}
@@ -691,7 +699,7 @@ export default function FeedPage() {
 
                             {/* Media Section */}
                             <div className="feed-card-media-wrapper">
-                                {renderMedia(post)}
+                                {renderMedia(post, index)}
                                 {(post.videoUrl || (post.mediaUrls && post.mediaUrls.length > 0)) && (
                                     <button className="feed-mute-corner" onClick={toggleMute}>
                                         {isMuted ? <HiOutlineSpeakerXMark /> : <HiOutlineSpeakerWave />}

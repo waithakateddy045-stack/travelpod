@@ -3,7 +3,7 @@ import { Play, Volume2, VolumeX, TriangleAlert, RotateCw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './VideoPlayer.css';
 
-export default function VideoPlayer({ src, poster, autoPlay = false, loop = true, onView, onClick }) {
+export default function VideoPlayer({ src, poster, autoPlay = false, loop = true, onView, onClick, shouldPreload = false }) {
     const videoRef = useRef(null);
     const containerRef = useRef(null);
     const { isMuted, setIsMuted } = useAuth();
@@ -128,7 +128,7 @@ export default function VideoPlayer({ src, poster, autoPlay = false, loop = true
                 muted={isMuted}
                 loop={loop}
                 playsInline
-                preload="metadata"
+                preload={(autoPlay || shouldPreload) ? "auto" : "metadata"}
                 onTimeUpdate={handleTimeUpdate}
                 onError={handleError}
                 onCanPlay={handleCanPlay}

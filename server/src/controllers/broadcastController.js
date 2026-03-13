@@ -96,6 +96,8 @@ const publicUserSelect = {
     isVerified: true,
 };
 
+const { getSeenContentIds, markContentSeen } = require('../utils/feedHelper');
+
 // GET /api/broadcasts — List all broadcasts
 const getBroadcasts = async (req, res, next) => {
     try {
@@ -132,11 +134,15 @@ const getBroadcastsForUser = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
+        const userId = req.user?.id;
+
+        const { seenPostIds } = await getSeenContentIds(userId);
+        const where = { isBroadcast: true, id: { notIn: seenPostIds } };
 
         // In a real app, filtering by user sector/region would go here
         const [broadcasts, total] = await Promise.all([
             prisma.post.findMany({
-                where: { isBroadcast: true },
+                where,
                 orderBy: { createdAt: 'desc' },
                 skip: (page - 1) * limit,
                 take: limit,
@@ -144,8 +150,12 @@ const getBroadcastsForUser = async (req, res, next) => {
                     user: { select: publicUserSelect },
                 },
             }),
-            prisma.post.count({ where: { isBroadcast: true } }),
+            prisma.post.count({ where }),
         ]);
+
+        if (userId && broadcasts.length > 0) {
+            markContentSeen(userId, broadcasts.map(b => b.id)).catch(() => {});
+        }
 
         res.json({ success: true, broadcasts, total, page });
     } catch (err) { next(err); }
@@ -155,10 +165,14 @@ const getBroadcastsForUser = async (req, res, next) => {
 const markBroadcastViewed = async (req, res, next) => {
     try {
         const { id } = req.params;
+        const userId = req.user?.id;
         await prisma.post.update({
             where: { id },
             data: { viewCount: { increment: 1 } },
         });
+        if (userId) {
+            markContentSeen(userId, [id]).catch(() => {});
+        }
         res.json({ success: true });
     } catch (err) { next(err); }
 };
@@ -168,10 +182,14 @@ const getBroadcastsExplore = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
+        const userId = req.user?.id;
+
+        const { seenPostIds } = await getSeenContentIds(userId);
+        const where = { isBroadcast: true, id: { notIn: seenPostIds } };
 
         const [broadcasts, total] = await Promise.all([
             prisma.post.findMany({
-                where: { isBroadcast: true },
+                where,
                 orderBy: { createdAt: 'desc' },
                 skip: (page - 1) * limit,
                 take: limit,
@@ -179,8 +197,12 @@ const getBroadcastsExplore = async (req, res, next) => {
                     user: { select: publicUserSelect },
                 },
             }),
-            prisma.post.count({ where: { isBroadcast: true } }),
+            prisma.post.count({ where }),
         ]);
+
+        if (userId && broadcasts.length > 0) {
+            markContentSeen(userId, broadcasts.map(b => b.id)).catch(() => {});
+        }
 
         res.json({ success: true, broadcasts, total, page });
     } catch (err) { next(err); }

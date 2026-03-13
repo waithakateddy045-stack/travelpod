@@ -26,6 +26,8 @@ const attachLegacyProfile = (user) => {
     };
 };
 
+const { getSeenContentIds, markContentSeen } = require('../utils/feedHelper');
+
 // ============================================================
 // POST /api/boards — Create a new board
 // ============================================================
@@ -69,7 +71,12 @@ const getBoardsFeed = async (req, res, next) => {
         const sort = req.query.sort || 'personalized'; // personalized | popular | newest
         const userId = req.user?.id;
 
-        const where = { isPublic: true };
+        const { seenBoardIds } = await getSeenContentIds(userId);
+
+        const where = { 
+            isPublic: true,
+            id: { notIn: seenBoardIds }
+        };
         if (destination) {
             where.destination = { contains: destination, mode: 'insensitive' };
         }
@@ -90,6 +97,7 @@ const getBoardsFeed = async (req, res, next) => {
                         orderBy: { addedAt: 'asc' },
                         include: { post: { select: { thumbnailUrl: true } } },
                     },
+                    _count: { select: { videos: true } },
                 },
             }),
             prisma.tripBoard.count({ where }),
@@ -99,6 +107,7 @@ const getBoardsFeed = async (req, res, next) => {
             ...b,
             user: attachLegacyProfile(b.user),
             coverImage: b.coverImage || b.videos?.[0]?.post?.thumbnailUrl || null,
+            videoCount: b._count.videos,
         }));
 
         // Personalized scoring if requested
@@ -145,6 +154,11 @@ const getBoardsFeed = async (req, res, next) => {
                 isSaved: savedSet.has(b.id),
                 isFollowed: followedSet.has(b.id),
             }));
+
+            // Mark visible boards as viewed in background
+            if (processed.length > 0) {
+                markContentSeen(userId, [], processed.map(p => p.id)).catch(() => {});
+            }
         }
 
         res.json({ success: true, boards: processed, total, page, totalPages: Math.ceil(total / limit) });
