@@ -21,6 +21,7 @@ enum ModerationStatus {
   PENDING
   APPROVED
   REJECTED
+  REMOVED
 }
 
 enum PostType {
