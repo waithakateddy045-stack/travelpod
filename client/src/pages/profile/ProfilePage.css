@@ -229,7 +229,14 @@
 }
 
 .profile-action-btn.danger {
-    color: rgba(255, 255, 255, 0.5);
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.profile-action-btn.danger:hover {
+    background: #ef4444;
+    color: #fff;
 }
 
 .profile-action-btn:hover {

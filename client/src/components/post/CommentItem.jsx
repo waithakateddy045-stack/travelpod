@@ -82,11 +82,11 @@ export default function CommentItem({
         <div className={`comment-item-container ${level > 0 ? 'reply-item' : ''}`}>
             <div className={`comment-item ${isCreator ? 'is-creator' : ''}`}>
                 <Link
-                    to={`/profile/${comment.user?.profile?.handle}`}
+                    to={`/profile/${comment.user?.username}`}
                     className="comment-avatar"
                 >
-                    {comment.user?.profile?.avatarUrl ? (
-                        <img src={comment.user.profile.avatarUrl} alt="" />
+                    {comment.user?.avatarUrl ? (
+                        <img src={comment.user.avatarUrl} alt="" />
                     ) : (
                         <HiOutlineUser />
                     )}
@@ -95,10 +95,10 @@ export default function CommentItem({
                 <div className="comment-content">
                     <div className="comment-header">
                         <Link
-                            to={`/profile/${comment.user?.profile?.handle}`}
+                            to={`/profile/${comment.user?.username}`}
                             className="comment-author"
                         >
-                            {comment.user?.profile?.displayName}
+                            {comment.user?.displayName}
                             {isCreator && <span className="creator-badge">Creator</span>}
                         </Link>
                         <span className="comment-time">{new Date(comment.createdAt).toLocaleDateString()}</span>
@@ -130,7 +130,7 @@ export default function CommentItem({
                             <form onSubmit={handleSubmitReply} className="reply-form">
                                 <input
                                     type="text"
-                                    placeholder={`Reply to ${comment.user?.profile?.displayName}...`}
+                                    placeholder={`Reply to ${comment.user?.displayName}...`}
                                     value={replyText}
                                     onChange={(e) => setReplyText(e.target.value)}
                                     className="reply-input"

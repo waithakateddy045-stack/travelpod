@@ -9,7 +9,8 @@ import {
     HiOutlineChartBar, HiOutlineEnvelope,
     HiOutlineRectangleStack, HiOutlineFlag, HiCheckBadge,
     HiOutlineChartPie, HiOutlinePencilSquare, HiOutlineTrash,
-    HiOutlineUserGroup, HiOutlineTrophy, HiOutlineSparkles
+    HiOutlineUserGroup, HiOutlineTrophy, HiOutlineSparkles,
+    HiOutlineArrowLeftOnRectangle
 } from 'react-icons/hi2';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -343,6 +344,9 @@ export default function ProfilePage() {
                                         <HiOutlineChartBar /> Analytics
                                     </Link>
                                 )}
+                                <button className="profile-action-btn danger" onClick={() => { logout(); navigate('/'); }}>
+                                    <HiOutlineArrowLeftOnRectangle /> Logout
+                                </button>
                                 {isBusiness && profile.businessProfile?.verificationStatus === 'PENDING' && (
                                     <div className="verification-status-pill">
                                         ⏳ Verification Pending
@@ -403,27 +407,27 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Business Info Card */}
-                {isBusiness && profile.businessProfile && (
+                {isBusiness && (profile.businessProfile || profile.bio) && (
                     <div className="business-info">
-                        <h3>Business Info</h3>
-                        {profile.businessProfile.starRating && (
+                        <h3>{isBusiness ? 'Business Info' : 'About'}</h3>
+                        {profile.businessProfile?.starRating && (
                             <div className="star-rating" style={{ marginBottom: 'var(--space-4)' }}>
                                 <HiOutlineStar style={{ fill: '#f5a623' }} />
                                 {Number(profile.businessProfile.starRating).toFixed(1)}
                                 <span className="count">({profile.businessProfile.verifiedReviewCount} verified reviews)</span>
                             </div>
                         )}
-                        {profile.businessProfile.country && (
+                        {profile.businessProfile?.country && (
                             <div className="business-detail">
                                 <HiOutlineMapPin /> {profile.businessProfile.country}
                             </div>
                         )}
-                        {profile.businessProfile.description && (
+                        {(profile.bio || profile.businessProfile?.description) && (
                             <div className="business-detail" style={{ alignItems: 'flex-start' }}>
-                                <span>{profile.businessProfile.description}</span>
+                                <span>{profile.bio || profile.businessProfile?.description}</span>
                             </div>
                         )}
-                        {profile.businessProfile.websiteUrl && (
+                        {profile.businessProfile?.websiteUrl && (
                             <div className="business-detail">
                                 <HiOutlineGlobeAlt />
                                 <a href={profile.businessProfile.websiteUrl} target="_blank" rel="noopener noreferrer"
@@ -506,17 +510,17 @@ export default function ProfilePage() {
                                     ) : (
                                         <div className="text-preview" style={{ padding: '8px', width: '100%', height: '100%', background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(20,20,20,1) 100%)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 'inherit', boxSizing: 'border-box' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '4px 0 8px 0' }}>
-                                                {profileData?.avatarUrl ? (
-                                                    <img src={profileData.avatarUrl} alt="" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
+                                                {profile?.avatarUrl ? (
+                                                    <img src={profile.avatarUrl} alt="" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
                                                 ) : (
                                                     <HiOutlineUser style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#333', padding: '2px' }} />
                                                 )}
                                                 <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                                                     <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                        {profileData?.displayName}
+                                                        {profile?.displayName}
                                                         {isVerified && <HiCheckBadge style={{ color: '#00d2ff', marginLeft: '2px', fontSize: '0.65rem', verticalAlign: 'middle' }} />}
                                                     </span>
-                                                    <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{profileData?.handle}</span>
+                                                    <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{profile?.handle}</span>
                                                 </div>
                                             </div>
                                             {post.title && <h4 style={{ fontSize: '0.8rem', color: '#fff', margin: '0 0 4px 0', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</h4>}

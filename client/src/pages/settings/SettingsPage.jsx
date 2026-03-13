@@ -5,7 +5,8 @@ import {
     HiOutlineBell, HiOutlineLockClosed, HiOutlineTrash,
     HiOutlineArrowLeft, HiOutlineShieldCheck, HiOutlineArrowDownTray,
     HiOutlineUser, HiOutlineGlobeAlt, HiOutlineDevicePhoneMobile,
-    HiOutlineCamera, HiOutlinePencilSquare, HiOutlineArrowTrendingUp
+    HiOutlineCamera, HiOutlinePencilSquare, HiOutlineArrowTrendingUp,
+    HiOutlineArrowLeftOnRectangle
 } from 'react-icons/hi2';
 import { useAuth } from '../../context/AuthContext';
 import useFeatureFlag from '../../hooks/useFeatureFlag';
@@ -230,6 +231,7 @@ export default function SettingsPage() {
         ...(isNonIOS ? [{ key: 'app', label: 'Get the App', icon: <HiOutlineDevicePhoneMobile /> }] : []),
         { key: 'data', label: 'Data & Export', icon: <HiOutlineArrowDownTray /> },
         { key: 'account', label: 'Account', icon: <HiOutlineUser /> },
+        { key: 'logout', label: 'Log Out', icon: <HiOutlineArrowLeftOnRectangle /> },
     ];
 
     return (
@@ -250,7 +252,16 @@ export default function SettingsPage() {
                             <button
                                 key={s.key}
                                 id={`settings-nav-${s.key}`}
-                                onClick={() => setActiveSection(s.key)}
+                                onClick={() => {
+                                    if (s.key === 'logout') {
+                                        if (window.confirm('Are you sure you want to log out?')) {
+                                            logout();
+                                            navigate('/');
+                                        }
+                                        return;
+                                    }
+                                    setActiveSection(s.key);
+                                }}
                                 style={{
                                     display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
                                     width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-md)',
