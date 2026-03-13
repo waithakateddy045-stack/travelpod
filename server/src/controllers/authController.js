@@ -684,5 +684,6 @@ module.exports = {
     deleteAllSessions,
     resendOtp,
     verifyOtp,
-    verifyAdminMfa
+    verifyAdminMfa,
+    confirmAdminOtp
 };
