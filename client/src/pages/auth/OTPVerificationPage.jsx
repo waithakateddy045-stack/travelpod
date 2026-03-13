@@ -75,12 +75,15 @@ export default function OTPVerificationPage() {
         setApiError('');
         try {
             const res = await api.post('/auth/verify-otp', { email, code });
-            const { accessToken, user } = res.data;
+            const { accessToken, refreshToken, user: userData } = res.data;
             if (accessToken) {
-                localStorage.setItem('accessToken', accessToken);
+                const { secureStorage } = await import('../../utils/secureStorage');
+                await secureStorage.setItem('travelpod_access', accessToken);
+                await secureStorage.setItem('travelpod_refresh', refreshToken);
+                
                 toast.success('Email verified successfully!');
-                navigate(user.onboardingComplete ? '/feed' : '/onboarding');
-                window.location.reload();
+                navigate(userData.onboardingComplete ? '/feed' : '/onboarding');
+                window.location.reload(); // Still reload to re-init all contexts cleanly
             }
         } catch (err) {
             setApiError(err.response?.data?.error || 'Verification failed. Please try again.');

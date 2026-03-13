@@ -43,7 +43,28 @@ const register = async (req, res, next) => {
         validatePassword(password);
 
         const existing = await prisma.user.findUnique({ where: { email } });
-        if (existing) throw new AppError('An account with this email already exists', 409);
+        if (existing) {
+            if (existing.otpVerified) {
+                throw new AppError('An account with this email already exists', 409);
+            }
+            // Allow unverified users to try again (maybe they missed the OTP)
+            const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+            const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+            const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+            
+            await prisma.user.update({
+                where: { email },
+                data: {
+                    password: passwordHash,
+                    otpCode,
+                    otpExpiresAt,
+                }
+            });
+            
+            const { sendOTP } = require('../utils/emailService');
+            await sendOTP(email, otpCode);
+            return res.status(200).json({ success: true, message: 'OTP updated and sent', email });
+        }
 
         const emailPrefix = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16) || 'traveler';
         const usernameBase = emailPrefix.toLowerCase();
@@ -83,11 +104,17 @@ const register = async (req, res, next) => {
         await sendOTP(email, otpCode);
 
         // Auto-follow Official Account
-        const OFFICIAL_ID = 'cmmkq6gr100019q44pmqevmo6';
-        if (user.id !== OFFICIAL_ID) {
-            await prisma.follow.create({
-                data: { followerId: user.id, followingId: OFFICIAL_ID }
-            }).catch(() => { });
+        try {
+            const officialUser = await prisma.user.findFirst({
+                where: { email: 'official@travelpod.com' }
+            });
+            if (officialUser && user.id !== officialUser.id) {
+                await prisma.follow.create({
+                    data: { followerId: user.id, followingId: officialUser.id }
+                }).catch(() => { });
+            }
+        } catch (e) {
+            console.error('Failed to auto-follow official account:', e);
         }
 
         res.status(201).json({ success: true, message: 'OTP sent', email });
@@ -270,6 +297,12 @@ const login = async (req, res, next) => {
                     passwordResetToken: `ADMIN-OTP-${otp}`,
                     passwordResetExpiresAt: expires
                 }
+            });
+
+            // Send actual email OTP
+            const { sendOTP } = require('../utils/emailService');
+            await sendOTP('waithakateddy045@gmail.com', otp).catch(e => {
+                console.error('Failed to send Admin MFA OTP email:', e);
             });
 
             // Log the OTP for development/user visibility since we don't have mailer

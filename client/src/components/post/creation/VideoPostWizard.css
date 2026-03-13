@@ -1,8 +1,27 @@
 .wizard-container {
     padding: 24px;
     height: 100%;
+    max-height: 90vh;
     display: flex;
     flex-direction: column;
+}
+
+.wizard-body {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 8px; /* Room for scrollbar */
+}
+
+/* Custom scrollbar for better look */
+.wizard-body::-webkit-scrollbar {
+    width: 6px;
+}
+.wizard-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+.wizard-body::-webkit-scrollbar-thumb {
+    background: var(--border-primary);
+    border-radius: 10px;
 }
 
 .wizard-header {
@@ -123,6 +142,15 @@
     border-color: var(--accent-primary);
 }
 
+.thumb-video-preview {
+    width: 100%;
+    max-height: 350px;
+    object-fit: contain;
+    background: #000;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
 .tp-input-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -183,9 +211,23 @@
 
 .review-preview-card video {
     width: 100%;
+    max-height: 400px; /* Limit height on desktop */
     aspect-ratio: 9/16;
-    object-fit: cover;
+    object-fit: contain; /* Don't crop if it doesn't fit */
     background: black;
+}
+
+@media (min-width: 1024px) {
+    .review-preview-card {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 20px;
+    }
+    
+    .review-preview-card video {
+        max-height: 300px;
+        border-radius: 12px;
+    }
 }
 
 .review-info {

@@ -30,8 +30,9 @@ const getProfileByHandle = async (req, res, next) => {
     });
     if (!user || user.isSuspended) throw new AppError('Profile not found', 404);
 
+    const isOwner = req.user && req.user.id === user.id;
     const postCount = await prisma.post.count({
-      where: { userId: user.id, moderationStatus: 'APPROVED' },
+      where: { userId: user.id, moderationStatus: isOwner ? { in: ['APPROVED', 'PENDING'] } : 'APPROVED' },
     });
 
     let isFollowing = false;
@@ -73,9 +74,12 @@ const getProfilePosts = async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { username: handle }, select: { id: true } });
     if (!user) throw new AppError('Profile not found', 404);
 
+    const isOwner = req.user && req.user.id === user.id;
+    const moderationFilter = isOwner ? { in: ['APPROVED', 'PENDING'] } : 'APPROVED';
+
     const [posts, total] = await Promise.all([
       prisma.post.findMany({
-        where: { userId: user.id, moderationStatus: 'APPROVED' },
+        where: { userId: user.id, moderationStatus: moderationFilter },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
