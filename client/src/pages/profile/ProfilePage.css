@@ -228,6 +228,22 @@
     font-size: 1.25rem;
 }
 
+.profile-action-btn.icon-only-rounded {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+    background: #fff;
+    color: #000;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+}
+
+.profile-action-btn.icon-only-rounded:hover {
+    transform: scale(1.1) rotate(90deg);
+    background: #f0f0f0;
+}
+
 .profile-action-btn.danger {
     background: rgba(239, 68, 68, 0.1);
     color: #ef4444;

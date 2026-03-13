@@ -142,7 +142,7 @@ const createPost = async (req, res, next) => {
         category: category || null,
         tags: tagList.length ? tagList : null,
         musicTitle: musicTitle || null,
-        moderationStatus: 'PENDING',
+        moderationStatus: 'APPROVED',
         isReview: postType === 'REVIEW' || isReview === true || isReview === 'true',
         reviewOfId: reviewOfId || null,
         starRating: starRating ? Number(starRating) : null,

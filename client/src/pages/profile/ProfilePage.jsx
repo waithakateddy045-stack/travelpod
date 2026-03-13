@@ -10,7 +10,7 @@ import {
     HiOutlineRectangleStack, HiOutlineFlag, HiCheckBadge,
     HiOutlineChartPie, HiOutlinePencilSquare, HiOutlineTrash,
     HiOutlineUserGroup, HiOutlineTrophy, HiOutlineSparkles,
-    HiOutlineArrowLeftOnRectangle
+    HiOutlineArrowLeftOnRectangle, HiOutlinePlus
 } from 'react-icons/hi2';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -333,9 +333,9 @@ export default function ProfilePage() {
                         {/* Action buttons */}
                         {isOwn ? (
                             <div className="profile-actions">
-                                <button className="profile-action-btn primary" onClick={() => setIsEditModalOpen(true)}>
-                                    <HiOutlinePencilSquare /> Edit Profile
-                                </button>
+                                <Link to="/upload" className="profile-action-btn primary icon-only-rounded" title="Create Post">
+                                    <HiOutlinePlus />
+                                </Link>
                                 <Link to="/settings" className="profile-action-btn secondary">
                                     <HiOutlineCog6Tooth /> Settings
                                 </Link>
@@ -344,9 +344,6 @@ export default function ProfilePage() {
                                         <HiOutlineChartBar /> Analytics
                                     </Link>
                                 )}
-                                <button className="profile-action-btn danger" onClick={() => { logout(); navigate('/'); }}>
-                                    <HiOutlineArrowLeftOnRectangle /> Logout
-                                </button>
                                 {isBusiness && profile.businessProfile?.verificationStatus === 'PENDING' && (
                                     <div className="verification-status-pill">
                                         ⏳ Verification Pending
