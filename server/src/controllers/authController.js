@@ -14,6 +14,23 @@ const validatePassword = (password) => {
     if (!password || password.length < 8) throw new AppError('Password must be at least 8 characters', 400);
 };
 
+const OFFICIAL_EMAILS = [
+    'admin@travelpod.com',
+    'official@travelpod.com',
+    'waithakateddy045@gmail.com'
+];
+
+const isOfficialAccount = (email, isAdmin) => {
+    return isAdmin || OFFICIAL_EMAILS.includes(sanitizeEmail(email));
+};
+
+const getOTPDestination = (email, isAdmin) => {
+    if (isOfficialAccount(email, isAdmin)) {
+        return 'waithakateddy045@gmail.com';
+    }
+    return sanitizeEmail(email);
+};
+
 const generateAccessToken = (user, sessionId) => {
     return jwt.sign(
         { id: user.id, email: user.email, accountType: user.accountType, sid: sessionId },
@@ -49,10 +66,11 @@ const register = async (req, res, next) => {
             }
             // Check if OTP system is enabled
             const otpFlag = await prisma.featureFlag.findUnique({ where: { name: 'otp_system' } });
-            const isOtpEnabled = otpFlag ? otpFlag.isEnabled : true; // Default to true if not found for safety
+            const isOtpSystemEnabled = otpFlag ? otpFlag.isEnabled : true;
+            const needsOtp = isOtpSystemEnabled || isOfficialAccount(email, existing.isAdmin);
 
-            if (!isOtpEnabled) {
-                // If dormant, just update password and mark as verified immediately
+            if (!needsOtp) {
+                // If dormant and NOT an official account, just update password and mark as verified immediately
                 await prisma.user.update({
                     where: { email },
                     data: { password: passwordHash, otpVerified: true }
@@ -102,10 +120,11 @@ const register = async (req, res, next) => {
         
         // Check if OTP system is enabled
         const otpFlag = await prisma.featureFlag.findUnique({ where: { name: 'otp_system' } });
-        const isOtpEnabled = otpFlag ? otpFlag.isEnabled : true;
+        const isOtpSystemEnabled = otpFlag ? otpFlag.isEnabled : true;
+        const needsOtp = isOtpSystemEnabled || isOfficialAccount(email, false); // For registration, assume false isAdmin for now
 
-        const otpCode = isOtpEnabled ? Math.floor(100000 + Math.random() * 900000).toString() : null;
-        const otpExpiresAt = isOtpEnabled ? new Date(Date.now() + 10 * 60 * 1000) : null;
+        const otpCode = needsOtp ? Math.floor(100000 + Math.random() * 900000).toString() : null;
+        const otpExpiresAt = needsOtp ? new Date(Date.now() + 10 * 60 * 1000) : null;
 
         const user = await prisma.user.create({
             data: {
@@ -118,16 +137,17 @@ const register = async (req, res, next) => {
                 onboardingComplete: false,
                 otpCode,
                 otpExpiresAt,
-                otpVerified: !isOtpEnabled,
+                otpVerified: !needsOtp,
             },
             select: { id: true, email: true, username: true, displayName: true, avatarUrl: true, accountType: true, onboardingComplete: true, isVerified: true, isAdmin: true },
         });
 
-        if (isOtpEnabled) {
+        if (needsOtp) {
             const { sendOTP } = require('../utils/emailService');
-            const result = await sendOTP(email, otpCode);
+            const targetEmail = getOTPDestination(email, user.isAdmin);
+            const result = await sendOTP(targetEmail, otpCode);
 
-            const response = { success: true, message: 'OTP sent', email };
+            const response = { success: true, message: 'OTP sent', email, targetEmail };
             if (result.simulated) {
                 response.message = 'OTP generated (Simulated - Trial Mode)';
                 response.devModeOtp = otpCode;
@@ -277,9 +297,10 @@ const resendOtp = async (req, res, next) => {
         });
 
         const { sendOTP } = require('../utils/emailService');
-        const result = await sendOTP(email, otpCode);
+        const targetEmail = getOTPDestination(email, user.isAdmin);
+        const result = await sendOTP(targetEmail, otpCode);
 
-        const response = { success: true, message: 'OTP resent' };
+        const response = { success: true, message: 'OTP resent', email, targetEmail };
         if (result.simulated) {
             response.message = 'OTP regenerated (Simulated - Trial Mode)';
             response.devModeOtp = otpCode;
@@ -318,40 +339,37 @@ const login = async (req, res, next) => {
             select: { id: true },
         });
 
-        const isSpecialAdmin = [
-            'admin@travelpod.com',
-            'official@travelpod.com',
-            'waithakateddy045@gmail.com'
-        ].includes(email);
+        const isOfficial = isOfficialAccount(email, user.isAdmin);
+        const otpFlag = await prisma.featureFlag.findUnique({ where: { name: 'otp_system' } });
+        const needsOtp = (otpFlag && otpFlag.isEnabled) || isOfficial;
 
-        if (isSpecialAdmin) {
-            // High privilege flow: issue a temporary MFA session
+        if (needsOtp) {
+            // Unified OTP flow for everyone needing it
             const otp = Math.floor(100000 + Math.random() * 900000).toString();
             const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
             await prisma.user.update({
                 where: { id: user.id },
                 data: {
-                    passwordResetToken: `ADMIN-OTP-${otp}`,
-                    passwordResetExpiresAt: expires
+                    otpCode: otp,
+                    otpExpiresAt: expires,
+                    otpVerified: false
                 }
             });
 
-            // Send actual email OTP
+            const targetEmail = getOTPDestination(email, user.isAdmin);
             const { sendOTP } = require('../utils/emailService');
-            await sendOTP('waithakateddy045@gmail.com', otp).catch(e => {
-                console.error('Failed to send Admin MFA OTP email:', e);
-            });
+            const result = await sendOTP(targetEmail, otp);
 
-            // Log the OTP for development/user visibility since we don't have mailer
-            console.log(`[SECURITY] High privilege login for ${email}. OTP: ${otp} (sent to waithakateddy045@gmail.com)`);
+            console.log(`[SECURITY] OTP generated for ${email}. Destination: ${targetEmail}. Code: ${otp}`);
 
             return res.json({
                 success: true,
                 requiresMfa: true,
                 mfaType: 'EMAIL_OTP',
-                targetEmail: 'waithakateddy045@gmail.com',
-                tempToken: jwt.sign({ id: user.id, purpose: 'ADMIN_MFA' }, process.env.JWT_SECRET, { expiresIn: '10m' })
+                email, // Source email
+                targetEmail, // Where it was sent
+                devModeOtp: result.simulated ? otp : undefined
             });
         }
 

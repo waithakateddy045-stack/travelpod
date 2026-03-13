@@ -36,6 +36,11 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         const { data } = await api.post('/auth/login', { email, password });
+        
+        if (data.requiresMfa) {
+             return { requiresMfa: true, email: data.email || email, targetEmail: data.targetEmail };
+        }
+
         if (data.sessionToken) {
             await secureStorage.setItem('travelpod_token', data.sessionToken);
         }

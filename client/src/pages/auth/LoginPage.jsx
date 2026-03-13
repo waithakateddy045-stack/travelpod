@@ -8,6 +8,9 @@ import './AuthPage.css';
 
 export default function LoginPage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const email = location.state?.email || '';
+    const targetEmail = location.state?.targetEmail || email;
     const isCapacitor = typeof window !== 'undefined' && Capacitor.isNativePlatform();
     const { login } = useAuth();
     const [formData, setFormData] = useState({ email: '', password: '' });
@@ -19,11 +22,18 @@ export default function LoginPage() {
         setSubmitting(true);
         setApiError('');
         try {
-            const user = await login(formData.email, formData.password);
+            const result = await login(formData.email, formData.password);
+            
+            if (result.requiresMfa) {
+                toast.success('Verification required');
+                navigate('/auth/verify-otp', { state: { email: result.email, targetEmail: result.targetEmail } });
+                return;
+            }
+
             toast.success('Welcome back!');
             const returnUrl = sessionStorage.getItem('returnUrl') || '/feed';
             sessionStorage.removeItem('returnUrl');
-            navigate(user.onboardingComplete ? returnUrl : '/onboarding');
+            navigate(result.onboardingComplete ? returnUrl : '/onboarding');
         } catch (err) {
             setApiError(err.response?.data?.error || 'Login failed. Please try again.');
         } finally {

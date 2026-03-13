@@ -10,6 +10,7 @@ export default function OTPVerificationPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const email = location.state?.email || '';
+    const targetEmail = location.state?.targetEmail || email;
 
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [submitting, setSubmitting] = useState(false);
@@ -114,7 +115,7 @@ export default function OTPVerificationPage() {
                         <HiOutlineEnvelope />
                     </div>
                     <h1 className="auth-title">Verify your email</h1>
-                    <p className="auth-subtitle">We've sent a 6-digit verification code to <strong>{email}</strong>. Entering it below helps keep your account secure.</p>
+                    <p className="auth-subtitle">We've sent a 6-digit verification code to <strong>{targetEmail}</strong>. Entering it below helps keep your account secure.</p>
                 </div>
 
                 {apiError && (
