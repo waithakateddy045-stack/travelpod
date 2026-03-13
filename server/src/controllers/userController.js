@@ -8,16 +8,16 @@ const getFollowersByUsername = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
 
         // Find the user by handle safely
-        const targetProfile = await prisma.profile.findFirst({
-            where: { handle: { equals: username, mode: 'insensitive' } },
-            select: { userId: true }
+        const targetUser = await prisma.user.findUnique({
+            where: { username: username },
+            select: { id: true }
         });
 
-        if (!targetProfile) {
+        if (!targetUser) {
             throw new AppError('User not found', 404);
         }
 
-        const userId = targetProfile.userId;
+        const userId = targetUser.id;
 
         const [followers, total] = await Promise.all([
             prisma.follow.findMany({
@@ -57,16 +57,16 @@ const getFollowingByUsername = async (req, res, next) => {
         const limit = parseInt(req.query.limit) || 20;
         const page = parseInt(req.query.page) || 1;
 
-        const targetProfile = await prisma.profile.findFirst({
-            where: { handle: { equals: username, mode: 'insensitive' } },
-            select: { userId: true }
+        const targetUser = await prisma.user.findUnique({
+            where: { username: username },
+            select: { id: true }
         });
 
-        if (!targetProfile) {
+        if (!targetUser) {
             throw new AppError('User not found', 404);
         }
 
-        const userId = targetProfile.userId;
+        const userId = targetUser.id;
 
         const [following, total] = await Promise.all([
             prisma.follow.findMany({

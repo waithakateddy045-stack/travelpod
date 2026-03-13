@@ -52,6 +52,7 @@ const getProfileByHandle = async (req, res, next) => {
       profile: {
         ...user,
         userId: user.id,
+        handle: user.username,
         personalityTags: user.personalityTags || [],
         preferredRegions: user.preferredRegions || [],
         postCount,

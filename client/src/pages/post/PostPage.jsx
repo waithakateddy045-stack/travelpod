@@ -135,7 +135,7 @@ export default function PostPage() {
 
         try {
             setSubmitting(true);
-            const { data } = await api.post(`/engagement/comments/${id}`, { text: commentText });
+            const { data } = await api.post(`/engagement/comments/${id}`, { content: commentText });
             setComments(prev => [data.comment, ...prev]);
             setPost(prev => ({ ...prev, commentCount: prev.commentCount + 1 }));
             setCommentText('');
@@ -223,21 +223,8 @@ export default function PostPage() {
                                     <img key={i} src={url} alt="" />
                                 ))}
                             </div>
-                        ) : (
-                            <div className="post-text-card-wrapper">
-                                <div className="text-post-card glass-card">
-                                    <h2 className="text-post-title">{post.title}</h2>
-                                    <p className="text-post-body">{post.description}</p>
-                                    {post.postTags?.length > 0 && (
-                                        <div className="text-post-tags">
-                                            {post.postTags.map(pt => (
-                                                <span key={pt.id} className="text-post-tag">#{pt.tag.name}</span>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                        ) : null // Text posts don't need a separate media card if the info section below handles it
+                        }
                     </div>
 
                     {/* Post Details (Below Media) */}
