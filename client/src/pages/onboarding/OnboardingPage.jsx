@@ -67,6 +67,11 @@ export default function OnboardingPage() {
         websiteUrl: '',
     });
 
+    // Auto-scroll to top on step change
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [step]);
+
     const toggleTag = (field, tag) => {
         setForm(f => ({
             ...f,
@@ -169,6 +174,7 @@ export default function OnboardingPage() {
                                     placeholder={isBusiness ? 'Business or brand name' : 'Your name or nickname'}
                                     value={form.displayName}
                                     onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))}
+                                    autoFocus
                                 />
                             </div>
                             <div className="form-field">

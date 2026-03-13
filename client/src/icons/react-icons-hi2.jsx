@@ -36,6 +36,8 @@ import {
   LogOut,
   Mail,
   MapPin,
+  Megaphone,
+  Menu,
   MessageCircle,
   MessageSquareText,
   Minus,
@@ -138,6 +140,8 @@ export const HiOutlinePencilSquare = SquarePen;
 export const HiOutlineSparkles = Sparkles;
 export const HiOutlineTag = Tag;
 export const HiOutlinePhoto = Image;
+export const HiOutlineMegaphone = Megaphone;
+export const HiOutlineMenu = Menu;
 
 export const HiOutlineCheck = Check;
 export const HiOutlineXMark = X;

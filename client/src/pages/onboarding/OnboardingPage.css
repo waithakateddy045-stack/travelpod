@@ -1,20 +1,21 @@
 .onboarding-page {
     min-height: 100vh;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
     background: var(--bg-primary);
     position: relative;
     overflow-x: hidden;
     overflow-y: auto;
     padding: var(--space-6);
+    /* Improve smooth scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
 }
 
 @media (max-width: 600px) {
     .onboarding-page {
-        align-items: flex-start;
-        padding-top: calc(env(safe-area-inset-top, 0px) + var(--space-10));
-        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-10));
+        padding: 0;
+        display: block; /* Full container scroll */
     }
 }
 
@@ -49,6 +50,7 @@
 }
 
 .onboarding-card {
+    margin: auto;
     position: relative;
     z-index: 1;
     width: 100%;
@@ -60,6 +62,17 @@
     border-radius: var(--radius-xl);
     padding: var(--space-10);
     animation: fadeInUp 0.4s ease-out;
+}
+
+@media (max-width: 600px) {
+    .onboarding-card {
+        margin: 0;
+        border-radius: 0;
+        border: none;
+        min-height: 100vh;
+        padding: calc(env(safe-area-inset-top, 0px) + var(--space-12)) var(--space-6) var(--space-10);
+        background: var(--bg-primary); /* Solid bg for mobile focus */
+    }
 }
 
 /* Progress stepper */
