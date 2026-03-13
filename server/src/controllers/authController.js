@@ -62,8 +62,14 @@ const register = async (req, res, next) => {
             });
             
             const { sendOTP } = require('../utils/emailService');
-            await sendOTP(email, otpCode);
-            return res.status(200).json({ success: true, message: 'OTP updated and sent', email });
+            const result = await sendOTP(email, otpCode);
+            
+            const response = { success: true, message: 'OTP updated and sent', email };
+            if (result.simulated) {
+                response.message = 'OTP updated (Simulated - Trial Mode)';
+                response.devModeOtp = otpCode;
+            }
+            return res.status(200).json(response);
         }
 
         const emailPrefix = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16) || 'traveler';
@@ -101,7 +107,7 @@ const register = async (req, res, next) => {
         });
 
         const { sendOTP } = require('../utils/emailService');
-        await sendOTP(email, otpCode);
+        const result = await sendOTP(email, otpCode);
 
         // Auto-follow Official Account
         try {
@@ -117,7 +123,13 @@ const register = async (req, res, next) => {
             console.error('Failed to auto-follow official account:', e);
         }
 
-        res.status(201).json({ success: true, message: 'OTP sent', email });
+        const response = { success: true, message: 'OTP sent', email };
+        if (result.simulated) {
+            response.message = 'OTP generated (Simulated - Trial Mode)';
+            response.devModeOtp = otpCode;
+        }
+
+        res.status(201).json(response);
     } catch (err) {
         next(err);
     }
@@ -245,9 +257,15 @@ const resendOtp = async (req, res, next) => {
         });
 
         const { sendOTP } = require('../utils/emailService');
-        await sendOTP(email, otpCode);
+        const result = await sendOTP(email, otpCode);
 
-        res.status(200).json({ success: true, message: 'OTP resent' });
+        const response = { success: true, message: 'OTP resent' };
+        if (result.simulated) {
+            response.message = 'OTP regenerated (Simulated - Trial Mode)';
+            response.devModeOtp = otpCode;
+        }
+
+        res.status(200).json(response);
     } catch (err) {
         next(err);
     }

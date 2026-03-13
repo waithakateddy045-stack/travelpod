@@ -31,12 +31,19 @@ const sendOTP = async (email, otp) => {
         });
 
         if (data.error) {
+            // Handle Resend trial mode restriction (403 Forbidden - Restricted Recipient)
+            if (data.error.statusCode === 403 || data.error.name === 'validation_error') {
+                console.warn('⚠️ [TRIAL MODE] Resend restricted recipient. OTP for ' + email + ' is: ' + otp);
+                console.warn('   To fix this permanently, verify your domain at https://resend.com/domains');
+                return { success: true, simulated: true, otp };
+            }
+            
             console.error('❌ Resend Error (sendOTP):', JSON.stringify(data.error, null, 2));
             throw new Error(`Email failed: ${data.error.message}`);
         }
 
         console.log('✅ OTP sent successfully to ' + email + (data.data ? ' (ID: ' + data.data.id + ')' : ''));
-        return data;
+        return { success: true, data: data.data };
     } catch (error) {
         console.error('💥 Critical Failure in sendOTP:', error);
         throw error;
@@ -62,12 +69,16 @@ const sendMFAEmail = async (email, otp) => {
         });
 
         if (data.error) {
+            if (data.error.statusCode === 403 || data.error.name === 'validation_error') {
+                console.warn('⚠️ [TRIAL MODE] Resend restricted recipient. MFA Code for ' + email + ' is: ' + otp);
+                return { success: true, simulated: true, otp };
+            }
             console.error('❌ Resend Error (sendMFAEmail):', JSON.stringify(data.error, null, 2));
             throw new Error(`MFA Email failed: ${data.error.message}`);
         }
 
         console.log('✅ MFA Email sent successfully to ' + email + (data.data ? ' (ID: ' + data.data.id + ')' : ''));
-        return data;
+        return { success: true, data: data.data };
     } catch (error) {
         console.error('💥 Critical Failure in sendMFAEmail:', error);
         throw error;
