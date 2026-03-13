@@ -22,9 +22,9 @@ const LinkedInIcon = () => (
     </svg>
 );
 
-export default function VerificationDetailsModal({ userId, businessName, businessProfile, isOpen, onClose }) {
-    const [verification, setVerification] = useState(null);
-    const [loading, setLoading] = useState(true);
+export default function VerificationDetailsModal({ userId, businessName, verification: initialVerification, businessProfile, isOwn, isOpen, onClose }) {
+    const [verification, setVerification] = useState(initialVerification || null);
+    const [loading, setLoading] = useState(!initialVerification);
     const [error, setError] = useState(false);
 
     useEffect(() => {
@@ -39,7 +39,7 @@ export default function VerificationDetailsModal({ userId, businessName, busines
 
     if (!isOpen) return null;
 
-    // Social links from the businessProfile (editable in settings)
+    // Social links from the businessProfile
     const socials = businessProfile || {};
 
     return (
@@ -141,6 +141,27 @@ export default function VerificationDetailsModal({ userId, businessName, busines
                                     <span>WhatsApp</span>
                                 </a>
                             )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Business Owner Quick Actions */}
+                {isOwn && (
+                    <div className="vdm-owner-actions">
+                        <div className="vdm-socials-title">Quick Actions</div>
+                        <div className="vdm-action-grid">
+                            <button className="vdm-action-btn" onClick={() => { onClose(); window.location.href='/enquiries'; }}>
+                                <div className="action-icon">💬</div>
+                                <span>Enquiries</span>
+                            </button>
+                            <button className="vdm-action-btn" onClick={() => { onClose(); window.location.href='/promotions'; }}>
+                                <div className="action-icon">🚀</div>
+                                <span>Promotions</span>
+                            </button>
+                            <button className="vdm-action-btn" onClick={() => { onClose(); window.location.href='/profile?tab=analytics'; }}>
+                                <div className="action-icon">📊</div>
+                                <span>Analytics</span>
+                            </button>
                         </div>
                     </div>
                 )}

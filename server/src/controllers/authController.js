@@ -41,19 +41,34 @@ const autoFollowOfficialAccount = async (userId) => {
         });
 
         if (officialUser && userId !== officialUser.id) {
-            await prisma.follow.upsert({
+            const existing = await prisma.follow.findUnique({
                 where: {
                     followerId_followingId: {
                         followerId: userId,
                         followingId: officialUser.id
                     }
-                },
-                update: {},
-                create: {
-                    followerId: userId,
-                    followingId: officialUser.id
                 }
             });
+
+            if (!existing) {
+                await prisma.$transaction([
+                    prisma.follow.create({
+                        data: {
+                            followerId: userId,
+                            followingId: officialUser.id
+                        }
+                    }),
+                    prisma.user.update({
+                        where: { id: userId },
+                        data: { followingCount: { increment: 1 } }
+                    }),
+                    prisma.user.update({
+                        where: { id: officialUser.id },
+                        data: { followerCount: { increment: 1 } }
+                    })
+                ]);
+                console.log(`[AUTO_FOLLOW_SUCCESS] User ${userId} followed official account`);
+            }
         }
     } catch (e) {
         console.error('[AUTO_FOLLOW_FAILED]', e.message);
@@ -562,6 +577,12 @@ const me = async (req, res, next) => {
                 isManagedBusinessPage: true,
                 createdAt: true,
                 updatedAt: true,
+                verification: {
+                    select: {
+                        status: true,
+                        verifiedAt: true,
+                    }
+                }
             },
         });
         if (!user) throw new AppError('User not found', 404);

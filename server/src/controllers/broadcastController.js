@@ -68,6 +68,18 @@ const createBroadcast = async (req, res, next) => {
             },
         });
 
+        // Log the action
+        await prisma.adminActionLog.create({
+            data: {
+                adminId: req.user.id,
+                actionType: 'CREATE_BROADCAST',
+                targetEntityType: 'POST',
+                targetEntityId: post.id,
+                reason: `Broadcast: ${title}`,
+                details: { sectorTargeting, region }
+            }
+        });
+
         res.status(201).json({
             success: true,
             broadcast: post,
@@ -177,7 +189,18 @@ const getBroadcastsExplore = async (req, res, next) => {
 const deleteBroadcast = async (req, res, next) => {
     try {
         const { id } = req.params;
-        await prisma.post.delete({ where: { id } });
+        await prisma.$transaction([
+            prisma.post.delete({ where: { id } }),
+            prisma.adminActionLog.create({
+                data: {
+                    adminId: req.user.id,
+                    actionType: 'DELETE_BROADCAST',
+                    targetEntityType: 'POST',
+                    targetEntityId: id,
+                    reason: 'Broadcast deleted by admin'
+                }
+            })
+        ]);
         res.json({ success: true, message: 'Broadcast deleted' });
     } catch (err) { next(err); }
 };

@@ -157,6 +157,8 @@ model User {
   reportsReceived   Report[] @relation("ReportsReceived")
   sessions          Session[]
   featureFlagUpdates FeatureFlag[]
+  adminActions      AdminActionLog[] @relation("AdminActions")
+  featuredPlacements FeaturedPlacement[] @relation("BusinessPlacements")
 }
 
 model Session {
@@ -212,6 +214,7 @@ model Post {
   boostRequests    BoostRequest[]
   reports          Report[]
   collaborations   Collaboration[]
+  featuredPlacements FeaturedPlacement[]
 
   @@index([userId, moderationStatus])
   @@index([createdAt])
@@ -358,6 +361,7 @@ model TripBoard {
   likeCount       Int       @default(0)
   saveCount       Int       @default(0)
   followerCount   Int       @default(0)
+  moderationStatus ModerationStatus @default(APPROVED)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -551,4 +555,36 @@ model AppVersion {
   releaseNotes String?
   downloadUrl  String?
   updatedAt    DateTime @updatedAt
+}
+
+model AdminActionLog {
+  id              String   @id @default(cuid())
+  adminId         String
+  actionType      String   // e.g., "SUSPEND_USER", "TAKE_DOWN_POST", "APPROVE_VERIFICATION"
+  targetEntityType String   // e.g., "USER", "POST", "BUSINESS_VERIFICATION"
+  targetEntityId   String
+  reason          String?
+  details         Json?
+  createdAt       DateTime @default(now())
+
+  admin           User     @relation("AdminActions", fields: [adminId], references: [id])
+}
+
+model FeaturedPlacement {
+  id                String   @id @default(cuid())
+  postId            String
+  businessId        String
+  startAt           DateTime
+  endAt             DateTime
+  targetingCriteria Json?
+  dailyReachTarget  Int      @default(1000)
+  impressions       Int      @default(0)
+  clicks            Int      @default(0)
+  profileVisits     Int      @default(0)
+  status            String   @default("ACTIVE") // ACTIVE, PAUSED, ENDED
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  post              Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  business          User     @relation("BusinessPlacements", fields: [businessId], references: [id], onDelete: Cascade)
 }

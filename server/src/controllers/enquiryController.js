@@ -29,20 +29,16 @@ const getEnquiries = async (req, res, next) => {
 
             const traveler = {
                 id: travelerUser.id,
-                profile: {
-                    displayName: travelerUser.displayName || travelerUser.username || 'Traveler',
-                    handle: travelerUser.username,
-                    avatarUrl: travelerUser.avatarUrl,
-                },
+                displayName: travelerUser.displayName || travelerUser.username || 'Traveler',
+                username: travelerUser.username,
+                avatarUrl: travelerUser.avatarUrl,
             };
 
             const business = {
                 id: businessUser.id,
-                profile: {
-                    displayName: businessUser.displayName || businessUser.username || 'Business',
-                    handle: businessUser.username,
-                    avatarUrl: businessUser.avatarUrl,
-                },
+                displayName: businessUser.displayName || businessUser.username || 'Business',
+                username: businessUser.username,
+                avatarUrl: businessUser.avatarUrl,
             };
 
             return {

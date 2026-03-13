@@ -355,7 +355,7 @@ const ContentManagementTab = () => {
                                     </div>
                                     <div className="mod-meta" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                                         <Badge type={post.moderationStatus} small />
-                                        <span>👤 @{post.user?.profile?.handle || '—'}</span>
+                                        <span>👤 @{post.user?.handle || '—'}</span>
                                         <span>📅 {new Date(post.createdAt).toLocaleDateString()}</span>
                                     </div>
                                 </div>
@@ -485,14 +485,14 @@ const UsersTab = () => {
                             <div key={user.id} className={`table-row ${user.isSuspended ? 'row-suspended' : ''}`}>
                                 <div className="user-cell">
                                     <img
-                                        src={user.profile?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`}
+                                        src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`}
                                         alt=""
                                         className="user-avatar"
                                         onError={e => { e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`; }}
                                     />
                                     <div>
-                                        <div className="user-name">{user.profile?.displayName || 'No Name'}</div>
-                                        <div className="user-handle">@{user.profile?.handle || '—'}</div>
+                                        <div className="user-name">{user.displayName || 'No Name'}</div>
+                                        <div className="user-handle">@{user.username || '—'}</div>
                                         <div className="user-email">{user.email}</div>
                                     </div>
                                 </div>
@@ -590,8 +590,8 @@ const TripBoardsTab = () => {
                             <div key={board.id} className="table-row" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 100px', alignItems: 'center', cursor: 'default' }}>
                                 <div style={{ fontWeight: '600' }}>{board.title}</div>
                                 <div>
-                                    <div className="user-name">{board.user?.profile?.displayName || 'Unknown'}</div>
-                                    <div className="user-handle" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>@{board.user?.profile?.handle || '—'}</div>
+                                    <div className="user-name">{board.user?.displayName || 'Unknown'}</div>
+                                    <div className="user-handle" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>@{board.user?.username || '—'}</div>
                                 </div>
                                 <div className="cell-center">{board._count?.videos ?? 0}</div>
                                 <div className="cell-muted">{new Date(board.createdAt).toLocaleDateString()}</div>
@@ -1225,8 +1225,8 @@ const ReportsTab = () => {
                             {reports.map(r => (
                                 <tr key={r.id}>
                                     <td>
-                                        <div style={{ fontWeight: 500 }}>{r.reporter?.profile?.displayName || 'Traveler'}</div>
-                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{r.reporter?.profile?.handle}</div>
+                                        <div style={{ fontWeight: 500 }}>{r.reporter?.displayName || 'Traveler'}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{r.reporter?.username}</div>
                                     </td>
                                     <td><Badge type={r.reason} small /></td>
                                     <td>
@@ -1244,15 +1244,15 @@ const ReportsTab = () => {
                                             {r.entityType === 'COMMENT' && r.comment && (
                                                 <div style={{ background: 'var(--bg-elevated)', padding: '8px 12px', borderRadius: 8, borderLeft: '3px solid var(--border-primary)' }}>
                                                     <div style={{ fontStyle: 'italic', fontSize: 13 }}>"{r.comment.content}"</div>
-                                                    <div style={{ fontSize: 11, marginTop: 4, color: 'var(--text-secondary)' }}>by @{r.comment.user?.profile?.handle}</div>
+                                                    <div style={{ fontSize: 11, marginTop: 4, color: 'var(--text-secondary)' }}>by @{r.comment.user?.username}</div>
                                                 </div>
                                             )}
                                             {r.entityType === 'USER' && r.reportedUser && (
                                                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                                     <div className="admin-avatar" style={{ width: 32, height: 32, fontSize: 14 }}>👤</div>
                                                     <div>
-                                                        <div style={{ fontWeight: 600 }}>{r.reportedUser.profile?.displayName}</div>
-                                                        <a href={`/profile/${r.reportedUser.profile?.handle}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--accent-primary)' }}>View Profile ↗</a>
+                                                        <div style={{ fontWeight: 600 }}>{r.reportedUser.displayName}</div>
+                                                        <a href={`/profile/${r.reportedUser.username}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--accent-primary)' }}>View Profile ↗</a>
                                                     </div>
                                                 </div>
                                             )}
@@ -1437,7 +1437,7 @@ const HistoryTab = () => {
                             {logs.map(log => (
                                 <tr key={log.id}>
                                     <td>
-                                        <div style={{ fontWeight: 600 }}>{log.admin?.profile?.displayName || 'Admin'}</div>
+                                        <div style={{ fontWeight: 600 }}>{log.admin?.displayName || 'Admin'}</div>
                                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{log.admin?.email}</div>
                                     </td>
                                     <td>
@@ -1591,12 +1591,12 @@ const CollaborationsTab = () => {
                             {collabs.map(collab => (
                                 <tr key={collab.id}>
                                     <td>
-                                        <div style={{ fontWeight: 600 }}>{collab.initiator?.profile?.displayName}</div>
-                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{collab.initiator?.profile?.handle}</div>
+                                        <div style={{ fontWeight: 600 }}>{collab.initiator?.displayName}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{collab.initiator?.username}</div>
                                     </td>
                                     <td>
-                                        <div style={{ fontWeight: 600 }}>{collab.receiver?.profile?.displayName}</div>
-                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{collab.receiver?.profile?.handle}</div>
+                                        <div style={{ fontWeight: 600 }}>{collab.receiver?.displayName}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>@{collab.receiver?.username}</div>
                                     </td>
                                     <td style={{ maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                         {collab.proposal}

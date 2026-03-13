@@ -82,7 +82,7 @@ export default function ProfilePage() {
 
     const isOwn = user && profile && user.id === profile.userId;
     const isBusiness = profile && BUSINESS_TYPES.includes(profile.accountType);
-    const isVerified = profile?.businessProfile?.verificationStatus === 'APPROVED' || profile?.verificationStatus === 'APPROVED';
+    const isVerified = profile?.isVerified || profile?.verification?.status === 'APPROVED';
 
     const loadProfile = useCallback(async () => {
         try {
@@ -344,12 +344,25 @@ export default function ProfilePage() {
                                         <HiOutlineChartBar /> Analytics
                                     </Link>
                                 )}
-                                {isBusiness && profile.businessProfile?.verificationStatus === 'PENDING' && (
+                                {isBusiness && (
+                                    <Link to="/enquiries" className="profile-action-btn secondary">
+                                        <HiOutlineChatBubbleLeftRight /> Enquiries
+                                    </Link>
+                                )}
+                                {isBusiness && (
+                                    <button
+                                        className="profile-action-btn secondary"
+                                        onClick={() => navigate('/admin?tab=promoted')} // or a dedicated promotions page if exists
+                                    >
+                                        <HiOutlineSparkles /> Promotions
+                                    </button>
+                                )}
+                                {isBusiness && profile.verification?.status === 'PENDING' && (
                                     <div className="verification-status-pill">
                                         ⏳ Verification Pending
                                     </div>
                                 )}
-                                {isBusiness && profile.businessProfile?.verificationStatus === 'APPROVED' && (
+                                {isBusiness && profile.verification?.status === 'APPROVED' && (
                                     <button
                                         className="profile-action-btn accent pulse-broadcast"
                                         onClick={() => navigate('/upload?type=broadcast')}
@@ -357,7 +370,7 @@ export default function ProfilePage() {
                                         <HiOutlineSparkles /> Create Broadcast
                                     </button>
                                 )}
-                                {isBusiness && !['APPROVED', 'PENDING'].includes(profile.businessProfile?.verificationStatus) && (
+                                {isBusiness && !['APPROVED', 'PENDING'].includes(profile.verification?.status) && (
                                     <button
                                         className="profile-action-btn accent"
                                         onClick={() => setIsVerificationAppModalOpen(true)}
@@ -424,12 +437,12 @@ export default function ProfilePage() {
                                 <span>{profile.bio || profile.businessProfile?.description}</span>
                             </div>
                         )}
-                        {profile.businessProfile?.websiteUrl && (
+                        {profile.verification?.websiteUrl && (
                             <div className="business-detail">
                                 <HiOutlineGlobeAlt />
-                                <a href={profile.businessProfile.websiteUrl} target="_blank" rel="noopener noreferrer"
+                                <a href={profile.verification.websiteUrl} target="_blank" rel="noopener noreferrer"
                                     style={{ color: 'var(--color-primary-light)' }}>
-                                    {profile.businessProfile.websiteUrl.replace(/^https?:\/\//, '')}
+                                    {profile.verification.websiteUrl.replace(/^https?:\/\//, '')}
                                 </a>
                             </div>
                         )}
@@ -740,7 +753,9 @@ export default function ProfilePage() {
                 businessName={profile.displayName}
                 isOpen={isVerificationModalOpen}
                 onClose={() => setIsVerificationModalOpen(false)}
+                verification={profile.verification}
                 businessProfile={profile.businessProfile}
+                isOwn={isOwn}
             />
 
             {/* Modals and Renderings */}

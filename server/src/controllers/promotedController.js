@@ -32,10 +32,22 @@ const createPromotion = async (req, res, next) => {
                 post: {
                     select: {
                         id: true, title: true, thumbnailUrl: true, viewCount: true,
-                        author: { select: { displayName: true, username: true } },
+                        user: { select: { displayName: true, username: true } },
                     },
                 },
             },
+        });
+
+        // 3. Log the action
+        await prisma.adminActionLog.create({
+            data: {
+                adminId: req.user.id,
+                actionType: 'CREATE_PROMOTION',
+                targetEntityType: 'POST',
+                targetEntityId: postId,
+                reason: `Promoted post: ${post.title}`,
+                details: { promotionId: promotion.id, dailyReachTarget }
+            }
         });
 
         res.status(201).json({ success: true, promotion });
@@ -62,7 +74,7 @@ const getPromotions = async (req, res, next) => {
                     post: {
                         select: {
                             id: true, title: true, thumbnailUrl: true, viewCount: true, likeCount: true,
-                            author: { select: { displayName: true, username: true, avatarUrl: true } },
+                            user: { select: { displayName: true, username: true, avatarUrl: true } },
                         },
                     },
                     business: {
@@ -99,6 +111,18 @@ const updatePromotion = async (req, res, next) => {
             },
         });
 
+        // Log the action
+        await prisma.adminActionLog.create({
+            data: {
+                adminId: req.user.id,
+                actionType: 'UPDATE_PROMOTION',
+                targetEntityType: 'PROMOTION',
+                targetEntityId: id,
+                reason: `Status changed to ${status || 'updated'}`,
+                details: data
+            }
+        });
+
         res.json({ success: true, promotion });
     } catch (err) { next(err); }
 };
@@ -106,7 +130,18 @@ const updatePromotion = async (req, res, next) => {
 // DELETE /api/admin/promotions/:id — Remove a promotion
 const deletePromotion = async (req, res, next) => {
     try {
-        await prisma.featuredPlacement.delete({ where: { id: req.params.id } });
+        await prisma.$transaction([
+            prisma.featuredPlacement.delete({ where: { id: req.params.id } }),
+            prisma.adminActionLog.create({
+                data: {
+                    adminId: req.user.id,
+                    actionType: 'DELETE_PROMOTION',
+                    targetEntityType: 'PROMOTION',
+                    targetEntityId: req.params.id,
+                    reason: 'Promotion deleted by admin'
+                }
+            })
+        ]);
         res.json({ success: true });
     } catch (err) { next(err); }
 };

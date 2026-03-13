@@ -273,3 +273,54 @@
     border-color: #25d366;
     color: #25d366;
 }
+
+/* Business Owner Quick Actions */
+.vdm-owner-actions {
+    margin-top: var(--space-6);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--border-primary);
+}
+
+.vdm-action-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+}
+
+.vdm-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: var(--space-4) var(--space-2);
+    background: var(--bg-secondary);
+    border: 1.2px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.vdm-action-btn:hover {
+    border-color: var(--color-primary);
+    background: var(--bg-glass);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 99, 255, 0.1);
+}
+
+.vdm-action-btn .action-icon {
+    font-size: 1.5rem;
+}
+
+.vdm-action-btn span {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
+
+.vdm-action-btn:hover span {
+    color: var(--color-primary-light);
+}

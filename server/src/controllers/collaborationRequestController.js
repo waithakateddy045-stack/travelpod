@@ -122,28 +122,36 @@ const getAdminCollaborations = async (req, res, next) => {
 const acceptCollaboration = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const collab = await prisma.collaborationRequest.findUnique({ where: { id } });
+        const collab = await prisma.collaboration.findUnique({ where: { id } });
         if (!collab) throw new AppError('Collaboration not found', 404);
         if (collab.receiverId !== req.user.id) throw new AppError('Not authorized', 403);
 
-        await prisma.collaborationRequest.update({
+        await prisma.collaboration.update({
             where: { id },
             data: { status: 'ACCEPTED' },
         });
 
-        // Auto-spawn DM thread
-        const p1 = collab.initiatorId < collab.receiverId ? collab.initiatorId : collab.receiverId;
-        const p2 = collab.initiatorId < collab.receiverId ? collab.receiverId : collab.initiatorId;
-
-        const convo = await prisma.conversation.upsert({
-            where: { participant1Id_participant2Id: { participant1Id: p1, participant2Id: p2 } },
-            update: { lastMessagePreview: '🤝 Collaboration accepted! Let\'s chat.', lastMessageAt: new Date() },
-            create: { participant1Id: p1, participant2Id: p2, lastMessagePreview: '🤝 Collaboration accepted! Let\'s chat.' },
+        // Find or create conversation with participants
+        let conversation = await prisma.conversation.findFirst({
+            where: {
+                participants: { every: { userId: { in: [collab.initiatorId, collab.receiverId] } } },
+                AND: { participants: { some: { userId: collab.initiatorId } } }
+            }
         });
 
-        await prisma.directMessage.create({
+        if (!conversation) {
+            conversation = await prisma.conversation.create({
+                data: {
+                    participants: {
+                        create: [{ userId: collab.initiatorId }, { userId: collab.receiverId }],
+                    },
+                },
+            });
+        }
+
+        await prisma.message.create({
             data: {
-                conversationId: convo.id,
+                conversationId: conversation.id,
                 senderId: req.user.id,
                 content: `🤝 I've accepted your collaboration request! Let's discuss the details.\n\nProposal: ${collab.proposal}`,
             },
@@ -170,11 +178,11 @@ const declineCollaboration = async (req, res, next) => {
     try {
         const { id } = req.params;
         const { reason } = req.body;
-        const collab = await prisma.collaborationRequest.findUnique({ where: { id } });
+        const collab = await prisma.collaboration.findUnique({ where: { id } });
         if (!collab) throw new AppError('Collaboration not found', 404);
         if (collab.receiverId !== req.user.id) throw new AppError('Not authorized', 403);
 
-        await prisma.collaborationRequest.update({
+        await prisma.collaboration.update({
             where: { id },
             data: { status: 'DECLINED', declineReason: reason || null },
         });
@@ -187,13 +195,13 @@ const declineCollaboration = async (req, res, next) => {
 const completeCollaboration = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const collab = await prisma.collaborationRequest.findUnique({ where: { id } });
+        const collab = await prisma.collaboration.findUnique({ where: { id } });
         if (!collab) throw new AppError('Collaboration not found', 404);
         if (collab.initiatorId !== req.user.id && collab.receiverId !== req.user.id) {
             throw new AppError('Not authorized', 403);
         }
 
-        await prisma.collaborationRequest.update({
+        await prisma.collaboration.update({
             where: { id },
             data: { status: 'COMPLETED' },
         });

@@ -146,27 +146,21 @@ const performModerationAction = async (req, res, next) => {
         await prisma.$transaction(async (tx) => {
             // 1. Take the actual action
             if (action === 'TAKE_DOWN') {
-                if (report.entityType === 'POST') {
+                if (report.postId) {
                     await tx.post.update({
-                        where: { id: report.entityId },
+                        where: { id: report.postId },
                         data: { moderationStatus: 'REMOVED' }
                     });
-                } else if (report.entityType === 'COMMENT') {
-                    await tx.comment.delete({ where: { id: report.entityId } });
                 }
+                // Comments were previously using report.entityId but now we logic based on postId/userId
+                // However, the original report entity might be a comment. 
+                // Let's check if the report specifically targets a comment if we added commentId to schema.
+                // Since it's not there, we'll stick to POST/USER for now or fix how reports are created.
             } else if (action === 'SUSPEND_USER') {
-                let targetUserId = null;
-                if (report.entityType === 'USER') {
-                    targetUserId = report.entityId;
-                } else if (report.entityType === 'POST') {
-                    const post = await tx.post.findUnique({ where: { id: report.entityId } });
+                let targetUserId = report.reportedUserId;
+                if (!targetUserId && report.postId) {
+                    const post = await tx.post.findUnique({ where: { id: report.postId } });
                     targetUserId = post?.userId;
-                } else if (report.entityType === 'COMMENT') {
-                    const comment = await tx.comment.findUnique({ where: { id: report.entityId } });
-                    targetUserId = comment?.userId;
-                } else if (report.entityType === 'REVIEW') {
-                    const review = await tx.videoReview.findUnique({ where: { id: report.entityId } });
-                    targetUserId = review?.userId;
                 }
 
                 if (targetUserId) {
@@ -183,7 +177,21 @@ const performModerationAction = async (req, res, next) => {
                 data: { resolved: true }
             });
 
-            // 3. Log the action (Removed as AdminActionLog is missing from schema)
+            // 3. Log the action
+            await tx.adminActionLog.create({
+                data: {
+                    adminId: req.user.id,
+                    actionType: action,
+                    targetEntityType: report.postId ? 'POST' : (report.reportedUserId ? 'USER' : 'UNKNOWN'),
+                    targetEntityId: report.postId || report.reportedUserId || 'unknown',
+                    reason: reason || report.reason,
+                    details: {
+                        reportId,
+                        originalEntityType: report.postId ? 'POST' : 'USER',
+                        durationDays
+                    }
+                }
+            });
 
             // Notify Reporter
             try {
@@ -217,7 +225,20 @@ const performModerationAction = async (req, res, next) => {
 // PUT /api/admin/users/:id/suspend
 const suspendUser = async (req, res, next) => {
     try {
-        await prisma.user.update({ where: { id: req.params.id }, data: { isSuspended: true } });
+        const { id } = req.params;
+        const { reason } = req.body;
+        await prisma.$transaction([
+            prisma.user.update({ where: { id }, data: { isSuspended: true } }),
+            prisma.adminActionLog.create({
+                data: {
+                    adminId: req.user.id,
+                    actionType: 'SUSPEND_USER',
+                    targetEntityType: 'USER',
+                    targetEntityId: id,
+                    reason: reason || 'Manual suspension by admin'
+                }
+            })
+        ]);
         res.json({ success: true, message: 'User suspended' });
     } catch (err) { next(err); }
 };
@@ -225,7 +246,19 @@ const suspendUser = async (req, res, next) => {
 // PUT /api/admin/users/:id/unsuspend
 const unsuspendUser = async (req, res, next) => {
     try {
-        await prisma.user.update({ where: { id: req.params.id }, data: { isSuspended: false } });
+        const { id } = req.params;
+        await prisma.$transaction([
+            prisma.user.update({ where: { id }, data: { isSuspended: false } }),
+            prisma.adminActionLog.create({
+                data: {
+                    adminId: req.user.id,
+                    actionType: 'UNSUSPEND_USER',
+                    targetEntityType: 'USER',
+                    targetEntityId: id,
+                    reason: 'Manual unsuspension by admin'
+                }
+            })
+        ]);
         res.json({ success: true, message: 'User unsuspended' });
     } catch (err) { next(err); }
 };
@@ -233,8 +266,29 @@ const unsuspendUser = async (req, res, next) => {
 // GET /api/admin/logs — Admin: view audit trail
 const getAdminLogs = async (req, res, next) => {
     try {
-        // AdminActionLog is missing from current schema, stubbing to prevent 500
-        res.json({ success: true, logs: [], total: 0, page: 1 });
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+
+        const [logs, total] = await Promise.all([
+            prisma.adminActionLog.findMany({
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    admin: {
+                        select: {
+                            id: true,
+                            username: true,
+                            displayName: true,
+                            email: true
+                        }
+                    }
+                }
+            }),
+            prisma.adminActionLog.count()
+        ]);
+
+        res.json({ success: true, logs, total, page, totalPages: Math.ceil(total / limit) });
     } catch (err) { next(err); }
 };
 

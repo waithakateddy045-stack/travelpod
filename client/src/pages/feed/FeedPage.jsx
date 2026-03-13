@@ -25,6 +25,7 @@ import PostMoreMenu from '../../components/post/PostMoreMenu';
 import VerificationDetailsModal from '../../components/verification/VerificationDetailsModal';
 import CreateReviewModal from '../../components/post/creation/CreateReviewModal';
 import OriginalPostCard from '../../components/post/OriginalPostCard';
+import RecommendModal from '../../components/feed/RecommendModal';
 import './FeedPage.css';
 
 const FILTER_CHIPS = ['All', 'Destinations', 'Hotels & Resorts', 'Safari', 'Beach', 'Adventures'];
@@ -790,6 +791,7 @@ export default function FeedPage() {
                     isOpen={isVerificationModalOpen}
                     onClose={() => setIsVerificationModalOpen(false)}
                     businessProfile={selectedBusiness.businessProfile}
+                    isOwn={user?.id === selectedBusiness?.userId}
                 />
             )}
 

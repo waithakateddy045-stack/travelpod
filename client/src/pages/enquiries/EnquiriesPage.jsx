@@ -105,13 +105,7 @@ export default function EnquiriesPage() {
                     <div className="enquiries-list">
                         {enquiries.map(enq => {
                             const otherUser = isBusiness ? enq.traveler : enq.business;
-                            const baseUser = otherUser || {};
-                            const profile =
-                                baseUser.profile || {
-                                    displayName: baseUser.displayName || baseUser.username || 'Traveler',
-                                    handle: baseUser.username,
-                                    avatarUrl: baseUser.avatarUrl,
-                                };
+                            const profile = otherUser || {};
 
                             return (
                                 <div key={enq.id} className="enquiry-card">
@@ -121,8 +115,8 @@ export default function EnquiriesPage() {
                                                 {profile?.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : <HiOutlineBriefcase />}
                                             </div>
                                             <div>
-                                                <Link to={`/profile/${profile?.handle}`} className="enq-name">{profile?.displayName || 'Unknown'}</Link>
-                                                <p className="enq-handle">@{profile?.handle}</p>
+                                                <Link to={`/profile/${profile?.username}`} className="enq-name">{profile?.displayName || 'Unknown'}</Link>
+                                                <p className="enq-handle">@{profile?.username}</p>
                                             </div>
                                         </div>
                                         {getStatusChip(enq.status)}

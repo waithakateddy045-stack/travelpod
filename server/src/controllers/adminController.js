@@ -163,9 +163,18 @@ const deleteBoard = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        await prisma.tripBoard.delete({
-            where: { id },
-        });
+        await prisma.$transaction([
+            prisma.tripBoard.delete({ where: { id } }),
+            prisma.adminActionLog.create({
+                data: {
+                    adminId: req.user.id,
+                    actionType: 'DELETE_BOARD',
+                    targetEntityType: 'TRIP_BOARD',
+                    targetEntityId: id,
+                    reason: 'Board deleted by admin'
+                }
+            })
+        ]);
 
         res.json({ success: true, message: 'Trip Board deleted successfully' });
     } catch (err) { next(err); }
@@ -177,14 +186,27 @@ const updateBoardStatus = async (req, res, next) => {
         const { id } = req.params;
         const { action } = req.body;
 
-        // TripBoard does not have a moderationStatus field in PRD schema.
-        // Use isPublic as a soft moderation flag instead.
+        const modStatus = action === 'RESTORED' ? 'APPROVED' : 'REJECTED';
         const makePublic = action === 'RESTORED';
 
-        const board = await prisma.tripBoard.update({
-            where: { id },
-            data: { isPublic: makePublic },
-        });
+        const [board] = await prisma.$transaction([
+            prisma.tripBoard.update({
+                where: { id },
+                data: { 
+                    moderationStatus: modStatus,
+                    isPublic: makePublic 
+                },
+            }),
+            prisma.adminActionLog.create({
+                data: {
+                    adminId: req.user.id,
+                    actionType: action === 'RESTORED' ? 'RESTORE_BOARD' : 'TAKE_DOWN_BOARD',
+                    targetEntityType: 'TRIP_BOARD',
+                    targetEntityId: id,
+                    reason: action === 'RESTORED' ? 'Board restored' : 'Board taken down'
+                }
+            })
+        ]);
 
         res.json({ success: true, board });
     } catch (err) { next(err); }

@@ -83,6 +83,7 @@ export const HiHeart = filled(Heart);
 export const HiOutlineChatBubbleOvalLeft = MessageCircle;
 export const HiOutlineChatBubbleLeft = MessageCircle;
 export const HiOutlineChatBubbleBottomCenterText = MessageSquareText;
+export const HiOutlineChatBubbleLeftRight = MessageSquareText;
 
 export const HiOutlineBookmark = Bookmark;
 export const HiBookmark = filled(Bookmark);

@@ -10,6 +10,14 @@
     padding: var(--space-6);
 }
 
+@media (max-width: 600px) {
+    .onboarding-page {
+        align-items: flex-start;
+        padding-top: calc(env(safe-area-inset-top, 0px) + var(--space-10));
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-10));
+    }
+}
+
 .onboarding-bg {
     position: absolute;
     inset: 0;

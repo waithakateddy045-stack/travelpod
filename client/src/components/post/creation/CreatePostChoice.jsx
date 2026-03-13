@@ -3,11 +3,16 @@ import {
     HiOutlineVideoCamera,
     HiOutlinePhoto,
     HiOutlinePencilSquare,
+    HiOutlineMegaphone,
     HiOutlineXMark
 } from 'react-icons/hi2';
 import './CreatePostChoice.css';
 
-export default function CreatePostChoice({ onSelect, onClose }) {
+const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
+
+export default function CreatePostChoice({ user, onSelect, onClose }) {
+    const isBusiness = user && (BUSINESS_TYPES.includes(user.accountType) || user.isAdmin);
+
     return (
         <div className="create-choice-overlay" onClick={onClose}>
             <div className="create-choice-sheet" onClick={e => e.stopPropagation()}>
@@ -46,6 +51,18 @@ export default function CreatePostChoice({ onSelect, onClose }) {
                             <p>Share thoughts or a review</p>
                         </div>
                     </button>
+
+                    {isBusiness && (
+                        <button className="choice-card broadcast" onClick={() => onSelect('BROADCAST')}>
+                            <div className="icon-wrap">
+                                <HiOutlineMegaphone />
+                            </div>
+                            <div className="choice-text">
+                                <h3>Broadcast</h3>
+                                <p>Post a business update</p>
+                            </div>
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

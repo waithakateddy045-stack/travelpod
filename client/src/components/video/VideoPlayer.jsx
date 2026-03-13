@@ -128,7 +128,7 @@ export default function VideoPlayer({ src, poster, autoPlay = false, loop = true
                 muted={isMuted}
                 loop={loop}
                 playsInline
-                preload="none"
+                preload="metadata"
                 onTimeUpdate={handleTimeUpdate}
                 onError={handleError}
                 onCanPlay={handleCanPlay}

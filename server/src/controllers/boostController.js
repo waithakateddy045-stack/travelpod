@@ -68,10 +68,21 @@ const approveBoost = async (req, res, next) => {
         const endDate = new Date(startDate);
         endDate.setDate(endDate.getDate() + boost.duration);
 
-        const updated = await prisma.boostRequest.update({
-            where: { id },
-            data: { status: 'ACTIVE', startDate, endDate },
-        });
+        const [updated] = await prisma.$transaction([
+            prisma.boostRequest.update({
+                where: { id },
+                data: { status: 'ACTIVE', startDate, endDate },
+            }),
+            prisma.adminActionLog.create({
+                data: {
+                    adminId: req.user.id,
+                    actionType: 'APPROVE_BOOST',
+                    targetEntityType: 'BOOST_REQUEST',
+                    targetEntityId: id,
+                    reason: `Boost approved for ${boost.duration} days`
+                }
+            })
+        ]);
 
         res.json({ success: true, boost: updated });
     } catch (err) { next(err); }
@@ -83,10 +94,21 @@ const rejectBoost = async (req, res, next) => {
         const { id } = req.params;
         const { reason } = req.body;
 
-        const updated = await prisma.boostRequest.update({
-            where: { id },
-            data: { status: 'REJECTED', adminNotes: reason || 'Rejected by admin' },
-        });
+        const [updated] = await prisma.$transaction([
+            prisma.boostRequest.update({
+                where: { id },
+                data: { status: 'REJECTED', adminNotes: reason || 'Rejected by admin' },
+            }),
+            prisma.adminActionLog.create({
+                data: {
+                    adminId: req.user.id,
+                    actionType: 'REJECT_BOOST',
+                    targetEntityType: 'BOOST_REQUEST',
+                    targetEntityId: id,
+                    reason: reason || 'Rejected'
+                }
+            })
+        ]);
 
         res.json({ success: true, boost: updated });
     } catch (err) { next(err); }
@@ -105,14 +127,12 @@ async function getActiveBoosts(viewerAccountType, viewerRegion) {
             include: {
                 post: {
                     include: {
-                        author: {
+                        user: {
                             select: {
                                 id: true, accountType: true,
                                 displayName: true, username: true, avatarUrl: true, isVerified: true
                             },
                         },
-                        category: true,
-                        postTags: { include: { tag: true } },
                     },
                 },
             },

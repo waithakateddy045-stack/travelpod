@@ -160,16 +160,27 @@ const approveVerification = async (req, res, next) => {
         const { id } = req.params;
         const { adminNotes, websiteVerified } = req.body;
 
-        const verification = await prisma.businessVerification.update({
-            where: { id },
-            data: {
-                status: 'APPROVED',
-                adminNotes: adminNotes || null,
-                websiteVerified: websiteVerified || false,
-                verifiedAt: new Date(),
-                verifiedByAdminId: req.user.id,
-            },
-        });
+        const [verification] = await prisma.$transaction([
+            prisma.businessVerification.update({
+                where: { id },
+                data: {
+                    status: 'APPROVED',
+                    adminNotes: adminNotes || null,
+                    websiteVerified: websiteVerified || false,
+                    verifiedAt: new Date(),
+                    verifiedByAdminId: req.user.id,
+                },
+            }),
+            prisma.adminActionLog.create({
+                data: {
+                    adminId: req.user.id,
+                    actionType: 'APPROVE_VERIFICATION',
+                    targetEntityType: 'BUSINESS_VERIFICATION',
+                    targetEntityId: id,
+                    reason: adminNotes || 'Approved'
+                }
+            })
+        ]);
 
         // Also mark the underlying User as verified
         await prisma.user.update({
@@ -189,14 +200,25 @@ const rejectVerification = async (req, res, next) => {
         const { id } = req.params;
         const { adminNotes } = req.body;
 
-        const verification = await prisma.businessVerification.update({
-            where: { id },
-            data: {
-                status: 'REJECTED',
-                adminNotes: adminNotes || null,
-                verifiedByAdminId: req.user.id,
-            },
-        });
+        const [verification] = await prisma.$transaction([
+            prisma.businessVerification.update({
+                where: { id },
+                data: {
+                    status: 'REJECTED',
+                    adminNotes: adminNotes || null,
+                    verifiedByAdminId: req.user.id,
+                },
+            }),
+            prisma.adminActionLog.create({
+                data: {
+                    adminId: req.user.id,
+                    actionType: 'REJECT_VERIFICATION',
+                    targetEntityType: 'BUSINESS_VERIFICATION',
+                    targetEntityId: id,
+                    reason: adminNotes || 'Rejected'
+                }
+            })
+        ]);
 
         res.json({ success: true, verification });
     } catch (err) { next(err); }
