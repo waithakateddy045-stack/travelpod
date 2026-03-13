@@ -16,7 +16,7 @@ const sendOTP = async (email, otp) => {
     try {
         const data = await resend.emails.send({
             from: `Travelpod <${EMAIL_FROM}>`,
-            to: [email],
+            to: email,
             subject: 'Verify your Travelpod account',
             html: `
                 <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
@@ -35,7 +35,7 @@ const sendOTP = async (email, otp) => {
             throw new Error(`Email failed: ${data.error.message}`);
         }
 
-        console.log('✅ OTP sent successfully to ' + email + ' (ID: ' + data.data.id + ')');
+        console.log('✅ OTP sent successfully to ' + email + (data.data ? ' (ID: ' + data.data.id + ')' : ''));
         return data;
     } catch (error) {
         console.error('💥 Critical Failure in sendOTP:', error);
@@ -47,7 +47,7 @@ const sendMFAEmail = async (email, otp) => {
     try {
         const data = await resend.emails.send({
             from: `Travelpod <${EMAIL_FROM}>`,
-            to: [email],
+            to: email,
             subject: 'Your Login Verification Code',
             html: `
                 <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
@@ -106,5 +106,6 @@ const sendWelcome = async (email, displayName) => {
 
 module.exports = {
     sendOTP,
+    sendMFAEmail,
     sendWelcome
 };

@@ -33,6 +33,7 @@ import {
   Image,
   Layers,
   Lock,
+  LogOut,
   Mail,
   MapPin,
   MessageCircle,
@@ -183,3 +184,6 @@ export const HiExclamationCircle = AlertCircle;
 export const HiOutlineExclamationCircle = AlertCircle;
 export const HiOutlineBriefcase = Briefcase;
 export const HiOutlineXCircle = XCircle;
+export const HiOutlineArrowLeftOnRectangle = LogOut;
+export const HiOutlineArrowRightOnRectangle = LogOut;
+export const HiOutlineArrowRightEndOnRectangle = LogOut;
