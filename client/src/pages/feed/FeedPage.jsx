@@ -683,7 +683,7 @@ export default function FeedPage() {
             {/* Guest Nudge */}
             {!user && posts.length > 5 && (
                 <div className="feed-signup-nudge">
-                    Enjoying Travelpod? Join to save your favorite spots
+                    <span className="nudge-text">Enjoying Travelpod? Join to save your favorite spots</span>
                     <button className="feed-guest-login-btn" onClick={() => navigate('/auth/register')}>Sign Up</button>
                 </div>
             )}
