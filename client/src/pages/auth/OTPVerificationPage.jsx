@@ -13,6 +13,7 @@ export default function OTPVerificationPage() {
     const { loadUser } = useAuth();
     const email = location.state?.email || '';
     const targetEmail = location.state?.targetEmail || email;
+    const [devModeOtp, setDevModeOtp] = useState(location.state?.devModeOtp || null);
 
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [submitting, setSubmitting] = useState(false);
@@ -97,7 +98,8 @@ export default function OTPVerificationPage() {
     const handleResend = async () => {
         if (countdown > 0) return;
         try {
-            await api.post('/auth/resend-otp', { email });
+            const res = await api.post('/auth/resend-otp', { email });
+            if (res.data.devModeOtp) setDevModeOtp(res.data.devModeOtp);
             toast.success('Verification code resent');
             setCountdown(60);
         } catch (err) {
@@ -122,6 +124,13 @@ export default function OTPVerificationPage() {
                 {apiError && (
                     <div className="auth-alert error" style={{ marginBottom: 'var(--space-5)' }}>
                         <HiOutlineExclamationCircle /> {apiError}
+                    </div>
+                )}
+
+                {devModeOtp && (
+                    <div className="auth-alert info" style={{ marginBottom: 'var(--space-5)', backgroundColor: 'rgba(52, 152, 219, 0.1)', border: '1px solid var(--accent-primary)', color: '#fff' }}>
+                        <HiOutlineExclamationCircle style={{ color: 'var(--accent-primary)' }} />
+                        <span><strong>Development Note:</strong> Your code is <strong>{devModeOtp}</strong> (Email delivery may be delayed).</span>
                     </div>
                 )}
 

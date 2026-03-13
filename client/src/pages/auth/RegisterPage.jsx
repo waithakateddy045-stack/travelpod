@@ -62,9 +62,10 @@ export default function RegisterPage() {
         setSubmitting(true);
         setApiError('');
         try {
-            await register(formData.email, formData.password, formData.accountType);
+            const res = await register(formData.email, formData.password, formData.accountType);
+            const devModeOtp = res?.devModeOtp;
             toast.success('Verification code sent to your email.');
-            navigate('/verify-otp', { state: { email: formData.email } });
+            navigate('/verify-otp', { state: { email: formData.email, devModeOtp } });
         } catch (err) {
             setApiError(err.response?.data?.error || 'Registration failed. Please try again.');
         } finally {
