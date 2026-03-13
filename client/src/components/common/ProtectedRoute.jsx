@@ -2,7 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useEffect } from 'react';
 
-export default function ProtectedRoute({ children }) {
+export default function ProtectedRoute({ children, requireOnboarding = true }) {
     const { user, loading, showAuthPrompt } = useAuth();
     const location = useLocation();
 
@@ -13,7 +13,8 @@ export default function ProtectedRoute({ children }) {
                 '/messages': 'Log in to message creators',
                 '/notifications': 'Sign in to see your updates',
                 '/boards': 'Log in to see your trip boards',
-                '/settings': 'Log in to manage your account'
+                '/settings': 'Log in to manage your account',
+                '/onboarding': 'Sign in to set up your profile',
             };
             showAuthPrompt(msgs[location.pathname] || 'Sign in to access this page');
         }
@@ -29,7 +30,7 @@ export default function ProtectedRoute({ children }) {
     }
 
     if (!user) return <Navigate to="/" replace />;
-    if (!user.onboardingComplete) return <Navigate to="/onboarding" replace />;
+    if (requireOnboarding && !user.onboardingComplete) return <Navigate to="/onboarding" replace />;
 
     return children;
 }

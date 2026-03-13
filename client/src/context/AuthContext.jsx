@@ -44,7 +44,6 @@ export const AuthProvider = ({ children }) => {
         if (data.sessionToken) {
             await secureStorage.setItem('travelpod_token', data.sessionToken);
         }
-        await secureStorage.setItem('travelpod_access', data.accessToken);
         await secureStorage.setItem('travelpod_refresh', data.refreshToken);
         setUser(data.user);
 

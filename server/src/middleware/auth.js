@@ -2,10 +2,6 @@ const jwt = require('jsonwebtoken');
 const { AppError } = require('./errorHandler');
 
 /**
- * JWT authentication middleware.
- * Protects routes by requiring a valid JWT in the Authorization header.
- */
-/**
  * JWT authentication middleware with Session validation.
  * Protects routes by requiring a valid JWT and a valid DB session.
  */

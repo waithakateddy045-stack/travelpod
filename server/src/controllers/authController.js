@@ -365,7 +365,7 @@ const login = async (req, res, next) => {
             const { sendOTP } = require('../utils/emailService');
             const result = await sendOTP(targetEmail, otp);
 
-            console.log(`[SECURITY] OTP generated for ${email}. Destination: ${targetEmail}. Code: ${otp}`);
+            console.log(`[SECURITY] OTP dispatched for ${email}. Destination: ${targetEmail}.`);
 
             return res.json({
                 success: true,

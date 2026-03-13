@@ -93,7 +93,7 @@ function App() {
 
             {/* Protected */}
             <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
-            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/onboarding" element={<ProtectedRoute requireOnboarding={false}><OnboardingPage /></ProtectedRoute>} />
 
             {/* Protected User Pages */}
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />

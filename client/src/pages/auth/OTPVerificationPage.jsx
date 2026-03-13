@@ -4,11 +4,13 @@ import { toast } from 'react-hot-toast';
 import { HiOutlineExclamationCircle, HiOutlineEnvelope } from 'react-icons/hi2';
 import api from '../../services/api';
 import { secureStorage } from '../../utils/secureStorage';
+import { useAuth } from '../../context/AuthContext';
 import './AuthPage.css';
 
 export default function OTPVerificationPage() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { loadUser } = useAuth();
     const email = location.state?.email || '';
     const targetEmail = location.state?.targetEmail || email;
 
@@ -79,12 +81,11 @@ export default function OTPVerificationPage() {
             const res = await api.post('/auth/verify-otp', { email, code });
             const { accessToken, refreshToken, user: userData } = res.data;
             if (accessToken) {
-                await secureStorage.setItem('travelpod_access', accessToken);
-                await secureStorage.setItem('travelpod_refresh', refreshToken);
-                
+                await secureStorage.setItem('travelpod_token', accessToken);
+                if (refreshToken) await secureStorage.setItem('travelpod_refresh', refreshToken);
+                await loadUser();
                 toast.success('Email verified successfully!');
-                navigate(userData.onboardingComplete ? '/feed' : '/onboarding');
-                window.location.reload(); // Still reload to re-init all contexts cleanly
+                navigate(userData.onboardingComplete ? '/feed' : '/onboarding', { replace: true });
             }
         } catch (err) {
             setApiError(err.response?.data?.error || 'Verification failed. Please try again.');

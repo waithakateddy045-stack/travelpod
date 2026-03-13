@@ -3,20 +3,20 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const jwt = require('jsonwebtoken');
 const prisma = require('../utils/prisma');
 
-const generateAccessToken = (user) =>
+const generateAccessToken = (user, sessionId) =>
     jwt.sign(
-        { id: user.id, email: user.email, accountType: user.accountType },
+        { id: user.id, email: user.email, accountType: user.accountType, sid: sessionId },
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRY || '7d' }
     );
 
-const storeSessionToken = async (userId, accessToken) => {
+const storeSessionToken = async (userId) => {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const session = await prisma.session.create({
         data: {
             userId,
-            token: accessToken,
+            token: `PENDING-GOOGLE-${Date.now()}`,
             deviceType: 'WEB',
             expiresAt,
             lastActiveAt: now,
@@ -76,6 +76,7 @@ passport.use(
                                     candidate
                                 )}`,
                             accountType: 'TRAVELER',
+                            otpVerified: true, // Google-authenticated users bypass OTP
                         },
                     });
                 } else if (!user.googleId) {
@@ -90,9 +91,10 @@ passport.use(
                     return done(new Error('Account access denied'), null);
                 }
 
-                const jwtAccessToken = generateAccessToken(user);
-                const session = await storeSessionToken(user.id, jwtAccessToken);
-                const sessionToken = session.token;
+                const session = await storeSessionToken(user.id);
+                const jwtAccessToken = generateAccessToken(user, session.id);
+                await prisma.session.update({ where: { id: session.id }, data: { token: jwtAccessToken } });
+                const sessionToken = jwtAccessToken;
 
                 return done(null, {
                     accessToken: jwtAccessToken,

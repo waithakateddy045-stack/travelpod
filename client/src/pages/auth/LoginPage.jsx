@@ -26,7 +26,7 @@ export default function LoginPage() {
             
             if (result.requiresMfa) {
                 toast.success('Verification required');
-                navigate('/auth/verify-otp', { state: { email: result.email, targetEmail: result.targetEmail } });
+                navigate('/verify-otp', { state: { email: result.email, targetEmail: result.targetEmail } });
                 return;
             }
 

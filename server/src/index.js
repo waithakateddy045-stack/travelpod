@@ -71,19 +71,6 @@ app.get('/api/health', (req, res) => {
 // API routes
 app.use('/api', routes);
 
-// Add this temporary debug route
-app.get('/api/debug/test-email', async (req, res) => {
-    try {
-        const { sendOTP } = require('./utils/emailService');
-        const email = req.query.email || 'waithakateddy045@gmail.com';
-        console.log(`[DEBUG] Attempting test email to ${email}`);
-        await sendOTP(email, '123456');
-        res.json({ success: true, message: `Test email sent to ${email}. Check server logs for confirmation.` });
-    } catch (err) {
-        console.error('[DEBUG] Test email failed:', err);
-        res.status(500).json({ success: false, error: err.message, stack: err.stack });
-    }
-});
 
 // Error handling
 app.use(errorHandler);

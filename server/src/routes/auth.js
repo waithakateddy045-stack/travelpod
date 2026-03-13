@@ -15,7 +15,8 @@ const {
     deleteAllSessions,
     resendOtp,
     verifyOtp,
-    verifyAdminMfa
+    verifyAdminMfa,
+    confirmAdminOtp,
 } = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth');
 
@@ -34,6 +35,7 @@ router.get('/verify-email/:token', verifyEmail);
 router.post('/verify-otp', verifyOtp);
 router.post('/resend-otp', resendOtp);
 router.post('/verify-admin-mfa', verifyAdminMfa);
+router.post('/confirm-admin-otp', confirmAdminOtp);
 
 // Authenticated user info
 router.get('/me', authenticate, me);
