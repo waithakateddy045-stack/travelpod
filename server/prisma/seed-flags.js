@@ -9,6 +9,7 @@ const FLAGS = [
     { name: 'sponsored_promotions', isEnabled: false, description: 'Enable boost/promote post feature for businesses and creators' },
     { name: 'gamification', isEnabled: false, description: 'Enable badge achievements and gamification system' },
     { name: 'collaborations', isEnabled: false, description: 'Enable collaboration request system between users' },
+    { name: 'otp_system', isEnabled: false, description: 'Global Email OTP system for registrations and logins' },
 ];
 
 async function main() {

@@ -47,8 +47,19 @@ const register = async (req, res, next) => {
             if (existing.otpVerified) {
                 throw new AppError('An account with this email already exists', 409);
             }
-            // Allow unverified users to try again (maybe they missed the OTP)
-            const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+            // Check if OTP system is enabled
+            const otpFlag = await prisma.featureFlag.findUnique({ where: { name: 'otp_system' } });
+            const isOtpEnabled = otpFlag ? otpFlag.isEnabled : true; // Default to true if not found for safety
+
+            if (!isOtpEnabled) {
+                // If dormant, just update password and mark as verified immediately
+                await prisma.user.update({
+                    where: { email },
+                    data: { password: passwordHash, otpVerified: true }
+                });
+                return res.status(200).json({ success: true, message: 'Account updated (OTP skipped)', email, otpSkipped: true });
+            }
+
             const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
             const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
             
@@ -58,6 +69,7 @@ const register = async (req, res, next) => {
                     password: passwordHash,
                     otpCode,
                     otpExpiresAt,
+                    otpVerified: false // Just in case
                 }
             });
             
@@ -87,8 +99,13 @@ const register = async (req, res, next) => {
         // Only allow known account types; default to TRAVELER for safety
         const allowedTypes = ['TRAVELER', 'TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
         const accountType = allowedTypes.includes(requestedAccountType) ? requestedAccountType : 'TRAVELER';
-        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        
+        // Check if OTP system is enabled
+        const otpFlag = await prisma.featureFlag.findUnique({ where: { name: 'otp_system' } });
+        const isOtpEnabled = otpFlag ? otpFlag.isEnabled : true;
+
+        const otpCode = isOtpEnabled ? Math.floor(100000 + Math.random() * 900000).toString() : null;
+        const otpExpiresAt = isOtpEnabled ? new Date(Date.now() + 10 * 60 * 1000) : null;
 
         const user = await prisma.user.create({
             data: {
@@ -101,15 +118,24 @@ const register = async (req, res, next) => {
                 onboardingComplete: false,
                 otpCode,
                 otpExpiresAt,
-                otpVerified: false,
+                otpVerified: !isOtpEnabled,
             },
             select: { id: true, email: true, username: true, displayName: true, avatarUrl: true, accountType: true, onboardingComplete: true, isVerified: true, isAdmin: true },
         });
 
-        const { sendOTP } = require('../utils/emailService');
-        const result = await sendOTP(email, otpCode);
+        if (isOtpEnabled) {
+            const { sendOTP } = require('../utils/emailService');
+            const result = await sendOTP(email, otpCode);
 
-        // Auto-follow Official Account
+            const response = { success: true, message: 'OTP sent', email };
+            if (result.simulated) {
+                response.message = 'OTP generated (Simulated - Trial Mode)';
+                response.devModeOtp = otpCode;
+            }
+            return res.status(201).json(response);
+        }
+
+        // Auto-follow Official Account (moved up for non-OTP users)
         try {
             const officialUser = await prisma.user.findFirst({
                 where: { email: 'official@travelpod.com' }
@@ -123,13 +149,7 @@ const register = async (req, res, next) => {
             console.error('Failed to auto-follow official account:', e);
         }
 
-        const response = { success: true, message: 'OTP sent', email };
-        if (result.simulated) {
-            response.message = 'OTP generated (Simulated - Trial Mode)';
-            response.devModeOtp = otpCode;
-        }
-
-        res.status(201).json(response);
+        res.status(201).json({ success: true, message: 'Account created', email, otpSkipped: true, user });
     } catch (err) {
         next(err);
     }

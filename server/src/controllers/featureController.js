@@ -25,6 +25,12 @@ const toggleFeature = async (req, res, next) => {
             data: { isEnabled: !!isEnabled },
         });
 
+        // Special logic: If OTP System is enabled, force everyone to re-login
+        if (name === 'otp_system' && isEnabled) {
+            console.log('⚡ OTP System enabled. Wiping all sessions for security...');
+            await prisma.session.deleteMany({});
+        }
+
         // Audit log
         await prisma.adminActionLog.create({
             data: {
@@ -34,7 +40,7 @@ const toggleFeature = async (req, res, next) => {
                 targetEntityType: 'FEATURE_FLAG',
                 reason: `Admin ${isEnabled ? 'enabled' : 'disabled'} feature: ${name}`,
             },
-        });
+        }).catch(() => {}); // Don't crash if log fails
 
         res.json({ success: true, feature: flag });
     } catch (err) { next(err); }

@@ -674,44 +674,64 @@
    ═══════════════════════════════════════ */
 .feed-signup-nudge {
     position: fixed;
-    bottom: 24px;
+    bottom: max(24px, env(safe-area-inset-bottom, 24px));
     left: 16px;
     right: 16px;
-    background: rgba(10, 10, 10, 0.75);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: rgba(10, 10, 10, 0.7);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     color: #fff;
-    padding: 8px 16px;
-    border-radius: var(--radius-full);
+    padding: 8px 14px;
+    border-radius: 100px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    z-index: 200;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    gap: 12px;
+    z-index: 1000;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .nudge-text {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-right: 12px;
+    flex: 1;
+    min-width: 0;
 }
 
 .feed-guest-login-btn {
     border: none;
     background: #fff;
     color: #000;
-    padding: 6px 16px;
-    border-radius: var(--radius-full);
+    padding: 6px 14px;
+    border-radius: 100px;
     font-weight: 700;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     cursor: pointer;
     flex-shrink: 0;
-    transition: transform 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+    .feed-signup-nudge {
+        left: 12px;
+        right: 12px;
+        bottom: 20px;
+        padding: 6px 12px;
+        gap: 8px;
+    }
+    .nudge-text {
+        font-size: 0.75rem;
+    }
+    .feed-guest-login-btn {
+        padding: 5px 12px;
+        font-size: 0.72rem;
+    }
 }
 
 .feed-guest-login-btn:active {
