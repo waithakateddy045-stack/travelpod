@@ -1,7 +1,7 @@
 const { Resend } = require('resend');
 
-const resend = new Resend('re_Ey3kwuMw_Jnjrx37LgPJRqamQp6SUbkn2');
-const EMAIL_FROM = 'onboarding@resend.dev';
+const resend = new Resend(process.env.RESEND_API_KEY);
+const EMAIL_FROM = process.env.EMAIL_FROM || 'onboarding@resend.dev';
 
 /**
  * Send OTP Verification Email
