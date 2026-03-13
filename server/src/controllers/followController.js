@@ -66,8 +66,12 @@ const getFollowers = async (req, res, next) => {
                 include: {
                     follower: {
                         select: {
-                            id: true, accountType: true,
-                            profile: { select: { displayName: true, handle: true, avatarUrl: true } }
+                            id: true, 
+                            username: true,
+                            displayName: true,
+                            avatarUrl: true,
+                            accountType: true,
+                            isVerified: true
                         }
                     }
                 },
@@ -76,7 +80,21 @@ const getFollowers = async (req, res, next) => {
             prisma.follow.count({ where: { followingId: userId } })
         ]);
 
-        res.json({ success: true, followers: followers.map(f => f.follower), total, totalPages: Math.ceil(total / limit) });
+        const mappedFollowers = followers.map(f => ({
+            ...f.follower,
+            profile: {
+                handle: f.follower.username,
+                displayName: f.follower.displayName,
+                avatarUrl: f.follower.avatarUrl
+            }
+        }));
+
+        res.json({ 
+            success: true, 
+            followers: mappedFollowers, 
+            total, 
+            totalPages: Math.ceil(total / limit) 
+        });
     } catch (err) { next(err); }
 };
 
@@ -94,8 +112,12 @@ const getFollowing = async (req, res, next) => {
                 include: {
                     following: {
                         select: {
-                            id: true, accountType: true,
-                            profile: { select: { displayName: true, handle: true, avatarUrl: true } }
+                            id: true, 
+                            username: true,
+                            displayName: true,
+                            avatarUrl: true,
+                            accountType: true,
+                            isVerified: true
                         }
                     }
                 },
@@ -104,7 +126,21 @@ const getFollowing = async (req, res, next) => {
             prisma.follow.count({ where: { followerId: userId } })
         ]);
 
-        res.json({ success: true, following: following.map(f => f.following), total, totalPages: Math.ceil(total / limit) });
+        const mappedFollowing = following.map(f => ({
+            ...f.following,
+            profile: {
+                handle: f.following.username,
+                displayName: f.following.displayName,
+                avatarUrl: f.following.avatarUrl
+            }
+        }));
+
+        res.json({ 
+            success: true, 
+            following: mappedFollowing, 
+            total, 
+            totalPages: Math.ceil(total / limit) 
+        });
     } catch (err) { next(err); }
 };
 

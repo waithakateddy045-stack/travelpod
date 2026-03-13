@@ -79,7 +79,7 @@ const getPublicVerification = async (req, res, next) => {
         });
 
         if (!verification || verification.status !== 'APPROVED') {
-            throw new AppError('No approved verification found', 404);
+            return res.json({ success: true, verified: false, verification: null });
         }
 
         // Return only public-safe fields

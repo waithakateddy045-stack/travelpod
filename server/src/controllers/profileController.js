@@ -97,7 +97,26 @@ const getProfilePosts = async (req, res, next) => {
       prisma.post.count({ where: { userId: user.id, moderationStatus: 'APPROVED' } }),
     ]);
 
-    res.json({ success: true, posts, total, page, totalPages: Math.ceil(total / limit) });
+    const mappedPosts = posts.map(p => ({
+      ...p,
+      author: p.author ? {
+        ...p.author,
+        profile: {
+          handle: p.author.username,
+          displayName: p.author.displayName,
+          avatarUrl: p.author.avatarUrl
+        }
+      } : {
+        // Fallback for profile-owner posts where author is the page owner
+        profile: {
+          handle: user.username,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl
+        }
+      }
+    }));
+
+    res.json({ success: true, posts: mappedPosts, total, page, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     next(err);
   }

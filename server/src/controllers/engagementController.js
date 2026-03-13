@@ -112,18 +112,22 @@ const unsavePost = async (req, res, next) => {
 const addComment = async (req, res, next) => {
     try {
         const userId = req.user.id;
-        const postId = req.params.postId;
-        const { content, parentCommentId, linkedPostId } = req.body;
-
-        if (!content?.trim()) throw new AppError('Comment content is required', 400);
-
         let normalizedParentId = parentCommentId || null;
+        let realPostId = postId;
+
         if (normalizedParentId) {
             const parent = await prisma.comment.findUnique({
                 where: { id: normalizedParentId },
                 select: { id: true, parentCommentId: true, postId: true },
             });
-            if (!parent || parent.postId !== postId) throw new AppError('Invalid parent comment', 400);
+            if (!parent) throw new AppError('Invalid parent comment', 400);
+
+            // Ensure we use the correct postId from the parent if they differ
+            if (parent.postId !== postId) {
+                console.log(`⚠️ PostID mismatch: provided ${postId}, using parent post ${parent.postId}`);
+                realPostId = parent.postId;
+            }
+
             // Replies-to-replies attach to the same root parent (UI nesting depth capped at 1)
             normalizedParentId = parent.parentCommentId || parent.id;
         }
@@ -131,7 +135,7 @@ const addComment = async (req, res, next) => {
         const comment = await prisma.comment.create({
             data: {
                 userId,
-                postId,
+                postId: realPostId,
                 content: content.trim(),
                 parentCommentId: normalizedParentId,
                 linkedPostId: linkedPostId || null,
@@ -173,7 +177,19 @@ const addComment = async (req, res, next) => {
             }
         }
 
-        res.status(201).json({ success: true, comment });
+        const mappedComment = {
+            ...comment,
+            user: {
+                ...comment.user,
+                profile: {
+                    handle: comment.user.username,
+                    displayName: comment.user.displayName,
+                    avatarUrl: comment.user.avatarUrl
+                }
+            }
+        };
+
+        res.status(201).json({ success: true, comment: mappedComment });
     } catch (err) { next(err); }
 };
 
@@ -202,7 +218,22 @@ const getComments = async (req, res, next) => {
             prisma.comment.count({ where: { postId, parentCommentId: null } }),
         ]);
 
-        res.json({ success: true, comments, total, page, totalPages: Math.ceil(total / limit) });
+        const mapUser = (user) => ({
+            ...user,
+            profile: {
+                handle: user.username,
+                displayName: user.displayName,
+                avatarUrl: user.avatarUrl
+            }
+        });
+
+        const mappedComments = comments.map(c => ({
+            ...c,
+            user: mapUser(c.user),
+            replies: c.replies?.map(r => ({ ...r, user: mapUser(r.user) }))
+        }));
+
+        res.json({ success: true, comments: mappedComments, total, page, totalPages: Math.ceil(total / limit) });
     } catch (err) { next(err); }
 };
 
@@ -225,7 +256,19 @@ const getReplies = async (req, res, next) => {
             prisma.comment.count({ where: { parentCommentId: commentId } }),
         ]);
 
-        res.json({ success: true, replies, total, page, totalPages: Math.ceil(total / limit) });
+        const mappedReplies = replies.map(r => ({
+            ...r,
+            user: {
+                ...r.user,
+                profile: {
+                    handle: r.user.username,
+                    displayName: r.user.displayName,
+                    avatarUrl: r.user.avatarUrl
+                }
+            }
+        }));
+
+        res.json({ success: true, replies: mappedReplies, total, page, totalPages: Math.ceil(total / limit) });
     } catch (err) { next(err); }
 };
 

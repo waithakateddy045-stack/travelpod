@@ -117,6 +117,13 @@ model User {
   isManagedBusinessPage Boolean @default(false)
   passwordResetToken String?
   passwordResetExpiresAt DateTime?
+  
+  // Social Links
+  instagramUrl      String?
+  facebookUrl       String?
+  linkedinUrl       String?
+  whatsappPhone     String?
+
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -205,6 +212,9 @@ model Post {
   boostRequests    BoostRequest[]
   reports          Report[]
   collaborations   Collaboration[]
+
+  @@index([userId, moderationStatus])
+  @@index([createdAt])
 }
 
 model Comment {
@@ -271,6 +281,7 @@ model Follow {
   following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@unique([followerId, followingId])
+  @@index([followingId])
 }
 
 model Notification {

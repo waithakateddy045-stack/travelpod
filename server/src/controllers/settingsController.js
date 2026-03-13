@@ -60,15 +60,14 @@ const updateSocialLinks = async (req, res, next) => {
     try {
         const BUSINESS_TYPES = ['TRAVEL_AGENCY', 'HOTEL_RESORT', 'DESTINATION', 'AIRLINE', 'ASSOCIATION'];
         const user = await prisma.user.findUnique({
-            where: { id: req.user.id },
-            include: { profile: true }
+            where: { id: req.user.id }
         });
         if (!BUSINESS_TYPES.includes(user.accountType)) throw new AppError('Only business accounts can set social links', 403);
 
         const { instagramUrl, facebookUrl, linkedinUrl, whatsappPhone } = req.body;
 
-        await prisma.businessProfile.update({
-            where: { profileId: user.profile.id },
+        await prisma.user.update({
+            where: { id: req.user.id },
             data: {
                 instagramUrl: instagramUrl?.trim() || null,
                 facebookUrl: facebookUrl?.trim() || null,
@@ -116,18 +115,11 @@ const updateProfile = async (req, res, next) => {
                 ...(displayName && { displayName: displayName.trim() }),
                 ...(handle && { username: handle.trim().toLowerCase() }),
                 ...(bio !== undefined && { bio: bio?.trim() || null }),
+                ...(description !== undefined && { bio: description?.trim() || null }), // Map description to bio
                 ...(personalityTags && { personalityTags }),
                 ...(preferredRegions && { preferredRegions }),
             }
         });
-
-        // 3. Update Business Profile description if provided
-        if (description !== undefined) {
-            await prisma.businessProfile.updateMany({
-                where: { profileId: profile.id },
-                data: { description: description?.trim() || null }
-            });
-        }
 
         res.json({ success: true, message: 'Profile updated' });
     } catch (err) { next(err); }

@@ -43,7 +43,18 @@ const getFeed = async (req, res, next) => {
         }),
         prisma.post.count({ where }),
       ]);
-      return res.json({ success: true, posts, page, total, totalPages: Math.ceil(total / limit) });
+      const mappedPosts = posts.map(p => ({
+        ...p,
+        user: p.user ? {
+          ...p.user,
+          profile: {
+            handle: p.user.username,
+            displayName: p.user.displayName,
+            avatarUrl: p.user.avatarUrl
+          }
+        } : null
+      }));
+      return res.json({ success: true, posts: mappedPosts, page, total, totalPages: Math.ceil(total / limit) });
     }
 
     // Logged-in feed (lightweight PRD-ish ranking)
@@ -109,7 +120,19 @@ const getFeed = async (req, res, next) => {
     const start = (page - 1) * limit;
     const posts = sorted.slice(start, start + limit);
 
-    res.json({ success: true, posts, page, total: sorted.length, totalPages: Math.ceil(sorted.length / limit) });
+    const mappedPosts = posts.map(p => ({
+      ...p,
+      user: p.user ? {
+        ...p.user,
+        profile: {
+          handle: p.user.username,
+          displayName: p.user.displayName,
+          avatarUrl: p.user.avatarUrl
+        }
+      } : null
+    }));
+
+    res.json({ success: true, posts: mappedPosts, page, total: sorted.length, totalPages: Math.ceil(sorted.length / limit) });
   } catch (err) {
     next(err);
   }
@@ -143,7 +166,19 @@ const getFollowingFeed = async (req, res, next) => {
       prisma.post.count({ where: { moderationStatus: 'APPROVED', userId: { in: ids } } }),
     ]);
 
-    res.json({ success: true, posts, page, total, totalPages: Math.ceil(total / limit) });
+    const mappedPosts = posts.map(p => ({
+      ...p,
+      user: p.user ? {
+        ...p.user,
+        profile: {
+          handle: p.user.username,
+          displayName: p.user.displayName,
+          avatarUrl: p.user.avatarUrl
+        }
+      } : null
+    }));
+
+    res.json({ success: true, posts: mappedPosts, page, total, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     next(err);
   }
