@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
     HiOutlineGlobeAlt, HiOutlineMapPin, HiOutlineStar,
-    HiOutlineCheckBadge, HiOutlineChatBubbleLeft,
+    HiOutlineCheckBadge, HiOutlineChatBubbleLeft, HiOutlineChatBubbleLeftRight,
     HiOutlinePlayCircle, HiOutlineHeart, HiOutlineUser,
     HiOutlineArrowLeft, HiOutlineCog6Tooth,
     HiOutlineChartBar, HiOutlineEnvelope,
