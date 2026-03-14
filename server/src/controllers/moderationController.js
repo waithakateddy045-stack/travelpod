@@ -36,7 +36,12 @@ const reportEntity = async (req, res, next) => {
                 let convo = await prisma.conversation.findFirst({
                     where: {
                         participants: {
-                            every: { userId: { in: [adminId, reporterId] } }
+                            some: { userId: adminId },
+                        },
+                        AND: {
+                            participants: {
+                                some: { userId: reporterId },
+                            },
                         }
                     }
                 });
@@ -51,7 +56,7 @@ const reportEntity = async (req, res, next) => {
                     });
                 }
 
-                await prisma.directMessage.create({
+                await prisma.message.create({
                     data: {
                         conversationId: convo.id,
                         senderId: adminId,
@@ -125,7 +130,12 @@ const resolveReport = async (req, res, next) => {
                 let convo = await prisma.conversation.findFirst({
                     where: {
                         participants: {
-                            every: { userId: { in: [adminId, reporterId] } }
+                            some: { userId: adminId },
+                        },
+                        AND: {
+                            participants: {
+                                some: { userId: reporterId },
+                            },
                         }
                     }
                 });
@@ -140,7 +150,7 @@ const resolveReport = async (req, res, next) => {
                     });
                 }
 
-                await prisma.directMessage.create({
+                await prisma.message.create({
                     data: {
                         conversationId: convo.id,
                         senderId: adminId,
@@ -222,7 +232,12 @@ const performModerationAction = async (req, res, next) => {
                     let convo = await tx.conversation.findFirst({
                         where: {
                             participants: {
-                                every: { userId: { in: [adminId, reporterId] } }
+                                some: { userId: adminId },
+                            },
+                            AND: {
+                                participants: {
+                                    some: { userId: reporterId },
+                                },
                             }
                         }
                     });
@@ -237,7 +252,7 @@ const performModerationAction = async (req, res, next) => {
                         });
                     }
 
-                    await tx.directMessage.create({
+                    await tx.message.create({
                         data: {
                             conversationId: convo.id,
                             senderId: adminId,
