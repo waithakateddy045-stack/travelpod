@@ -485,10 +485,23 @@
         flex-direction: column;
         align-items: center;
         text-align: center;
+        padding: var(--space-4) var(--space-6);
+        gap: var(--space-4);
+    }
+
+    .profile-name {
+        font-size: 1.5rem;
+        justify-content: center;
+    }
+
+    .profile-avatar {
+        width: 80px;
+        height: 80px;
     }
 
     .profile-stats {
         justify-content: center;
+        gap: var(--space-4);
     }
 
     .profile-tags {

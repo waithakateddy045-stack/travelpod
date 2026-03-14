@@ -1,4 +1,16 @@
+const prisma = require('../utils/prisma');
 const { getSeenContentIds, markContentSeen } = require('../utils/feedHelper');
+
+const publicUserSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  avatarUrl: true,
+  isVerified: true,
+  accountType: true,
+};
+
+const normalizeDestination = (dest) => String(dest || '').trim().toLowerCase();
 
 // ============================================================
 // GET /api/feed

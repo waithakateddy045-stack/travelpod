@@ -70,8 +70,9 @@
         border-radius: 0;
         border: none;
         min-height: 100vh;
-        padding: calc(env(safe-area-inset-top, 0px) + var(--space-12)) var(--space-6) var(--space-10);
-        background: var(--bg-primary); /* Solid bg for mobile focus */
+        min-height: 100dvh;
+        padding: calc(env(safe-area-inset-top, 0px) + var(--space-6)) var(--space-6) var(--space-8);
+        background: var(--bg-primary);
     }
 }
 
