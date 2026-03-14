@@ -32,14 +32,24 @@ const reportEntity = async (req, res, next) => {
                 const reporterId = req.user.id;
                 const adminId = adminUser.id;
 
-                const p1 = adminId < reporterId ? adminId : reporterId;
-                const p2 = adminId < reporterId ? reporterId : adminId;
-
-                const convo = await prisma.conversation.upsert({
-                    where: { participant1Id_participant2Id: { participant1Id: p1, participant2Id: p2 } },
-                    update: { lastMessagePreview: "Hello! We have received your report...", lastMessageAt: new Date() },
-                    create: { participant1Id: p1, participant2Id: p2, lastMessagePreview: "Hello! We have received your report..." }
+                // Find or create conversation
+                let convo = await prisma.conversation.findFirst({
+                    where: {
+                        participants: {
+                            every: { userId: { in: [adminId, reporterId] } }
+                        }
+                    }
                 });
+
+                if (!convo) {
+                    convo = await prisma.conversation.create({
+                        data: {
+                            participants: {
+                                create: [{ userId: adminId }, { userId: reporterId }]
+                            }
+                        }
+                    });
+                }
 
                 await prisma.directMessage.create({
                     data: {
@@ -111,14 +121,24 @@ const resolveReport = async (req, res, next) => {
             const adminId = req.user.id;
             const reporterId = report.reporterId;
             if (adminId !== reporterId) {
-                const p1 = adminId < reporterId ? adminId : reporterId;
-                const p2 = adminId < reporterId ? reporterId : adminId;
-
-                const convo = await prisma.conversation.upsert({
-                    where: { participant1Id_participant2Id: { participant1Id: p1, participant2Id: p2 } },
-                    update: { lastMessagePreview: "Report Resolution: Found okay.", lastMessageAt: new Date() },
-                    create: { participant1Id: p1, participant2Id: p2, lastMessagePreview: "Report Resolution: Found okay." }
+                // Find or create conversation
+                let convo = await prisma.conversation.findFirst({
+                    where: {
+                        participants: {
+                            every: { userId: { in: [adminId, reporterId] } }
+                        }
+                    }
                 });
+
+                if (!convo) {
+                    convo = await prisma.conversation.create({
+                        data: {
+                            participants: {
+                                create: [{ userId: adminId }, { userId: reporterId }]
+                            }
+                        }
+                    });
+                }
 
                 await prisma.directMessage.create({
                     data: {
@@ -198,14 +218,24 @@ const performModerationAction = async (req, res, next) => {
                 const adminId = req.user.id;
                 const reporterId = report.reporterId;
                 if (adminId !== reporterId) {
-                    const p1 = adminId < reporterId ? adminId : reporterId;
-                    const p2 = adminId < reporterId ? reporterId : adminId;
-
-                    const convo = await tx.conversation.upsert({
-                        where: { participant1Id_participant2Id: { participant1Id: p1, participant2Id: p2 } },
-                        update: { lastMessagePreview: "Report Resolution: Action Taken.", lastMessageAt: new Date() },
-                        create: { participant1Id: p1, participant2Id: p2, lastMessagePreview: "Report Resolution: Action Taken." }
+                    // Find or create conversation
+                    let convo = await tx.conversation.findFirst({
+                        where: {
+                            participants: {
+                                every: { userId: { in: [adminId, reporterId] } }
+                            }
+                        }
                     });
+
+                    if (!convo) {
+                        convo = await tx.conversation.create({
+                            data: {
+                                participants: {
+                                    create: [{ userId: adminId }, { userId: reporterId }]
+                                }
+                            }
+                        });
+                    }
 
                     await tx.directMessage.create({
                         data: {
