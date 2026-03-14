@@ -1,10 +1,16 @@
 const prisma = require('../utils/prisma');
 
-// Create a notification
 const createNotification = async ({ userId, type, title, body, relatedEntityId, relatedEntityType, metadata }) => {
     try {
         return await prisma.notification.create({
-            data: { userId, type, title, message: body, relatedEntityId, relatedEntityType },
+            data: { 
+                userId, 
+                type, 
+                title, 
+                body, 
+                relatedEntityId, 
+                relatedEntityType 
+            },
         });
     } catch (err) {
         console.error('Failed to create notification:', err.message);
@@ -25,7 +31,7 @@ const getNotifications = async (req, res, next) => {
                 skip: (page - 1) * limit, take: limit,
             }),
             prisma.notification.count({ where: { userId } }),
-            prisma.notification.count({ where: { userId, isRead: false } }),
+            prisma.notification.count({ where: { userId, readAt: null } }),
         ]);
 
         // For follow notifications, resolve the related user's username/avatar so the frontend can link to their profile
@@ -54,8 +60,8 @@ const getNotifications = async (req, res, next) => {
 const markAllRead = async (req, res, next) => {
     try {
         await prisma.notification.updateMany({
-            where: { userId: req.user.id, isRead: false },
-            data: { isRead: true },
+            where: { userId: req.user.id, readAt: null },
+            data: { isRead: true, readAt: new Date() },
         });
         res.json({ success: true });
     } catch (err) { next(err); }
@@ -66,7 +72,7 @@ const markRead = async (req, res, next) => {
     try {
         await prisma.notification.update({
             where: { id: req.params.id },
-            data: { isRead: true },
+            data: { isRead: true, readAt: new Date() },
         });
         res.json({ success: true });
     } catch (err) { next(err); }
@@ -76,7 +82,7 @@ const markRead = async (req, res, next) => {
 const getUnreadCount = async (req, res, next) => {
     try {
         const count = await prisma.notification.count({
-            where: { userId: req.user.id, isRead: false },
+            where: { userId: req.user.id, readAt: null },
         });
         res.json({ success: true, count });
     } catch (err) { next(err); }

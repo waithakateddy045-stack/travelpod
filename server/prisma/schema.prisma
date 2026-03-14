@@ -295,12 +295,15 @@ model Follow {
 model Notification {
   id        String   @id @default(cuid())
   userId    String
-  type      String
-  title     String
-  message   String
-  isRead    Boolean  @default(false)
-  linkUrl   String?
-  createdAt DateTime @default(now())
+  type              String
+  title             String
+  body              String
+  isRead            Boolean  @default(false)
+  readAt            DateTime?
+  relatedEntityId   String?
+  relatedEntityType String?
+  linkUrl           String?
+  createdAt         DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

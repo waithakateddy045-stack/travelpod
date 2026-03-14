@@ -21,15 +21,14 @@ const createCollaboration = async (req, res, next) => {
         });
 
         // Send notification
-        await prisma.notification.create({
-            data: {
-                userId: receiverId,
-                type: 'COLLABORATION_REQUEST',
-                title: 'New Collaboration Request',
-                body: `You received a collaboration invitation!`,
-                relatedEntityId: collab.id,
-                relatedEntityType: 'COLLABORATION',
-            },
+        const { createNotification } = require('./notificationController');
+        createNotification({
+            userId: receiverId,
+            type: 'COLLABORATION_REQUEST',
+            title: 'New Collaboration Request',
+            body: `You received a collaboration invitation!`,
+            relatedEntityId: collab.id,
+            relatedEntityType: 'COLLABORATION',
         }).catch(() => {});
 
         res.status(201).json({ success: true, collaboration: collab });
@@ -158,15 +157,14 @@ const acceptCollaboration = async (req, res, next) => {
         });
 
         // Notify initiator
-        await prisma.notification.create({
-            data: {
-                userId: collab.initiatorId,
-                type: 'COLLABORATION_ACCEPTED',
-                title: 'Collaboration Accepted!',
-                body: 'Your collaboration request was accepted! Check your messages.',
-                relatedEntityId: id,
-                relatedEntityType: 'COLLABORATION',
-            },
+        const { createNotification } = require('./notificationController');
+        createNotification({
+            userId: collab.initiatorId,
+            type: 'COLLABORATION_ACCEPTED',
+            title: 'Collaboration Accepted!',
+            body: 'Your collaboration request was accepted! Check your messages.',
+            relatedEntityId: id,
+            relatedEntityType: 'COLLABORATION',
         }).catch(() => {});
 
         res.json({ success: true, message: 'Collaboration accepted', conversationId: convo.id });
