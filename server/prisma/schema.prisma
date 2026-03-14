@@ -310,6 +310,8 @@ model Notification {
 
 model Conversation {
   id           String   @id @default(cuid())
+  type         String   @default("DIRECT") // DIRECT or ENQUIRY
+  relatedId    String?  // Reference to BookingEnquiry.id if ENQUIRY
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

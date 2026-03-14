@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
     HiOutlineGlobeAlt, HiOutlineMapPin, HiOutlineStar,
-    HiOutlineCheckBadge, HiOutlineChatBubbleLeft, HiOutlineChatBubbleLeftRight,
+    HiOutlineCheckBadge, HiOutlineChatBubbleLeft, HiOutlineChat,
     HiOutlinePlayCircle, HiOutlineHeart, HiOutlineUser,
     HiOutlineArrowLeft, HiOutlineCog6Tooth,
     HiOutlineChartBar, HiOutlineEnvelope,
@@ -346,7 +346,7 @@ export default function ProfilePage() {
                                 )}
                                 {isBusiness && (
                                     <Link to="/enquiries" className="profile-action-btn secondary">
-                                        <HiOutlineChatBubbleLeftRight /> Enquiries
+                                        <HiOutlineChat /> Enquiries
                                     </Link>
                                 )}
                                 {isBusiness && (

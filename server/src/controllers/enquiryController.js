@@ -125,9 +125,11 @@ const respondToEnquiry = async (req, res, next) => {
 
         const travelerId = enquiry.senderId;
 
-        // Create or reuse a conversation between business and traveler
+        // Create or reuse a dedicated conversation for this enquiry
         let conversation = await prisma.conversation.findFirst({
             where: {
+                type: 'ENQUIRY',
+                relatedId: id,
                 participants: {
                     some: { userId: businessId },
                 },
@@ -143,6 +145,8 @@ const respondToEnquiry = async (req, res, next) => {
         if (!conversation) {
             conversation = await prisma.conversation.create({
                 data: {
+                    type: 'ENQUIRY',
+                    relatedId: id,
                     participants: {
                         create: [{ userId: businessId }, { userId: travelerId }],
                     },

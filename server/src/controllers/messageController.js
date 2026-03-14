@@ -9,7 +9,12 @@ const getConversations = async (req, res, next) => {
         const userId = req.user.id;
 
         const participantRows = await prisma.conversationParticipant.findMany({
-            where: { userId },
+            where: { 
+                userId,
+                conversation: {
+                    type: 'DIRECT'
+                }
+            },
             include: {
                 conversation: {
                     include: {

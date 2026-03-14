@@ -8,7 +8,7 @@ import {
     HiOutlineBell, HiOutlineUser, HiOutlinePlayCircle,
     HiOutlineArrowPath, HiOutlineStar, HiOutlineEnvelope,
     HiOutlineChartBar, HiOutlineShare, HiOutlineEllipsisHorizontal,
-    HiOutlineChatBubbleLeftRight,
+    HiOutlineChat,
     HiOutlineRectangleStack, HiOutlineSpeakerWave, HiOutlineSpeakerXMark,
     HiCheckBadge, HiOutlinePaperAirplane, HiOutlineTrash, HiOutlineFolderPlus,
     HiOutlineMapPin
@@ -515,7 +515,7 @@ export default function FeedPage() {
                         </button>
                         {user && BUSINESS_TYPES.includes(user.accountType) && (
                             <button className="feed-nav-icon enquiry-nav-btn" onClick={() => navigate('/enquiries')} title="Enquiries">
-                                <HiOutlineChatBubbleLeftRight />
+                                <HiOutlineChat />
                                 {notificationCount > 0 && <span className="notification-badge">!</span>}
                             </button>
                         )}
