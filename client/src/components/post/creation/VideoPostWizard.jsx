@@ -67,7 +67,6 @@ export default function VideoPostWizard({ onComplete, onCancel }) {
         video.preload = 'metadata';
         video.onloadedmetadata = () => {
             setDuration(Math.round(video.duration));
-            URL.revokeObjectURL(video.src);
         };
         video.src = url;
         setStep(2);

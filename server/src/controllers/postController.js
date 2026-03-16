@@ -72,7 +72,7 @@ const createPost = async (req, res, next) => {
     } = req.body;
 
     // Normalize postType from admin UI (e.g. "STANDARD") into valid enum
-    let normalizedPostType = postType || 'VIDEO';
+    let normalizedPostType = (postType || 'VIDEO').toUpperCase();
     if (normalizedPostType === 'STANDARD') {
       normalizedPostType = 'VIDEO';
     }
@@ -117,9 +117,9 @@ const createPost = async (req, res, next) => {
       data: {
         userId,
         postType: normalizedPostType,
-        title: title || (postType === 'TEXT' ? (textContent || '').slice(0, 80) : 'Untitled'),
+        title: title || (normalizedPostType === 'TEXT' ? (textContent || '').slice(0, 80) : 'Untitled'),
         description: description || null,
-        textContent: postType === 'TEXT' ? (textContent || '').slice(0, 500) : textContent || null,
+        textContent: normalizedPostType === 'TEXT' ? (textContent || '').slice(0, 500) : textContent || null,
         videoUrl,
         thumbnailUrl,
         mediaUrls: mediaUrls.length ? mediaUrls : null,
@@ -130,7 +130,7 @@ const createPost = async (req, res, next) => {
         tags: tagList.length ? tagList : null,
         musicTitle: musicTitle || null,
         moderationStatus: 'APPROVED',
-        isReview: postType === 'REVIEW' || isReview === true || isReview === 'true',
+        isReview: normalizedPostType === 'REVIEW' || isReview === true || isReview === 'true',
         reviewOfId: reviewOfId || null,
         starRating: starRating ? Number(starRating) : null,
       },
