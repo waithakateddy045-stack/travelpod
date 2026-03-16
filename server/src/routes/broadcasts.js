@@ -20,7 +20,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
     storage,
-    limits: { fileSize: 200 * 1024 * 1024 }, // 200MB total limit
+    limits: { fileSize: 500 * 1024 * 1024 }, // 500MB total limit
 });
 
 // Admin/Association: create broadcast with rich media
