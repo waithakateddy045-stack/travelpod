@@ -223,7 +223,21 @@ export default function PostPage() {
                                     <img key={i} src={url} alt="" />
                                 ))}
                             </div>
-                        ) : null // Text posts don't need a separate media card if the info section below handles it
+                        ) : post.postType === 'VIDEO' ? (
+                            <div className="processing-placeholder" style={{ 
+                                width: '100%', 
+                                aspectRatio: '9/16', 
+                                background: '#000', 
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                gap: 'var(--space-4)'
+                            }}>
+                                <HiOutlineArrowPath className="spin" style={{ fontSize: '3rem', color: 'var(--color-primary)' }} />
+                                <p style={{ color: 'var(--text-secondary)' }}>Processing your video...</p>
+                            </div>
+                        ) : null
                         }
                     </div>
 
