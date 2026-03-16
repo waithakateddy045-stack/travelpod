@@ -57,18 +57,20 @@ async function getAvailableAccountIndex() {
             switchToAccount(i);
             const usage = await cloudinary.v2.api.usage();
             const usedPercent = (usage.storage?.used_percent) || 0;
-            console.log(`☁️ Account ${i + 1} (${ACCOUNTS[i].cloud_name}): ${usedPercent.toFixed(1)}% used`);
+            console.log(`☁️ Cloudinary Account ${i + 1} (${ACCOUNTS[i].cloud_name}): ${usedPercent.toFixed(1)}% used`);
             if (usedPercent < 80) {
                 return i;
             }
         } catch (err) {
-            console.warn(`☁️ Account ${i + 1} usage check failed:`, err.message);
-            // If it's a 401/403, we should probably skip it, otherwise it might be a rate limit
+            console.warn(`☁️ Cloudinary Account ${i + 1} usage check failed:`, err.message);
+            if (err.message.includes('Invalid API key') || err.message.includes('Unknown API key')) {
+                console.error(`❌ CRITICAL: Account ${i + 1} configuration is INVALID.`);
+            }
             continue;
         }
     }
     // Fallback to first account
-    console.warn('☁️ All accounts above 80% or checks failed — falling back to account 1');
+    console.warn('⚠️ Cloudinary: All accounts above 80% or checks failed. Using fallback Account 1.');
     return 0;
 }
 
@@ -86,9 +88,10 @@ async function uploadVideo(filePath, options = {}) {
 
     const { transformations = [], ...otherOptions } = options;
 
-    const result = await cld.uploader.upload(filePath, {
+    const result = await cld.uploader.upload_large(filePath, {
         resource_type: 'video',
         folder: 'travelpod/videos',
+        chunk_size: 6000000, // 6MB chunks
         transformation: [...VIDEO_TRANSFORMS, ...transformations],
         eager: [
             { format: 'mp4', video_codec: 'h264' },

@@ -91,21 +91,49 @@ const createPost = async (req, res, next) => {
     }
 
     if ((normalizedPostType === 'VIDEO' || normalizedPostType === 'REVIEW') && videoFile) {
-      const { result: cloudResult, accountIndex: cldAccountIndex } = await uploadVideo(videoFile.path);
-      videoUrl = cloudResult.secure_url;
-      duration = Math.round(cloudResult.duration || 0);
-      thumbnailUrl = getVideoThumbnail(cloudResult.public_id, thumbnailTime || 0, cldAccountIndex);
-      if (fs.existsSync(videoFile.path)) fs.unlinkSync(videoFile.path);
+      try {
+        console.log(`[UPLOAD] Starting video upload for user ${userId}. Path: ${videoFile.path}`);
+        const { result: cloudResult, accountIndex: cldAccountIndex } = await uploadVideo(videoFile.path);
+        
+        if (!cloudResult || !cloudResult.secure_url) {
+          throw new Error('Cloudinary returned invalid video result');
+        }
+
+        videoUrl = cloudResult.secure_url;
+        duration = Math.round(cloudResult.duration || 0);
+        thumbnailUrl = getVideoThumbnail(cloudResult.public_id, thumbnailTime || 0, cldAccountIndex);
+        
+        console.log(`[UPLOAD] Video success! URL: ${videoUrl} (Account: ${cldAccountIndex})`);
+        if (fs.existsSync(videoFile.path)) fs.unlinkSync(videoFile.path);
+      } catch (uploadErr) {
+        console.error('[UPLOAD] Video upload CRASH:', uploadErr.message);
+        throw new AppError(`Video upload failed: ${uploadErr.message}`, 500);
+      }
     }
 
     // Photo upload (multi-image carousel)
     if ((normalizedPostType === 'PHOTO' || normalizedPostType === 'REVIEW') && req.files && req.files.length > 0 && !videoUrl) {
-      for (const file of req.files) {
-        const result = await uploadImage(file.path, 'posts/photos');
-        mediaUrls.push(result.secure_url);
-        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      try {
+        console.log(`[UPLOAD] Starting photo batch upload for user ${userId}. Count: ${req.files.length}`);
+        for (const file of req.files) {
+          // Skip if it was already handled as video (though the !videoUrl check above should prevent this)
+          if (file.fieldname === 'video' || file.fieldname === 'media' && videoFile) continue;
+
+          const { result: cldRes, accountIndex: cldIdx } = await uploadImage(file.path, 'posts/photos');
+          
+          if (!cldRes || !cldRes.secure_url) {
+            throw new Error(`Cloudinary returned invalid image result for file ${file.originalname}`);
+          }
+
+          mediaUrls.push(cldRes.secure_url);
+          console.log(`[UPLOAD] Photo success! URL: ${cldRes.secure_url} (Account: ${cldIdx})`);
+          if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        }
+        thumbnailUrl = mediaUrls[0] || null;
+      } catch (uploadErr) {
+        console.error('[UPLOAD] Photo upload CRASH:', uploadErr.message);
+        throw new AppError(`Photo upload failed: ${uploadErr.message}`, 500);
       }
-      thumbnailUrl = mediaUrls[0] || null;
     }
 
     const tagList = tags
