@@ -112,24 +112,6 @@ const createPost = async (req, res, next) => {
       ? (Array.isArray(tags) ? tags : String(tags).split(',').map((t) => t.trim()).filter(Boolean))
       : [];
 
-    // #region agent log
-    fetch('http://127.0.0.1:7313/ingest/2ec3ca36-0117-4bfa-b9a3-4adba61fcd33', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Debug-Session-Id': '5114aa',
-      },
-      body: JSON.stringify({
-        sessionId: '5114aa',
-        runId: 'pre-fix',
-        hypothesisId: 'ADMIN_CREATE_POST',
-        location: 'postController.js:createPost',
-        message: 'About to create post',
-        data: { postType, title, hasFile: !!req.file, hasFiles: !!(req.files && req.files.length), isReview, reviewOfId },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion agent log
 
     const post = await prisma.post.create({
       data: {
