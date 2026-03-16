@@ -41,17 +41,22 @@ export default function PhotoPostWizard({ onComplete, onCancel }) {
             return toast.error("Maximum 4 photos allowed");
         }
 
-        const newFiles = [...files, ...selected];
-        setFiles(newFiles);
-        const newPreviews = selected.map(f => URL.createObjectURL(f));
-        setPreviews([...previews, ...newPreviews]);
+        setFiles([...files, ...selected]);
     };
 
+    // Standardized Blob URL lifecycle management
+    React.useEffect(() => {
+        const urls = files.map(f => URL.createObjectURL(f));
+        setPreviews(urls);
+
+        // Cleanup: revoke URLs on change or unmount
+        return () => {
+            urls.forEach(URL.revokeObjectURL);
+        };
+    }, [files]);
+
     const removePhoto = (index) => {
-        const newFiles = files.filter((_, i) => i !== index);
-        const newPreviews = previews.filter((_, i) => i !== index);
-        setFiles(newFiles);
-        setPreviews(newPreviews);
+        setFiles(prev => prev.filter((_, i) => i !== index));
     };
 
 

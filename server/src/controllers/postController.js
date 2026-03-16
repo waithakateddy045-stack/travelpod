@@ -90,7 +90,7 @@ const createPost = async (req, res, next) => {
       videoFile = req.files.find(f => f.fieldname === 'media' || f.fieldname === 'video');
     }
 
-    if (normalizedPostType === 'VIDEO' && videoFile) {
+    if ((normalizedPostType === 'VIDEO' || normalizedPostType === 'REVIEW') && videoFile) {
       const { result: cloudResult, accountIndex: cldAccountIndex } = await uploadVideo(videoFile.path);
       videoUrl = cloudResult.secure_url;
       duration = Math.round(cloudResult.duration || 0);
@@ -99,7 +99,7 @@ const createPost = async (req, res, next) => {
     }
 
     // Photo upload (multi-image carousel)
-    if (normalizedPostType === 'PHOTO' && req.files && req.files.length > 0) {
+    if ((normalizedPostType === 'PHOTO' || normalizedPostType === 'REVIEW') && req.files && req.files.length > 0 && !videoUrl) {
       for (const file of req.files) {
         const result = await uploadImage(file.path, 'posts/photos');
         mediaUrls.push(result.secure_url);

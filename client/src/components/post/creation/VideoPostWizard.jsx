@@ -38,29 +38,14 @@ export default function VideoPostWizard({ onComplete, onCancel }) {
 
     const fileInputRef = useRef(null);
 
+    // Standardized Blob URL lifecycle management
     useEffect(() => {
-        // Cleanup on unmount
-        return () => {
-            if (preview) {
-                URL.revokeObjectURL(preview);
-            }
-        };
-    }, []); // Empty dependency array for unmount only
-
-    const handleFileSelect = (e) => {
-        const selected = e.target.files[0];
-        if (!selected) return;
-        if (selected.size > 500 * 1024 * 1024) {
-            return toast.error("File exceeds 500MB limit");
+        if (!file) {
+            setPreview(null);
+            return;
         }
 
-        // Clean up previous blob URL before creating a new one
-        if (preview) {
-            URL.revokeObjectURL(preview);
-        }
-        
-        setFile(selected);
-        const url = URL.createObjectURL(selected);
+        const url = URL.createObjectURL(file);
         setPreview(url);
 
         const video = document.createElement('video');
@@ -69,6 +54,18 @@ export default function VideoPostWizard({ onComplete, onCancel }) {
             setDuration(Math.round(video.duration));
         };
         video.src = url;
+
+        return () => URL.revokeObjectURL(url);
+    }, [file]);
+
+    const handleFileSelect = (e) => {
+        const selected = e.target.files[0];
+        if (!selected) return;
+        if (selected.size > 500 * 1024 * 1024) {
+            return toast.error("File exceeds 500MB limit");
+        }
+        
+        setFile(selected);
         setStep(2);
     };
 

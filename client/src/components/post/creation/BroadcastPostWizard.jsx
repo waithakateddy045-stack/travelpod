@@ -25,6 +25,7 @@ export default function BroadcastPostWizard({ onComplete, onCancel }) {
     const [region, setRegion] = useState('');
     
     const [videoFile, setVideoFile] = useState(null);
+    const [videoPreview, setVideoPreview] = useState(null);
     const [imageFiles, setImageFiles] = useState([]);
     const [previews, setPreviews] = useState([]);
     const [uploading, setUploading] = useState(false);
@@ -35,15 +36,29 @@ export default function BroadcastPostWizard({ onComplete, onCancel }) {
 
     const handleVideoSelect = (e) => {
         const file = e.target.files[0];
-        if (file) setVideoFile(file);
+        if (file) {
+            setVideoFile(file);
+        }
     };
 
     const handleImagesSelect = (e) => {
         const files = Array.from(e.target.files).slice(0, 4);
         setImageFiles(files);
-        const urls = files.map(f => URL.createObjectURL(f));
-        setPreviews(urls);
     };
+
+    // Lifecycle management for Blob URLs
+    React.useEffect(() => {
+        const vUrl = videoFile ? URL.createObjectURL(videoFile) : null;
+        setVideoPreview(vUrl);
+
+        const iUrls = imageFiles.map(f => URL.createObjectURL(f));
+        setPreviews(iUrls);
+
+        return () => {
+            if (vUrl) URL.revokeObjectURL(vUrl);
+            iUrls.forEach(URL.revokeObjectURL);
+        };
+    }, [videoFile, imageFiles]);
 
     const handlePublish = async () => {
         if (!title.trim()) return toast.error("Title is required");
@@ -113,9 +128,21 @@ export default function BroadcastPostWizard({ onComplete, onCancel }) {
                             <input type="file" ref={videoInputRef} onChange={handleVideoSelect} accept="video/*" hidden />
                             <input type="file" ref={imageInputRef} onChange={handleImagesSelect} accept="image/*" multiple hidden />
                             
+                            {videoPreview && (
+                                <div className="video-preview-container">
+                                    <video src={videoPreview} controls muted />
+                                    <button className="remove-media-btn" onClick={() => setVideoFile(null)}>×</button>
+                                </div>
+                            )}
+
                             {previews.length > 0 && (
                                 <div className="media-previews-strip">
-                                    {previews.map((p, i) => <img key={i} src={p} alt="" className="media-preview-tiny" />)}
+                                    {previews.map((p, i) => (
+                                        <div key={i} className="image-preview-wrapper">
+                                            <img src={p} alt="" className="media-preview-tiny" />
+                                            <button className="remove-media-btn-small" onClick={() => setImageFiles(prev => prev.filter((_, idx) => idx !== i))}>×</button>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>

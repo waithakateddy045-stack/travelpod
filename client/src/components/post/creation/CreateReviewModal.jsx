@@ -13,7 +13,21 @@ export default function CreateReviewModal({ post, onClose, onComplete }) {
     const [starRating, setStarRating] = useState(5);
     const [location, setLocation] = useState('');
     const [mediaFile, setMediaFile] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState(null);
     const [uploading, setUploading] = useState(false);
+
+    // Lifecycle management for Blob URLs
+    React.useEffect(() => {
+        if (!mediaFile) {
+            setPreviewUrl(null);
+            return;
+        }
+
+        const url = URL.createObjectURL(mediaFile);
+        setPreviewUrl(url);
+
+        return () => URL.revokeObjectURL(url);
+    }, [mediaFile]);
 
     const handlePublish = async () => {
         if (!textContent.trim()) return toast.error("Write a quick review first!");
@@ -86,15 +100,27 @@ export default function CreateReviewModal({ post, onClose, onComplete }) {
                         <input value={location} onChange={e => setLocation(e.target.value)} placeholder="Where was this?" />
                     </div>
 
-                    <div className="tp-input-group compact" style={{ marginTop: 'var(--space-3)' }}>
-                        <label>Attach Media (Optional)</label>
-                        <input
-                            type="file"
-                            accept="video/mp4,video/quicktime,image/jpeg,image/png,image/webp"
-                            onChange={e => setMediaFile(e.target.files[0])}
-                            style={{ padding: '8px', border: '1px solid var(--border-primary)', borderRadius: 'var(--radius-md)' }}
-                        />
-                        {mediaFile && <span style={{ fontSize: '0.8rem', color: 'var(--color-primary)' }}>Selected: {mediaFile.name}</span>}
+                    <div className="rev-media-upload">
+                        <label className="rev-media-label">
+                            <input
+                                type="file"
+                                accept="video/mp4,video/quicktime,image/jpeg,image/png,image/webp"
+                                onChange={e => setMediaFile(e.target.files[0])}
+                                hidden
+                            />
+                            {mediaFile ? 'Change Media' : 'Attach Photo or Video'}
+                        </label>
+
+                        {previewUrl && (
+                            <div className="rev-media-preview">
+                                {mediaFile?.type.startsWith('video/') ? (
+                                    <video src={previewUrl} controls muted />
+                                ) : (
+                                    <img src={previewUrl} alt="Preview" />
+                                )}
+                                <button className="remove-rev-media" onClick={() => setMediaFile(null)}><HiOutlineXMark /></button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
