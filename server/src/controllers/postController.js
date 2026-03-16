@@ -91,10 +91,10 @@ const createPost = async (req, res, next) => {
     }
 
     if (normalizedPostType === 'VIDEO' && videoFile) {
-      const cloudResult = await uploadVideo(videoFile.path);
+      const { result: cloudResult, accountIndex: cldAccountIndex } = await uploadVideo(videoFile.path);
       videoUrl = cloudResult.secure_url;
       duration = Math.round(cloudResult.duration || 0);
-      thumbnailUrl = getVideoThumbnail(cloudResult.public_id, thumbnailTime || 0);
+      thumbnailUrl = getVideoThumbnail(cloudResult.public_id, thumbnailTime || 0, cldAccountIndex);
       if (fs.existsSync(videoFile.path)) fs.unlinkSync(videoFile.path);
     }
 

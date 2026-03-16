@@ -26,13 +26,13 @@ const createBroadcast = async (req, res, next) => {
 
         try {
             if (videoFile) {
-                const bcVideo = await uploadVideo(videoFile.path, { folder: 'travelpod/broadcast/videos' });
+                const { result: bcVideo, accountIndex: videoAccIdx } = await uploadVideo(videoFile.path, { folder: 'travelpod/broadcast/videos' });
                 videoUrl = bcVideo.secure_url;
-                thumbnailUrl = bcVideo.thumbnail_url || getVideoThumbnail(bcVideo.public_id);
+                thumbnailUrl = bcVideo.thumbnail_url || getVideoThumbnail(bcVideo.public_id, 0, videoAccIdx);
             }
             if (imageFiles.length > 0) {
                 for (const file of imageFiles) {
-                    const bcImg = await uploadImage(file.path, 'travelpod/broadcast/images');
+                    const { result: bcImg } = await uploadImage(file.path, 'travelpod/broadcast/images');
                     mediaUrls.push(bcImg.secure_url);
                 }
             }

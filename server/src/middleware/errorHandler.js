@@ -11,8 +11,8 @@ const errorHandler = (err, req, res, next) => {
     }
 
     const statusCode = err.statusCode || 500;
-    // Only expose error messages for operational errors (AppError instances)
-    const message = err.isOperational ? err.message : 'Internal Server Error';
+    // For now, including the message to debug railway issues
+    const message = err.isOperational ? err.message : (err.message || 'Internal Server Error');
 
     res.status(statusCode).json({
         success: false,

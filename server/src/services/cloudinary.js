@@ -7,12 +7,10 @@ const pool = require('../utils/cloudinaryPool');
 module.exports = {
     cloudinary: pool.cloudinary,
     uploadVideo: async (filePath, options = {}) => {
-        const { result } = await pool.uploadVideo(filePath, options);
-        return result;
+        return await pool.uploadVideo(filePath, options);
     },
     uploadImage: async (filePath, folder) => {
-        const { result } = await pool.uploadImage(filePath, folder);
-        return result;
+        return await pool.uploadImage(filePath, folder);
     },
     generateSmartThumbnails: pool.generateSmartThumbnails,
     getVideoThumbnail: pool.getVideoThumbnail,

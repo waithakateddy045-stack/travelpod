@@ -47,6 +47,11 @@ function switchToAccount(accountIndex) {
  * Falls back to account 1 if all are above threshold or usage check fails.
  */
 async function getAvailableAccountIndex() {
+    if (!ACCOUNTS || ACCOUNTS.length === 0) {
+        console.error('☁️ Cloudinary Pool: No accounts configured!');
+        return -1; // Indicate failure
+    }
+
     for (let i = 0; i < ACCOUNTS.length; i++) {
         try {
             switchToAccount(i);
@@ -58,11 +63,12 @@ async function getAvailableAccountIndex() {
             }
         } catch (err) {
             console.warn(`☁️ Account ${i + 1} usage check failed:`, err.message);
+            // If it's a 401/403, we should probably skip it, otherwise it might be a rate limit
             continue;
         }
     }
     // Fallback to first account
-    console.warn('☁️ All accounts above 80% — falling back to account 1');
+    console.warn('☁️ All accounts above 80% or checks failed — falling back to account 1');
     return 0;
 }
 
