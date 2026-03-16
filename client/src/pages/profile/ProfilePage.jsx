@@ -511,11 +511,12 @@ export default function ProfilePage() {
                                 >
                                     {post.thumbnailUrl ? (
                                         <img src={post.thumbnailUrl} alt={post.title} />
-                                    ) : post.videoUrl ? (
+                                    ) : (post.postType === 'VIDEO' || post.videoUrl) ? (
                                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
                                             <HiOutlinePlayCircle style={{ fontSize: '2rem', color: 'rgba(255,255,255,0.5)' }} />
+                                            {(!post.videoUrl && post.postType === 'VIDEO') && <span style={{ position: 'absolute', bottom: 10, fontSize: '0.6rem', color: '#666' }}>Processing...</span>}
                                         </div>
-                                    ) : post.mediaUrls && post.mediaUrls.length > 0 ? (
+                                    ) : (post.mediaUrls && post.mediaUrls.length > 0) ? (
                                         <img src={post.mediaUrls[0]} alt={post.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
                                         <div className="text-preview" style={{ padding: '8px', width: '100%', height: '100%', background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(20,20,20,1) 100%)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 'inherit', boxSizing: 'border-box' }}>
@@ -535,7 +536,7 @@ export default function ProfilePage() {
                                             </div>
                                             {post.title && <h4 style={{ fontSize: '0.8rem', color: '#fff', margin: '0 0 4px 0', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.title}</h4>}
                                             <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)', display: '-webkit-box', WebkitLineClamp: post.title ? 2 : 4, WebkitBoxOrient: 'vertical', overflow: 'hidden', margin: 0, lineHeight: '1.3' }}>
-                                                {post.textContent?.substring(0, 100) || post.description || "Text Post"}
+                                                {post.textContent?.substring(0, 100) || post.description || (post.postType === 'TEXT' ? "Text Post" : "Video Post")}
                                             </p>
                                         </div>
                                     )}

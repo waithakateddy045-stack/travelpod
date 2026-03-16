@@ -85,12 +85,17 @@ const createPost = async (req, res, next) => {
     let duration = null;
 
     // Video upload
-    if (normalizedPostType === 'VIDEO' && req.file) {
-      const cloudResult = await uploadVideo(req.file.path);
+    let videoFile = req.file;
+    if (!videoFile && req.files && req.files.length > 0) {
+      videoFile = req.files.find(f => f.fieldname === 'media' || f.fieldname === 'video');
+    }
+
+    if (normalizedPostType === 'VIDEO' && videoFile) {
+      const cloudResult = await uploadVideo(videoFile.path);
       videoUrl = cloudResult.secure_url;
       duration = Math.round(cloudResult.duration || 0);
       thumbnailUrl = getVideoThumbnail(cloudResult.public_id, thumbnailTime || 0);
-      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      if (fs.existsSync(videoFile.path)) fs.unlinkSync(videoFile.path);
     }
 
     // Photo upload (multi-image carousel)

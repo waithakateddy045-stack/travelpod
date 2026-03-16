@@ -45,6 +45,7 @@ export default function VideoPostWizard({ onComplete, onCancel }) {
             return toast.error("File exceeds 500MB limit");
         }
 
+        if (preview) URL.revokeObjectURL(preview);
         setFile(selected);
         const url = URL.createObjectURL(selected);
         setPreview(url);
@@ -58,6 +59,14 @@ export default function VideoPostWizard({ onComplete, onCancel }) {
         video.src = url;
         setStep(2);
     };
+
+    useEffect(() => {
+        return () => {
+            if (preview) {
+                URL.revokeObjectURL(preview);
+            }
+        };
+    }, [preview]);
 
 
 
