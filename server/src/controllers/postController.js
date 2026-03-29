@@ -93,13 +93,13 @@ const createPost = async (req, res, next) => {
     if ((normalizedPostType === 'VIDEO' || normalizedPostType === 'REVIEW') && videoFile) {
       try {
         console.log(`[UPLOAD] Starting video upload for user ${userId}. Path: ${videoFile.path}`);
-        const { result: cloudResult, accountIndex: cldAccountIndex } = await uploadVideo(videoFile.path);
+        const { result: cloudResult, accountIndex: cldAccountIndex, signedUrl } = await uploadVideo(videoFile.path);
         
-        if (!cloudResult || !cloudResult.secure_url) {
+        if (!cloudResult || !signedUrl) {
           throw new Error('Cloudinary returned invalid video result');
         }
 
-        videoUrl = cloudResult.secure_url;
+        videoUrl = signedUrl;
         duration = Math.round(cloudResult.duration || 0);
         thumbnailUrl = getVideoThumbnail(cloudResult.public_id, thumbnailTime || 0, cldAccountIndex);
         
@@ -119,14 +119,14 @@ const createPost = async (req, res, next) => {
           // Skip if it was already handled as video (though the !videoUrl check above should prevent this)
           if (file.fieldname === 'video' || file.fieldname === 'media' && videoFile) continue;
 
-          const { result: cldRes, accountIndex: cldIdx } = await uploadImage(file.path, 'posts/photos');
+          const { result: cldRes, accountIndex: cldIdx, signedUrl } = await uploadImage(file.path, 'posts/photos');
           
-          if (!cldRes || !cldRes.secure_url) {
+          if (!cldRes || !signedUrl) {
             throw new Error(`Cloudinary returned invalid image result for file ${file.originalname}`);
           }
 
-          mediaUrls.push(cldRes.secure_url);
-          console.log(`[UPLOAD] Photo success! URL: ${cldRes.secure_url} (Account: ${cldIdx})`);
+          mediaUrls.push(signedUrl);
+          console.log(`[UPLOAD] Photo success! URL: ${signedUrl} (Account: ${cldIdx})`);
           if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
         }
         thumbnailUrl = mediaUrls[0] || null;

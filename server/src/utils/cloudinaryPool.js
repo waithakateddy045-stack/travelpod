@@ -100,7 +100,13 @@ async function uploadVideo(filePath, options = {}) {
         ...otherOptions,
     });
 
-    return { result, accountIndex: accountIndex + 1 };
+    const signedUrl = cld.url(result.public_id, {
+        resource_type: 'video',
+        format: 'mp4',
+        sign_url: true, // Bypass strict delivery
+    });
+
+    return { result, accountIndex: accountIndex + 1, signedUrl };
 }
 
 // ─── Image Upload ────────────────────────────────────────────
@@ -119,7 +125,12 @@ async function uploadImage(filePath, folder = 'travelpod/images') {
         transformation: IMAGE_TRANSFORMS,
     });
 
-    return { result, accountIndex: accountIndex + 1 };
+    const signedUrl = cld.url(result.public_id, {
+        resource_type: 'image',
+        sign_url: true, // Bypass strict delivery
+    });
+
+    return { result, accountIndex: accountIndex + 1, signedUrl };
 }
 
 // ─── Thumbnail Generation ────────────────────────────────────
@@ -131,6 +142,7 @@ function generateSmartThumbnails(publicId, duration, accountIdx = 1) {
         cloudinary.v2.url(publicId, {
             resource_type: 'video',
             format: 'jpg',
+            sign_url: true, // Bypass strict transformations
             transformation: [
                 { start_offset: offset, width: 720, height: 1280, crop: 'fill', gravity: 'auto' },
                 { quality: 'auto' }
@@ -144,6 +156,7 @@ function getVideoThumbnail(publicId, offset = 0, accountIdx = 1) {
     return cloudinary.v2.url(publicId, {
         resource_type: 'video',
         format: 'jpg',
+        sign_url: true, // Bypass strict transformations
         transformation: [
             { start_offset: offset, width: 720, height: 1280, crop: 'fill', gravity: 'auto' },
             { quality: 'auto' },
