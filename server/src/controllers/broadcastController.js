@@ -26,14 +26,14 @@ const createBroadcast = async (req, res, next) => {
 
         try {
             if (videoFile) {
-                const { result: bcVideo, accountIndex: videoAccIdx } = await uploadVideo(videoFile.path, { folder: 'travelpod/broadcast/videos' });
-                videoUrl = bcVideo.secure_url;
-                thumbnailUrl = bcVideo.thumbnail_url || getVideoThumbnail(bcVideo.public_id, 0, videoAccIdx);
+                const { result: bcVideo, accountIndex: videoAccIdx, signedUrl: videoSignedUrl, credentials: videoCreds } = await uploadVideo(videoFile.path, { folder: 'travelpod/broadcast/videos' });
+                videoUrl = videoSignedUrl || bcVideo.secure_url;
+                thumbnailUrl = bcVideo.thumbnail_url || getVideoThumbnail(bcVideo.public_id, 0, videoCreds || videoAccIdx);
             }
             if (imageFiles.length > 0) {
                 for (const file of imageFiles) {
-                    const { result: bcImg } = await uploadImage(file.path, 'travelpod/broadcast/images');
-                    mediaUrls.push(bcImg.secure_url);
+                    const { result: bcImg, signedUrl: imgSignedUrl } = await uploadImage(file.path, 'travelpod/broadcast/images');
+                    mediaUrls.push(imgSignedUrl || bcImg.secure_url);
                 }
             }
         } catch (uploadErr) {

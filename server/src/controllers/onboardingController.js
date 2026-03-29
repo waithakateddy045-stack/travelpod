@@ -68,11 +68,11 @@ const uploadAvatar = async (req, res, next) => {
             throw new AppError('No avatar file uploaded', 400);
         }
 
-        const upload = await uploadImage(req.file.path, 'travelpod/avatars');
+        const { signedUrl: avatarSignedUrl } = await uploadImage(req.file.path, 'travelpod/avatars');
 
-        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        try { if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path); } catch (_) {}
 
-        const avatarUrl = upload.secure_url;
+        const avatarUrl = avatarSignedUrl;
 
         await prisma.user.update({
             where: { id: userId },

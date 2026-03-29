@@ -132,17 +132,17 @@ const updateAvatar = async (req, res, next) => {
             throw new AppError('No image file provided', 400);
         }
         console.log('📸 Uploading avatar for user:', req.user.id, 'at path:', req.file.path);
-        const upload = await uploadImage(req.file.path, 'travelpod/avatars');
-        console.log('✅ Cloudinary upload success:', upload.secure_url);
+        const { signedUrl: avatarSignedUrl } = await uploadImage(req.file.path, 'travelpod/avatars');
+        console.log('✅ Cloudinary upload success:', avatarSignedUrl);
 
-        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        try { if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path); } catch (_) {}
 
         await prisma.user.update({
             where: { id: req.user.id },
-            data: { avatarUrl: upload.secure_url }
+            data: { avatarUrl: avatarSignedUrl }
         });
 
-        res.json({ success: true, avatarUrl: upload.secure_url });
+        res.json({ success: true, avatarUrl: avatarSignedUrl });
     } catch (err) {
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         next(err);

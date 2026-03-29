@@ -93,18 +93,19 @@ const createPost = async (req, res, next) => {
     if ((normalizedPostType === 'VIDEO' || normalizedPostType === 'REVIEW') && videoFile) {
       try {
         console.log(`[UPLOAD] Starting video upload for user ${userId}. Path: ${videoFile.path}`);
-        const { result: cloudResult, accountIndex: cldAccountIndex, signedUrl } = await uploadVideo(videoFile.path);
+        const { result: cloudResult, accountIndex: cldAccountIndex, signedUrl: videoSignedUrl, credentials: cldCreds } = await uploadVideo(videoFile.path);
         
-        if (!cloudResult || !signedUrl) {
+        if (!cloudResult || !videoSignedUrl) {
           throw new Error('Cloudinary returned invalid video result');
         }
 
-        videoUrl = signedUrl;
+        videoUrl = videoSignedUrl;
         duration = Math.round(cloudResult.duration || 0);
-        thumbnailUrl = getVideoThumbnail(cloudResult.public_id, thumbnailTime || 0, cldAccountIndex);
+        // Pass credentials explicitly to avoid race conditions
+        thumbnailUrl = getVideoThumbnail(cloudResult.public_id, thumbnailTime || 0, cldCreds);
         
         console.log(`[UPLOAD] Video success! URL: ${videoUrl} (Account: ${cldAccountIndex})`);
-        if (fs.existsSync(videoFile.path)) fs.unlinkSync(videoFile.path);
+        try { if (fs.existsSync(videoFile.path)) fs.unlinkSync(videoFile.path); } catch (_) {}
       } catch (uploadErr) {
         console.error('[UPLOAD] Video upload CRASH:', uploadErr.message);
         throw new AppError(`Video upload failed: ${uploadErr.message}`, 500);
@@ -116,18 +117,17 @@ const createPost = async (req, res, next) => {
       try {
         console.log(`[UPLOAD] Starting photo batch upload for user ${userId}. Count: ${req.files.length}`);
         for (const file of req.files) {
-          // Skip if it was already handled as video (though the !videoUrl check above should prevent this)
           if (file.fieldname === 'video' || file.fieldname === 'media' && videoFile) continue;
 
-          const { result: cldRes, accountIndex: cldIdx, signedUrl } = await uploadImage(file.path, 'posts/photos');
+          const { result: cldRes, accountIndex: cldIdx, signedUrl: imgSignedUrl } = await uploadImage(file.path, 'posts/photos');
           
-          if (!cldRes || !signedUrl) {
+          if (!cldRes || !imgSignedUrl) {
             throw new Error(`Cloudinary returned invalid image result for file ${file.originalname}`);
           }
 
-          mediaUrls.push(signedUrl);
-          console.log(`[UPLOAD] Photo success! URL: ${signedUrl} (Account: ${cldIdx})`);
-          if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+          mediaUrls.push(imgSignedUrl);
+          console.log(`[UPLOAD] Photo success! URL: ${imgSignedUrl} (Account: ${cldIdx})`);
+          try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch (_) {}
         }
         thumbnailUrl = mediaUrls[0] || null;
       } catch (uploadErr) {

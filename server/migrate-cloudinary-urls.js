@@ -1,15 +1,13 @@
 /**
- * migrate-cloudinary-urls.js
- * 
- * If you have "Strict Delivery" enabled in your Cloudinary security settings,
- * public un-signed URLs will throw 401 Unauthorized errors (as seen on the feed).
- * 
- * This script iterates through all existing posts and users to regenerate 
- * their media URLs as SIGNED URLs using your Cloudinary API key and secret.
- * 
- * Run this by running:
- * cd server
- * node migrate-cloudinary-urls.js
+ * migrate-cloudinary-urls.js  (v2 — Race-Safe)
+ *
+ * Fixes ALL Cloudinary URLs in the database by:
+ *  1. Detecting which account each URL belongs to (by cloud_name in the URL)
+ *  2. Signing it with THAT account's api_secret
+ *
+ * This eliminates 401 Unauthorized errors caused by mismatched signatures.
+ *
+ * Usage:  cd server && node migrate-cloudinary-urls.js
  */
 
 require('dotenv').config();
@@ -17,6 +15,7 @@ const { PrismaClient } = require('@prisma/client');
 const cloudinary = require('cloudinary').v2;
 const prisma = new PrismaClient();
 
+// ─── Account Registry ────────────────────────────────────────
 const ACCOUNTS = [
     {
         cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -35,54 +34,74 @@ const ACCOUNTS = [
     },
 ].filter(a => a.cloud_name && a.api_key && a.api_secret);
 
+console.log(`☁️  Found ${ACCOUNTS.length} Cloudinary account(s):`);
+ACCOUNTS.forEach((a, i) => console.log(`   Account ${i + 1}: ${a.cloud_name}`));
+
 if (ACCOUNTS.length === 0) {
-    console.error("❌ No Cloudinary configurations found in .env");
+    console.error('\n❌ No Cloudinary accounts configured in .env!');
     process.exit(1);
 }
 
-// Function to get the right instance of Cloudinary based on cloud name in the URL
-function getCloudinaryInstanceForUrl(url) {
+// ─── Helpers ─────────────────────────────────────────────────
+
+/** Find the right account for a URL by matching the cloud_name in the URL */
+function getAccountForUrl(url) {
     if (!url || !url.includes('cloudinary.com')) return null;
-    
     const match = url.match(/res\.cloudinary\.com\/([^\/]+)\//);
-    const urlCloudName = match ? match[1] : null;
-
-    const account = ACCOUNTS.find(a => a.cloud_name === urlCloudName) || ACCOUNTS[0];
-
-    cloudinary.config({
-        cloud_name: account.cloud_name,
-        api_key: account.api_key,
-        api_secret: account.api_secret,
-    });
-    return cloudinary;
+    if (match) {
+        const found = ACCOUNTS.find(a => a.cloud_name === match[1]);
+        if (found) return found;
+    }
+    return ACCOUNTS[0]; // fallback
 }
 
+/** Extract public_id from a Cloudinary URL (strips version and extension) */
 function extractPublicId(url) {
     if (!url || !url.includes('cloudinary.com')) return null;
     try {
         const parts = url.split('/');
         const uploadIdx = parts.indexOf('upload');
         if (uploadIdx === -1) return null;
-        
+
         let relevantParts = parts.slice(uploadIdx + 1);
-        if (relevantParts[0].match(/^v\d+$/)) {
+        // Remove version string (e.g., v1234567890)
+        if (relevantParts[0] && relevantParts[0].match(/^v\d+$/)) {
             relevantParts.shift();
         }
+        // Remove transformation strings (e.g., s--xxx--, c_fill, w_720, etc.)
+        relevantParts = relevantParts.filter(p => !p.match(/^s--/) && !p.match(/^[a-z]_/));
 
         const fullPath = relevantParts.join('/');
         const dotIdx = fullPath.lastIndexOf('.');
-        if (dotIdx !== -1) {
-            return fullPath.substring(0, dotIdx);
-        }
-        return fullPath;
+        return dotIdx !== -1 ? fullPath.substring(0, dotIdx) : fullPath;
     } catch (e) {
         return null;
     }
 }
 
+/** Generate a signed URL using explicit credentials (race-safe) */
+function makeSignedUrl(publicId, account, options = {}) {
+    return cloudinary.url(publicId, {
+        cloud_name: account.cloud_name,
+        api_key: account.api_key,
+        api_secret: account.api_secret,
+        sign_url: true,
+        ...options,
+    });
+}
+
+/** Check if a URL already has a valid signature */
+function isAlreadySigned(url) {
+    if (!url) return false;
+    return url.includes('/s--') && url.includes('--/');
+}
+
+// ─── Main Migration ──────────────────────────────────────────
+
 async function run() {
-    console.log('🔄 Starting Cloudinary URL Migration to Signed URLs...');
-    
+    console.log('\n🔄 Starting Cloudinary URL Migration (v2)...\n');
+
+    // ── 1. Posts ──────────────────────────────────────────────
     const posts = await prisma.post.findMany({
         where: {
             OR: [
@@ -92,63 +111,64 @@ async function run() {
         }
     });
 
-    console.log(`\nFound ${posts.length} posts to check/migrate.`);
+    console.log(`📦 Found ${posts.length} posts with Cloudinary URLs.`);
     let postUpdates = 0;
+    let postSkipped = 0;
 
     for (const post of posts) {
-        let updated = false;
         const data = {};
+        let updated = false;
 
-        if (post.videoUrl && post.videoUrl.includes('cloudinary.com') && !post.videoUrl.includes('s--')) {
+        // Video URL
+        if (post.videoUrl && post.videoUrl.includes('cloudinary.com')) {
+            const account = getAccountForUrl(post.videoUrl);
+            if (!account) { postSkipped++; continue; }
+
             const publicId = extractPublicId(post.videoUrl);
-            const cld = getCloudinaryInstanceForUrl(post.videoUrl);
-            if (publicId && cld) {
-                data.videoUrl = cld.url(publicId, {
+            if (publicId) {
+                data.videoUrl = makeSignedUrl(publicId, account, {
                     resource_type: 'video',
                     format: 'mp4',
-                    sign_url: true
                 });
                 updated = true;
             }
         }
 
-        if (post.thumbnailUrl && post.thumbnailUrl.includes('cloudinary.com') && !post.thumbnailUrl.includes('s--')) {
-            const publicId = extractPublicId(post.thumbnailUrl);
-            const cld = getCloudinaryInstanceForUrl(post.thumbnailUrl);
-            if (publicId && cld) {
-                const offsetMatch = post.thumbnailUrl.match(/so_([\d\.]+)/);
-                const offset = offsetMatch ? offsetMatch[1] : 0;
-                
-                data.thumbnailUrl = cld.url(publicId, {
-                    resource_type: 'video',
-                    format: 'jpg',
-                    sign_url: true,
-                    transformation: [
-                        { start_offset: offset, width: 720, height: 1280, crop: 'fill', gravity: 'auto' },
-                        { quality: 'auto' },
-                    ]
-                });
-                updated = true;
+        // Thumbnail URL
+        if (post.thumbnailUrl && post.thumbnailUrl.includes('cloudinary.com')) {
+            const account = getAccountForUrl(post.thumbnailUrl);
+            if (account) {
+                const publicId = extractPublicId(post.thumbnailUrl);
+                if (publicId) {
+                    // Check if it's a video thumbnail with transformation params
+                    const offsetMatch = post.thumbnailUrl.match(/so_([\d.]+)/);
+                    const offset = offsetMatch ? offsetMatch[1] : '0';
+
+                    data.thumbnailUrl = makeSignedUrl(publicId, account, {
+                        resource_type: 'video',
+                        format: 'jpg',
+                        transformation: [
+                            { start_offset: offset, width: 720, height: 1280, crop: 'fill', gravity: 'auto' },
+                            { quality: 'auto' },
+                        ],
+                    });
+                    updated = true;
+                }
             }
         }
 
-        // Sign Photo Array
-        if (post.postType === 'PHOTO' && post.mediaUrls && post.mediaUrls.length > 0) {
+        // Media URLs array (photos)
+        if (post.mediaUrls && Array.isArray(post.mediaUrls) && post.mediaUrls.length > 0) {
             const newMediaUrls = post.mediaUrls.map(url => {
-                if (url.includes('cloudinary.com') && !url.includes('s--')) {
-                    const publicId = extractPublicId(url);
-                    const cld = getCloudinaryInstanceForUrl(url);
-                    if (publicId && cld) {
-                        return cld.url(publicId, {
-                            resource_type: 'image',
-                            sign_url: true
-                        });
-                    }
+                if (!url || !url.includes('cloudinary.com')) return url;
+                const account = getAccountForUrl(url);
+                const publicId = extractPublicId(url);
+                if (account && publicId) {
+                    return makeSignedUrl(publicId, account, { resource_type: 'image' });
                 }
                 return url;
             });
-            
-            // Check if any array elements changed
+
             if (JSON.stringify(newMediaUrls) !== JSON.stringify(post.mediaUrls)) {
                 data.mediaUrls = newMediaUrls;
                 updated = true;
@@ -156,51 +176,52 @@ async function run() {
         }
 
         if (updated) {
-            await prisma.post.update({
-                where: { id: post.id },
-                data
-            });
+            await prisma.post.update({ where: { id: post.id }, data });
             postUpdates++;
+        } else {
+            postSkipped++;
         }
     }
 
-    console.log(`✅ Migrated ${postUpdates} posts to Signed URLs.`);
-    
-    // 2. Migrate User Avatars
+    console.log(`✅ Posts:    ${postUpdates} migrated, ${postSkipped} skipped.`);
+
+    // ── 2. User Avatars ──────────────────────────────────────
     const users = await prisma.user.findMany({
         where: { avatarUrl: { contains: 'cloudinary.com' } }
     });
-    
-    console.log(`\nFound ${users.length} users to check for avatar migration.`);
-    let profileUpdates = 0;
-    
+
+    console.log(`\n👤 Found ${users.length} users with Cloudinary avatars.`);
+    let avatarUpdates = 0;
+
     for (const user of users) {
-        if (user.avatarUrl && user.avatarUrl.includes('cloudinary.com') && !user.avatarUrl.includes('s--')) {
-            const publicId = extractPublicId(user.avatarUrl);
-            const cld = getCloudinaryInstanceForUrl(user.avatarUrl);
-            if (publicId && cld) {
-                const signedAvatar = cld.url(publicId, {
-                    resource_type: 'image',
-                    sign_url: true
-                });
-                
-                await prisma.user.update({
-                    where: { id: user.id },
-                    data: { avatarUrl: signedAvatar }
-                });
-                profileUpdates++;
-            }
+        if (!user.avatarUrl || !user.avatarUrl.includes('cloudinary.com')) continue;
+
+        const account = getAccountForUrl(user.avatarUrl);
+        const publicId = extractPublicId(user.avatarUrl);
+        if (account && publicId) {
+            const signedAvatar = makeSignedUrl(publicId, account, { resource_type: 'image' });
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { avatarUrl: signedAvatar },
+            });
+            avatarUpdates++;
         }
     }
-    
-    console.log(`✅ Migrated ${profileUpdates} user avatars to Signed URLs.`);
-    
-    console.log('\n🎉 Migration Complete! You should no longer see 401 Unauthorized errors.');
+
+    console.log(`✅ Avatars:  ${avatarUpdates} migrated.`);
+
+    // ── Summary ──────────────────────────────────────────────
+    console.log('\n' + '═'.repeat(50));
+    console.log('🎉 Migration Complete!');
+    console.log(`   Posts:       ${postUpdates}`);
+    console.log(`   Avatars:     ${avatarUpdates}`);
+    console.log('═'.repeat(50));
+
     await prisma.$disconnect();
 }
 
 run().catch(e => {
-    console.error('Migration failed:', e);
+    console.error('\n❌ Migration failed:', e.message);
     prisma.$disconnect();
     process.exit(1);
 });
